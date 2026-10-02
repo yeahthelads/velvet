@@ -18,7 +18,7 @@ final class SystemAudioMonitor {
         RunLoop.main.add(timer!, forMode: .common)
     }
     func stop() { timer?.invalidate(); timer = nil; setPlaying(false) }
-    func poll() { setPlaying(Self.externalPlaybackActive()) }
+    func poll() { setPlaying(Self.spotifyPlaybackActive()) }
     private func setPlaying(_ value: Bool) {
         guard value != playing else { return }
         playing = value; onChange?(value)
@@ -40,13 +40,31 @@ final class SystemAudioMonitor {
         guard status == noErr else { return [] }
         return Array(ids.prefix(Int(size) / MemoryLayout<AudioObjectID>.size))
     }
-    static func externalPlaybackActive() -> Bool {
+    static func spotifyPlaybackActive() -> Bool {
         guard #available(macOS 14.2, *) else { return false }
         let ownPID = UInt32(ProcessInfo.processInfo.processIdentifier)
         return processes().contains { id in
             guard let pid = word(id, kAudioProcessPropertyPID), pid != ownPID else { return false }
-            return word(id, kAudioProcessPropertyIsRunningOutput) == 1
+            return spotifyProcessPlaying(id)
         }
+    }
+    static func isSpotifyBundle(_ identifier: String) -> Bool {
+        ["com.spotify.client", "com.spotify.client.helper", "com.spotify.client.helper.gpu", "com.spotify.client.helper.renderer", "com.spotify.client.helper.plugin"].contains(identifier)
+    }
+    private static func bundleID(_ object: AudioObjectID) -> String? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyBundleID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var value: Unmanaged<CFString>? = nil
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &value) == noErr else { return nil }
+        return value?.takeRetainedValue() as String?
+    }
+    private static func spotifyProcessPlaying(_ id: AudioObjectID) -> Bool {
+        guard let identifier = bundleID(id), isSpotifyBundle(identifier) else { return false }
+        return word(id, kAudioProcessPropertyIsRunningOutput) == 1
+    }
+    static func isSpotifyProcessPlaying(_ pid: Int32) -> Bool {
+        guard #available(macOS 14.2, *) else { return false }
+        return processes().contains { word($0, kAudioProcessPropertyPID) == UInt32(pid) && spotifyProcessPlaying($0) }
     }
     // Allows a live check against an isolated helper without inspecting app names.
     static func isProcessPlaying(_ pid: Int32) -> Bool {

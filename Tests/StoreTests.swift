@@ -24,6 +24,8 @@ import Foundation
         var danceProgress = DanceProgress()
         for _ in 0..<3 { danceProgress.recordClap() }
         precondition(danceProgress.unlock("house"))
+        danceProgress.recordClap()
+        precondition(danceProgress.payForReplay("house"))
         store.setDanceProgress(danceProgress)
         precondition(store.flush(), "Saving should succeed")
         let reopened = NoteStore(directory: directory)

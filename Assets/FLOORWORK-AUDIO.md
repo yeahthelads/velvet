@@ -1,11 +1,15 @@
-# Optional local Floorwork excerpt
+# Floorwork music
 
-Track: **“vhs”**, prod. **KYRIGO**. Source selected by the user: https://www.youtube.com/watch?v=ojLFZUTIOME
+“Sexy Scene Instrumentals Vol. 8” by **Sascha Ende** (ende.app), a slow instrumental R&B/Neo-Soul track.
 
-The creator's video description, checked on 2026-10-02, allows non-profit use with producer credit and requires a purchased lease for streaming releases. A redistribution license for shipping the recording in a public source repository has not been established. The recording is therefore **local only**, with `Assets/floorwork.wav` and its level report ignored by Git. Public builds work without this optional track. This file documents the local integration; it grants no new rights to the music.
+Creator’s recording: https://ende.app/en/song/13565-sexy-scene-instrumentals-vol-8
 
-The local excerpt starts at **00:20.426** and lasts **12 seconds**, with a 120 ms fade-in, one-second fade-out and constant -8.23 dB gain. The exported stereo PCM measures -19.99 LUFS and -8.22 dBTP, matching Velvet's other sounds. It plays only for a chosen Floorwork routine and obeys pause, mute and interruption controls. The earlier “If I Could Go Back” selection is not used.
+Creator’s license statement: https://ende.app/en/standard-license
 
-Creator's purchase/download link: https://bsta.rs/Gw8nDI
+License: **Creative Commons Attribution 4.0 International**, https://creativecommons.org/licenses/by/4.0/ . Attribution, the source and license links, and modification notice accompany the recording in the repository and the app’s Music credits menu. The excerpt remains under CC BY 4.0; no endorsement is implied.
 
-To use a separately authorized recording, place it at `Assets/floorwork.wav` (also supports MP3, M4A and AIFF) and rebuild. Confirm redistribution rights before adding that recording to source control.
+Downloaded from the creator’s linked audio: https://ende.app/storage/mp3low/7c726755-77f1-4e56-b6ce-662e698e4a46.mp3 . Source SHA-256: `75abfeb14e3ff4478e18440ad08d9a516700ef45c1ced976478990dc6a66685f`.
+
+Velvet uses **00:08–00:20**, stereo 44.1 kHz 24-bit PCM, 80 ms fade-in and one-second fade-out, constant -2.79 dB gain. The result measures -19.99 LUFS and -6.71 dBTP. It plays only for chosen Floorwork, respecting pause, mute and interruptions.
+
+This replaces the previous local KYRIGO “vhs” excerpt. Neither that recording nor the earlier Eeryskies selection is distributed.

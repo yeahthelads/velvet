@@ -30,3 +30,6 @@ Assets/*.aif
 !Assets/latte-sip.wav
 !Assets/ballet.wav
 Assets/floorwork-levels.json
+
+!Assets/disco.wav
+!Assets/floorwork.wav

@@ -26,6 +26,7 @@ final class CompanionAudio {
     private let house: DanceSample
     private let waacking: DanceSample
     private let floorwork: DanceSample
+    private let disco: DanceSample
     private let ballet: DanceSample
     private let coffee: DanceSample
     private var coffeeActive = false
@@ -39,7 +40,7 @@ final class CompanionAudio {
     var enabled = true { didSet { if !enabled { stopAll() } } }
     // Assets share a measured -20 LUFS level; this remains the master control.
     var volume: Float = 0.65 { didSet { applyVolume() } }
-    var available: Bool { hasChant || hasBreakdance || hasHouse || hasWaacking || hasBallet || hasFloorwork || hasCoffee || !oneShots.isEmpty }
+    var available: Bool { hasDisco || hasChant || hasBreakdance || hasHouse || hasWaacking || hasBallet || hasFloorwork || hasCoffee || !oneShots.isEmpty }
     var hasChant: Bool { chant.sound != nil }
     var hasBreakdance: Bool { breakdance.sound != nil }
     var hasHeadPet: Bool { headPet != nil }
@@ -48,6 +49,7 @@ final class CompanionAudio {
     var hasHouse: Bool { house.sound != nil }
     var hasWaacking: Bool { waacking.sound != nil }
     var hasFloorwork: Bool { floorwork.sound != nil }
+    var hasDisco: Bool { disco.sound != nil }
     var hasBallet: Bool { ballet.sound != nil }
     var hasClap: Bool { clap != nil }
     var latteDuration: TimeInterval { coffee.sound?.duration ?? 0 }
@@ -61,9 +63,10 @@ final class CompanionAudio {
     var isHousePlaying: Bool { house.isPlaying }
     var isWaackingPlaying: Bool { waacking.isPlaying }
     var isFloorworkPlaying: Bool { floorwork.isPlaying }
+    var isDiscoPlaying: Bool { disco.isPlaying }
     var isBalletPlaying: Bool { ballet.isPlaying }
     var isClapPlaying: Bool { clap?.isPlaying == true }
-    var isAnyDancePlaying: Bool { isChantPlaying || isBreakdancePlaying || isHousePlaying || isWaackingPlaying || isBalletPlaying || isFloorworkPlaying }
+    var isAnyDancePlaying: Bool { isChantPlaying || isBreakdancePlaying || isHousePlaying || isWaackingPlaying || isBalletPlaying || isFloorworkPlaying || isDiscoPlaying }
     var isCrossedArmsPlaying: Bool { crossedArms?.isPlaying == true }
     var isQuietPlaying: Bool { quiet?.isPlaying == true }
     init(bundle: Bundle = .main) {
@@ -81,6 +84,7 @@ final class CompanionAudio {
         house = DanceSample(sample("house"), loops: true)
         waacking = DanceSample(sample("waacking"), loops: true)
         floorwork = DanceSample(sample("floorwork"), loops: false)
+        disco = DanceSample(sample("disco"), loops: false)
         ballet = DanceSample(sample("ballet"), loops: false)
         let latteMix = sample("latte-sip")
         hasLatteMix = latteMix != nil
@@ -91,15 +95,16 @@ final class CompanionAudio {
         applyVolume()
     }
     private func applyVolume() {
-        for sound in oneShots + [chant.sound, breakdance.sound, house.sound, waacking.sound, floorwork.sound, ballet.sound, coffee.sound].compactMap({ $0 }) { sound.volume = volume }
+        for sound in oneShots + [chant.sound, breakdance.sound, house.sound, waacking.sound, floorwork.sound, ballet.sound, disco.sound, coffee.sound].compactMap({ $0 }) { sound.volume = volume }
     }
-    func updateDance(vogue: Bool, breaking: Bool, house: Bool = false, waacking: Bool = false, ballet: Bool = false, floorwork: Bool = false, paused: Bool = false) {
+    func updateDance(vogue: Bool, breaking: Bool, house: Bool = false, waacking: Bool = false, ballet: Bool = false, floorwork: Bool = false, disco: Bool = false, paused: Bool = false) {
         chant.update(playing: enabled && vogue, pause: paused)
         breakdance.update(playing: enabled && breaking, pause: paused)
         self.house.update(playing: enabled && house, pause: paused)
         self.waacking.update(playing: enabled && waacking, pause: paused)
         self.ballet.update(playing: enabled && ballet, pause: paused)
         self.floorwork.update(playing: enabled && floorwork, pause: paused)
+        self.disco.update(playing: enabled && disco, pause: paused)
     }
     func updateVogue(playing: Bool, paused: Bool = false) { updateDance(vogue: playing, breaking: false, paused: paused) }
     private func playOnce(_ sound: NSSound?) {
@@ -122,7 +127,7 @@ final class CompanionAudio {
     func playClap() { playOnce(clap) }
     func playCrossedArms() { playOnce(crossedArms) }
     func playQuiet() { playOnce(quiet) }
-    func stopDance() { chant.stop(); breakdance.stop(); house.stop(); waacking.stop(); ballet.stop(); floorwork.stop() }
+    func stopDance() { chant.stop(); breakdance.stop(); house.stop(); waacking.stop(); ballet.stop(); floorwork.stop(); disco.stop() }
     func stopAll() {
         stopDance(); stopCoffee()
         for sound in oneShots where sound.isPlaying { sound.stop() }

@@ -357,6 +357,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func petHead() { character.rubCrown() }
     @objc func applaudHer() { character.applaud() }
+    @objc func showMusicCredits() {
+        let alert = NSAlert()
+        alert.messageText = "Music credits"
+        if let url = Bundle.main.url(forResource: "MUSIC-CREDITS", withExtension: "txt"), let text = try? String(contentsOf: url, encoding: .utf8) { alert.informativeText = text }
+        alert.addButton(withTitle: "Done")
+        alert.runModal()
+    }
     @objc func toggleCompanionSounds() { character.audio.enabled.toggle(); rebuildMenu() }
     func item(_ title: String, _ selector: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; return item
@@ -390,11 +397,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             sound.state = character.audio.enabled ? .on : .off
             menu.addItem(sound)
         }
-        let listening = item("Listen to system audio", #selector(toggleListening))
+        let listening = item("Listen to Spotify", #selector(toggleListening))
         listening.state = character.listensToAudio ? .on : .off
         listening.isEnabled = systemAudio.supported
         if !systemAudio.supported { listening.toolTip = "Requires macOS 14.2 or later" }
         menu.addItem(listening)
+        menu.addItem(item("Music credits", #selector(showMusicCredits)))
         menu.addItem(item("Make her grumpy", #selector(makeGrumpy)))
         menu.addItem(.separator())
         menu.addItem(item(pet.isVisible ? "Hide Velvet" : "Show Velvet", #selector(togglePet)))
@@ -512,7 +520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if mood.isDance || mood == .coffee {
                 for i in 0..<(mood == .coffee ? 6 : (mood == .breakdance ? 8 : 4)) {
                     switch mood {
-                    case .disco: character.previewTime = Double(i) * 0.65 + 0.2
+                    case .disco: character.previewTime = Double(i) * (60.0 / 115) + 0.2
                     case .house: character.previewTime = Double(i) * 0.28 + 0.05
                     case .waacking: character.previewTime = Double(i) * 0.24 + 0.05
                     case .breakdance: character.previewTime = [0.2, 1.2, 2.2, 3.0, 3.6, 5.8, 7.0, 10.0][i]
@@ -699,8 +707,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["restlessKeepsNotesAvailable"] = character.canGiveNotes
                 let button = NSPoint(x: character.applauseButtonRect.midX, y: character.applauseButtonRect.midY)
                 checks["restlessShowsClickableDanceChooser"] = character.showsDanceChooser && character.interactiveArea(button) && character.hitTest(button) is NSButton
-                checks["danceMenuOffersSevenClearChoices"] = character.makeDanceMenu().items.map(\.title) == ["Ballet", "Breakdance", "Floorwork", "House", "Robot disco", "Vogue Fem", "Waacking"]
-                checks["contextMenuClearlyOffersDanceChooser"] = makeMenu().items.contains { $0.title == "Choose a dance · she’s restless" && $0.submenu?.items.count == 7 }
+                checks["danceMenuOffersSevenClearChoices"] = character.makeDanceMenu().items.filter { $0.representedObject != nil }.map(\.title) == ["Ballet", "Breakdance", "Floorwork", "House", "Robot disco", "Vogue Fem", "Waacking"].map { $0 + " · 1 clap" }
+                checks["contextMenuClearlyOffersDanceChooser"] = makeMenu().items.contains { $0.title == "Choose a dance · she’s restless" && $0.submenu?.items.filter { $0.representedObject != nil }.count == 7 }
                 _ = capture("restless-preview.png")
                 openNotes()
                 checks["restlessCanOpenNotes"] = notes.isVisible && character.performance.restless
@@ -708,13 +716,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             },
             { [self] in
                 checks["restlessReturnsAfterPaper"] = character.mood == .restless
-                let danceMenu = character.makeDanceMenu()
+                let danceMenu = character.makeDanceMenu(invited: true)
                 if let index = danceMenu.items.firstIndex(where: { $0.representedObject as? String == Mood.disco.rawValue }) { danceMenu.performActionForItem(at: index) }
                 checks["chosenDanceStartsWithoutPrematureRelief"] = character.mood == .disco && character.performance.restless && !character.showsDanceChooser
                 character.moodUntil = .distantPast
             },
             { [self] in
-                checks["completedDanceSettlesAndHoldsFinish"] = !character.performance.restless && character.performance.awaitingApplause && character.mood == .showOff
+                checks["completedChosenDanceSettlesWithoutApplause"] = !character.performance.restless && !character.performance.awaitingApplause
+                character.showOff()
                 checks["heldFinishOffersApplauseMenu"] = makeMenu().items.contains { $0.title == "Applaud her" }
                 let original = capture("held-finish-preview.png")
                 character.previewTime = 120
@@ -790,7 +799,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 character.moodUntil = .distantPast
             },
             { [self] in
-                checks["everyChosenDanceOffersApplause"] = !character.performance.restless && character.performance.awaitingApplause && character.mood == .showOff
+                checks["selectedHouseFinishesWithoutApplause"] = !character.performance.restless && !character.performance.awaitingApplause && character.mood != .showOff
                 character.chooseDance(.waacking)
                 checks["waackingRoutineLoadsAndStarts"] = character.mood == .waacking && (64...67).contains(character.displayedSpriteIndex ?? -1)
                 checks["houseAutomaticVogueAndWaackingChoiceOnly"] = Mood.automaticDances.contains(.house) && !Mood.automaticDances.contains(.vogue) && !Mood.automaticDances.contains(.waacking)
@@ -1074,7 +1083,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var checks: [String: Any] = [:]
         let audio = character.audio
         guard audio.available else { return ["optionalAudioMissingIsSilent": !audio.isChantPlaying && !audio.isHeadPetPlaying] }
-        checks["allBundledSoundEventsLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet && audio.hasHouse && audio.hasWaacking && audio.hasBallet && audio.hasClap && audio.hasLatteMix
+        checks["allBundledSoundEventsLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet && audio.hasHouse && audio.hasWaacking && audio.hasBallet && audio.hasDisco && audio.hasFloorwork && audio.hasClap && audio.hasLatteMix
         let visible = notes.isVisible, noteID = store.selectedID, body = store.selected?.body
         character.stimulation = StimulationState(cooldown: 60)
         character.mood = .idle; character.moodUntil = .distantPast
@@ -1136,12 +1145,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.stimulation = StimulationState(cooldown: 60)
         if audio.hasFloorwork {
             character.chooseDance(.floorwork)
-            checks["chosenFloorworkPlaysItsLocalExcerpt"] = audio.isFloorworkPlaying && !audio.isBalletPlaying && !audio.isChantPlaying && !audio.isHousePlaying && !audio.isWaackingPlaying && !audio.isBreakdancePlaying
+            checks["chosenFloorworkPlaysLicensedExcerpt"] = audio.isFloorworkPlaying && !audio.isBalletPlaying && !audio.isChantPlaying && !audio.isHousePlaying && !audio.isWaackingPlaying && !audio.isBreakdancePlaying
             character.paused = true
             checks["pausingFloorworkPausesExcerpt"] = !audio.isFloorworkPlaying
             character.paused = false
             checks["resumingFloorworkContinuesExcerpt"] = audio.isFloorworkPlaying
         }
+        character.chooseDance(.disco)
+        checks["chosenDiscoPlaysItsOwnTrack"] = audio.isDiscoPlaying && !audio.isFloorworkPlaying && !audio.isHousePlaying
+        character.paused = true
+        checks["pausingDiscoPausesMusic"] = !audio.isDiscoPlaying
+        character.paused = false
+        checks["resumingDiscoContinuesMusic"] = audio.isDiscoPlaying
+        audio.enabled = false
+        checks["mutingDiscoStopsMusic"] = !audio.isAnyDancePlaying
+        audio.enabled = true; character.react(.idle)
         character.chooseDance(.ballet)
         checks["balletReplacesFloorworkMusic"] = !audio.isFloorworkPlaying
         checks["chosenBalletPlaysOnlyPiano"] = audio.isBalletPlaying && !audio.isHousePlaying && !audio.isChantPlaying && !audio.isBreakdancePlaying && !audio.isWaackingPlaying
@@ -1165,7 +1183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         endFocus(); character.react(.idle); character.chooseDance(.waacking); audio.enabled = false
         checks["soundToggleMutesWaackingMusic"] = !audio.isAnyDancePlaying
         character.react(.idle); audio.enabled = true
-        for dance in [Mood.ballet, .floorwork, .house, .waacking, .vogue, .breakdance] {
+        for dance in [Mood.ballet, .floorwork, .house, .waacking, .vogue, .breakdance, .disco] {
             character.react(dance)
             checks["unchosen\(dance.rawValue)StaysSilent"] = !audio.isAnyDancePlaying
             character.react(.idle)
@@ -1245,9 +1263,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func checkDanceProgress(previewDirectory: URL, completion: @escaping ([String: Any]) -> Void) {
         var checks: [String: Any] = [:]
+        character.danceProgress = DanceProgress(completedClaps: 19, unlockedDanceIDs: DanceProgress.danceIDs)
+        character.mood = .idle; character.moodUntil = .distantPast
+        let replayMenu = character.makeDanceMenu()
+        if let choice = replayMenu.items.first(where: { $0.representedObject as? String == Mood.disco.rawValue }), let action = choice.action {
+            NSApp.sendAction(action, to: choice.target, from: choice)
+        }
+        checks["menuReplaySpendsOneClap"] = character.mood == .disco && character.danceProgress.clapBalance == 0 && character.audio.isDiscoPlaying
+        character.moodUntil = .distantPast
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
+            checks["menuReplayCannotFarmApplause"] = !character.showsApplause && !character.performance.awaitingApplause && !character.audio.isDiscoPlaying
+            character.react(.idle)
+            character.chooseDance(.house)
+            checks["zeroBalanceRefusesPaidReplay"] = character.mood == .idle && !character.audio.isHousePlaying
+            character.makeRestless()
+            let invitation = character.makeDanceMenu(invited: true)
+            if let choice = invitation.items.first(where: { $0.representedObject as? String == Mood.ballet.rawValue }), let action = choice.action {
+                NSApp.sendAction(action, to: choice.target, from: choice)
+            }
+            checks["restlessInvitationWorksAtZeroBalance"] = character.mood == .ballet && character.danceProgress.clapBalance == 0
+            character.moodUntil = .distantPast
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
+                checks["invitedFinishCannotFarmApplause"] = !character.showsApplause && !character.performance.awaitingApplause
+                character.clickApplauseButton()
+                checks["invitedLateClapCannotIncreaseBalance"] = character.danceProgress.clapBalance == 0
+                checkFreshDanceProgress(previewDirectory: previewDirectory) { checks.merge($0, uniquingKeysWith: { _, new in new }); completion(checks) }
+            }
+        }
+    }
+    private func checkFreshDanceProgress(previewDirectory: URL, completion: @escaping ([String: Any]) -> Void) {
+        var checks: [String: Any] = [:]
         character.danceProgress = DanceProgress()
         character.mood = .idle; character.moodUntil = .distantPast
-        checks["freshProfileOffersOnlyBallet"] = character.availableDances == [.ballet] && character.makeDanceMenu().items.filter { $0.representedObject != nil }.map(\.title) == ["Ballet"]
+        checks["freshProfileOffersOnlyBallet"] = character.availableDances == [.ballet] && character.makeDanceMenu().items.filter { $0.representedObject != nil }.map(\.title) == ["Ballet · 1 clap"]
         character.chooseDance(.house); character.react(.vogue)
         checks["lockedDancesCannotStartOrPlayMusic"] = !character.mood.isDance && !character.audio.isAnyDancePlaying
         let menu = makeMenu()
@@ -1286,13 +1334,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["secondRewardAddsOnlyChosenDance"] = character.unlockDance(.waacking) && character.availableDances == [.ballet, .house, .waacking] && character.danceProgress.availableUnlocks == 0
                 checks["earnedProgressSurvivesRestart"] = store.flush() && NoteStore(directory: store.directory).danceProgress == character.danceProgress
                 // Remaining regression checks use only this temporary, fully unlocked profile.
-                character.danceProgress = DanceProgress(completedClaps: 18, unlockedDanceIDs: DanceProgress.danceIDs)
+                character.danceProgress = DanceProgress(completedClaps: 1000, unlockedDanceIDs: DanceProgress.danceIDs)
                 character.react(.idle); character.moodUntil = .distantPast
                 openNotes()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
                 return
             }
-            character.chooseDance(.ballet); character.moodUntil = .distantPast
+            character.react(.ballet, duration: 12); character.moodUntil = .distantPast
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
                 checks["eachBalletFinishOffersClap\(lap + 1)"] = character.showsApplause && !character.audio.isBalletPlaying
                 let count = character.danceProgress.completedClaps

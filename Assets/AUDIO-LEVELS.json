@@ -116,6 +116,22 @@
       "balanced_lufs": -20.0,
       "true_peak_db": -5.99,
       "duration_seconds": 12.0
+    },
+    {
+      "file": "disco.wav",
+      "original_lufs": -11.02,
+      "gain_db": -8.98,
+      "balanced_lufs": -19.99,
+      "true_peak_db": -9.15,
+      "duration_seconds": 12.0
+    },
+    {
+      "file": "floorwork.wav",
+      "original_lufs": -17.21,
+      "gain_db": -2.79,
+      "balanced_lufs": -19.99,
+      "true_peak_db": -6.71,
+      "duration_seconds": 12.0
     }
   ],
   "latte_mix": {

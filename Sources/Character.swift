@@ -543,26 +543,30 @@ final class CharacterView: NSView {
     func makeAnnoyed() { guard canInteract else { return }; care.annoy(); react(baseMood) }
     private func updateCompanionAudio() {
         let chosen = danceChosen && !reduceMotion
-        audio.updateDance(vogue: chosen && mood == .vogue, breaking: chosen && mood == .breakdance, house: chosen && mood == .house, waacking: chosen && mood == .waacking, ballet: chosen && mood == .ballet, floorwork: chosen && mood == .floorwork, paused: paused)
+        audio.updateDance(vogue: chosen && mood == .vogue, breaking: chosen && mood == .breakdance, house: chosen && mood == .house, waacking: chosen && mood == .waacking, ballet: chosen && mood == .ballet, floorwork: chosen && mood == .floorwork, disco: chosen && mood == .disco, paused: paused)
         audio.updateCoffee(playing: mood == .coffee, paused: paused)
     }
     private func cancelDance() { audio.stopDance(); danceInProgress = false; danceChosen = false }
-    func chooseDance(_ dance: Mood) {
+    func chooseDance(_ dance: Mood, invited: Bool = false, newlyUnlocked: Bool = false) {
         guard dance.isChoreography, danceProgress.allows(dance.rawValue), canGiveNotes, focusRest == nil, !stimulation.overstimulated, mood != .coffee else { return }
+        let freeInvitation = invited && performance.restless && dance == .ballet
+        guard freeInvitation || newlyUnlocked || danceProgress.canReplay(dance.rawValue) else { return }
         recordStimulation()
         guard !stimulation.overstimulated else { return }
         responses.cancelZoomies()
         audio.stopAll()
         react(dance, duration: 12)
         if mood == dance {
+            if !freeInvitation && !newlyUnlocked { _ = danceProgress.payForReplay(dance.rawValue) }
             danceChosen = true
             updateCompanionAudio()
+            onPerformanceChanged?()
         }
     }
     private func finishDanceIfNeeded() {
         guard danceInProgress, mood.isChoreography else { return }
         if let atlas { heldFinish = spritePose(time: animationTime, mood: mood, atlas: atlas); showOffPose = heldFinish!.index }
-        performance.finishDance(chosen: danceChosen)
+        performance.finishDance(chosen: danceChosen, earnsUnlock: !danceChosen)
         moodBegan = Date()
         cancelDance(); updateAccessibilityHelp()
         onPerformanceChanged?()
@@ -603,15 +607,18 @@ final class CharacterView: NSView {
         danceButton.isHidden = !showsDanceChooser
         if showsDanceChooser { danceButton.frame = applauseButtonRect }
     }
-    func makeDanceMenu() -> NSMenu {
+    func makeDanceMenu(invited: Bool = false) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
         for dance in availableDances {
-            let item = NSMenuItem(title: dance.danceTitle, action: #selector(danceChosen(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: dance.danceTitle + (invited && dance == .ballet ? " · free" : " · 1 clap"), action: #selector(danceChosen(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = dance.rawValue
-            item.isEnabled = canChooseDance
+            item.tag = invited ? 1 : 0
+            item.isEnabled = canChooseDance && (invited && dance == .ballet || danceProgress.canReplay(dance.rawValue))
             menu.addItem(item)
         }
+        let balance = NSMenuItem(title: "\(danceProgress.clapBalance) claps", action: nil, keyEquivalent: "")
+        balance.isEnabled = false; menu.addItem(balance)
         let locked = Mood.danceChoices.filter { !danceProgress.allows($0.rawValue) }
         if !locked.isEmpty {
             menu.addItem(.separator())
@@ -637,15 +644,15 @@ final class CharacterView: NSView {
     }
     @objc private func unlockDanceChosen(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String, let dance = Mood(rawValue: id) else { return }
-        if unlockDance(dance) { chooseDance(dance) }
+        if unlockDance(dance) { chooseDance(dance, newlyUnlocked: true) }
     }
     @objc private func danceChooserPressed() {
         guard showsDanceChooser else { return }
-        makeDanceMenu().popUp(positioning: nil, at: NSPoint(x: danceButton.frame.minX, y: danceButton.frame.maxY + 3), in: self)
+        makeDanceMenu(invited: performance.restless).popUp(positioning: nil, at: NSPoint(x: danceButton.frame.minX, y: danceButton.frame.maxY + 3), in: self)
     }
     @objc private func danceChosen(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? String, let dance = Mood(rawValue: value) else { return }
-        chooseDance(dance)
+        chooseDance(dance, invited: sender.tag == 1 && performance.restless)
     }
     @objc private func applausePressed() { applaud() }
     func clickApplauseButton() { applauseButton.performClick(nil) }
@@ -858,7 +865,7 @@ final class CharacterView: NSView {
         case .recover: index = hasWellbeingAnimation && active && elapsed < 0.6 ? 51 : 36
         case .reconcile: index = active && t.truncatingRemainder(dividingBy: 6.8) < 0.14 ? 1 : 0
         case .shySmile: index = hasInteractionAnimation ? 36 : 1
-        case .disco: index = hasDiscoAnimation ? (active ? 52 + Int(elapsed / 0.65) % 4 : 52) : 16
+        case .disco: index = hasDiscoAnimation ? (active ? 52 + Int(elapsed / (60.0 / 115)) % 4 : 52) : 16
         case .restless: index = (hasClubAnimation ? 58 : 5) + (active ? Int(elapsed * 3) % 2 : 0)
         case .showOff: index = min(showOffPose, atlas.frames.count - 1)
         case .house: index = hasClubAnimation ? 60 + (active ? Int(elapsed / 0.28) % 4 : 0) : 5
@@ -964,11 +971,11 @@ final class CharacterView: NSView {
         }
         if mood == .disco && hasDiscoAnimation && (previewTime != nil || (!paused && !reduceMotion)) {
             let elapsed = max(0, previewTime ?? Date().timeIntervalSince(moodBegan))
-            let phase = elapsed.truncatingRemainder(dividingBy: 0.65)
+            let phase = elapsed.truncatingRemainder(dividingBy: (60.0 / 115))
             if phase < 0.12 {
                 let progress = phase / 0.12
                 fraction = progress * progress * (3 - 2 * progress)
-                let lastIndex = elapsed < 0.65 ? 0 : 52 + (Int(elapsed / 0.65) + 3) % 4
+                let lastIndex = elapsed < (60.0 / 115) ? 0 : 52 + (Int(elapsed / (60.0 / 115)) + 3) % 4
                 previous = spritePose(time: t, mood: .disco, atlas: atlas, forcedIndex: lastIndex)
             }
         }
@@ -994,52 +1001,57 @@ final class CharacterView: NSView {
     private func drawHeadphones(in rect: NSRect, time: Double, mood: Mood) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let elapsed = previewTime ?? listeningState.elapsed
-        let progress = reduceMotion ? 1 : min(1, max(0, elapsed / (mood == .unplug ? ListeningState.takeOffDuration : 0.65)))
-        let slide = mood == .plugIn ? (1 - progress) * -12 : (mood == .unplug ? progress * -12 : 0)
+        let progress = reduceMotion ? 1 : min(1, max(0, elapsed / (mood == .unplug ? ListeningState.takeOffDuration : ListeningState.putOnDuration)))
+        let insertion = mood == .plugIn ? progress : (mood == .unplug ? 1 - progress : 1)
         context.saveGState()
-        if mood == .unplug { context.setAlpha(1 - progress) }
-        context.translateBy(x: rect.minX, y: rect.minY + slide)
+        context.setAlpha(insertion)
+        context.translateBy(x: rect.minX, y: rect.minY + (1 - insertion) * 7)
         context.scaleBy(x: rect.width / 100, y: rect.height / 100)
-        let rim = NSColor(calibratedRed: 0.15, green: 0.19, blue: 0.42, alpha: 1)
-        let shell = NSColor(calibratedRed: 0.52, green: 0.63, blue: 0.98, alpha: 1)
-        let light = NSColor(calibratedRed: 0.76, green: 0.82, blue: 1, alpha: 1)
-        let blush = NSColor(calibratedRed: 0.93, green: 0.52, blue: 0.80, alpha: 1)
-        let cyan = NSColor(calibratedRed: 0.55, green: 0.95, blue: 0.97, alpha: 1)
-        let band = NSBezierPath()
-        band.move(to: NSPoint(x: 8, y: 36))
-        band.curve(to: NSPoint(x: 92, y: 36), controlPoint1: NSPoint(x: 3, y: -5), controlPoint2: NSPoint(x: 96, y: -5))
-        band.lineCapStyle = .round
-        rim.setStroke(); band.lineWidth = 8; band.stroke()
-        shell.setStroke(); band.lineWidth = 5; band.stroke()
-        light.setStroke(); band.lineWidth = 1.3; band.stroke()
-        for x in [2.0, 85.0] {
-            let pad = NSBezierPath(roundedRect: NSRect(x: x, y: 28, width: 13, height: 25), xRadius: 6, yRadius: 6)
-            rim.setFill(); pad.fill()
-            let cup = NSBezierPath(roundedRect: NSRect(x: x + 1, y: 29, width: 10, height: 22), xRadius: 5, yRadius: 5)
-            NSGradient(starting: light, ending: shell)?.draw(in: cup, angle: -40)
-            rim.setStroke(); cup.lineWidth = 1.5; cup.stroke()
-            roundRect(NSRect(x: x + 3, y: 34, width: 5, height: 13), radius: 2, fill: blush)
-            ellipse(NSRect(x: x + 4, y: 48, width: 3, height: 2), cyan)
+        let white = NSColor(calibratedRed: 0.91, green: 0.93, blue: 0.96, alpha: 1)
+        let edge = NSColor(calibratedRed: 0.51, green: 0.59, blue: 0.73, alpha: 1)
+        let shade = NSColor(calibratedRed: 0.65, green: 0.73, blue: 0.85, alpha: 1)
+        let cordBase = NSColor(calibratedRed: 0.72, green: 0.77, blue: 0.85, alpha: 1)
+        let cordLight = NSColor(calibratedRed: 0.83, green: 0.86, blue: 0.91, alpha: 1)
+        let contact = NSColor(calibratedRed: 0.17, green: 0.24, blue: 0.44, alpha: 0.28)
+        let grille = NSColor(calibratedRed: 0.32, green: 0.36, blue: 0.43, alpha: 1)
+        let join = NSPoint(x: 53, y: 78)
+        let left = NSBezierPath()
+        left.move(to: NSPoint(x: 13, y: 45))
+        left.curve(to: join, controlPoint1: NSPoint(x: 10, y: 64), controlPoint2: NSPoint(x: 26, y: 73))
+        let right = NSBezierPath()
+        right.move(to: NSPoint(x: 88, y: 45))
+        right.curve(to: join, controlPoint1: NSPoint(x: 91, y: 67), controlPoint2: NSPoint(x: 74, y: 74))
+        let lead = NSBezierPath()
+        lead.move(to: join)
+        lead.curve(to: NSPoint(x: 63, y: 83), controlPoint1: NSPoint(x: 54, y: 93), controlPoint2: NSPoint(x: 78, y: 94))
+        for cord in [left, right, lead] {
+            cord.lineCapStyle = .round; cord.lineJoinStyle = .round
+            context.saveGState()
+            context.translateBy(x: 0.6, y: 0.8)
+            contact.setStroke(); cord.lineWidth = 2.2; cord.stroke()
+            context.restoreGState()
+            cordBase.setStroke(); cord.lineWidth = 1.8; cord.stroke()
+            context.saveGState()
+            context.translateBy(x: -0.25, y: -0.25)
+            cordLight.setStroke(); cord.lineWidth = 0.7; cord.stroke()
+            context.restoreGState()
         }
-        // A loose cable lands in a tiny side port; the hand plugs it in after
-        // lowering the headband. The cable and earcups share the sprite transform.
-        let inserting = mood == .plugIn && !reduceMotion ? min(1, max(0, (elapsed - 0.65) / 0.65)) : 1
-        let tip = NSPoint(x: 64 + 20 * (1 - inserting), y: 77 - 12 * (1 - inserting))
-        let cable = NSBezierPath()
-        cable.move(to: NSPoint(x: 91, y: 52))
-        cable.curve(to: tip, controlPoint1: NSPoint(x: 102, y: 83), controlPoint2: NSPoint(x: 92, y: 93))
-        rim.setStroke(); cable.lineWidth = 1.5; cable.stroke()
-        roundRect(NSRect(x: 61, y: 74, width: 6, height: 7), radius: 2, fill: rim)
-        roundRect(NSRect(x: tip.x - 2, y: tip.y - 1, width: 6, height: 3), radius: 1, fill: light)
-        if mood == .plugIn && elapsed > 0.55 && elapsed < 1.5 && !reduceMotion {
-            let arm = NSBezierPath()
-            arm.move(to: NSPoint(x: 72, y: 73))
-            arm.curve(to: tip, controlPoint1: NSPoint(x: 90, y: 86), controlPoint2: NSPoint(x: tip.x + 9, y: tip.y + 4))
-            rim.setStroke(); arm.lineWidth = 7; arm.lineCapStyle = .round; arm.stroke()
-            shell.setStroke(); arm.lineWidth = 5; arm.stroke()
-            ellipse(NSRect(x: tip.x - 3, y: tip.y - 3, width: 8, height: 7), light)
+        for center in [13.0, 88.0] {
+            let ear = NSBezierPath(ovalIn: NSRect(x: center - 3.8, y: 34, width: 7.6, height: 9))
+            context.saveGState()
+            context.translateBy(x: 0.8, y: 0.8)
+            contact.setFill(); ear.fill()
+            context.restoreGState()
+            NSGradient(starting: white, ending: shade)?.draw(in: ear, angle: -40)
+            edge.setStroke(); ear.lineWidth = 0.5; ear.stroke()
+            let stem = NSBezierPath(roundedRect: NSRect(x: center - 1.6, y: 41, width: 3.2, height: 7), xRadius: 1.6, yRadius: 1.6)
+            NSGradient(starting: cordLight, ending: shade)?.draw(in: stem, angle: 0)
+            roundRect(NSRect(x: center - 1.5, y: 36.5, width: 3, height: 1.4), radius: 0.6, fill: grille)
+            ellipse(NSRect(x: center - 1, y: 34.8, width: 1.2, height: 1.2), white)
         }
-        if inserting == 1 { ellipse(NSRect(x: 61, y: 74, width: 2, height: 2), cyan) }
+        roundRect(NSRect(x: 51.2, y: 76, width: 3.6, height: 5), radius: 1.5, fill: cordBase)
+        roundRect(NSRect(x: 61, y: 81, width: 5, height: 3.5), radius: 1.4, fill: edge)
+        roundRect(NSRect(x: 63, y: 81.6, width: 4, height: 2.3), radius: 1, fill: cordLight)
         context.restoreGState()
     }
 
