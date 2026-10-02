@@ -1008,7 +1008,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var checks: [String: Any] = [:]
         let audio = character.audio
         guard audio.available else { return ["optionalAudioMissingIsSilent": !audio.isChantPlaying && !audio.isHeadPetPlaying] }
-        checks["sevenBundledSamplesLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet
+        checks["allBundledSoundEventsLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet && audio.hasHouse && audio.hasWaacking && audio.hasClap && audio.hasLatteMix
         let visible = notes.isVisible, noteID = store.selectedID, body = store.selected?.body
         character.stimulation = StimulationState(cooldown: 60)
         character.mood = .idle; character.moodUntil = .distantPast
@@ -1036,7 +1036,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.rubCrown(); audio.enabled = true
         character.mood = .idle; character.moodUntil = .distantPast
         audio.stopAll(); makeGrumpy(); giveCoffee()
-        checks["acceptedLattePlaysOnlyNellySample"] = character.mood == .coffee && audio.isCoffeePlaying && !audio.isHeadPetPlaying && !audio.isTumblePlaying && !audio.isChantPlaying
+        checks["acceptedLatteStartsLayeredSipSequence"] = character.mood == .coffee && audio.isCoffeePlaying && !audio.isHeadPetPlaying && !audio.isTumblePlaying && !audio.isAnyDancePlaying
+        checks["mixedLatteAudioFitsSixSecondSip"] = abs(audio.latteDuration - 6) < 0.001
+        character.paused = true
+        checks["pausingSipPausesItsAudio"] = !audio.isCoffeePlaying && character.mood == .coffee
+        character.paused = false
+        checks["resumingSipContinuesItsAudio"] = audio.isCoffeePlaying
         startFocus(minutes: 25)
         checks["focusStopsCoffeeSound"] = !audio.isCoffeePlaying
         endFocus(); audio.enabled = false; makeGrumpy(); giveCoffee()
@@ -1061,6 +1066,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         checks["switchingDancesDoesNotLayerTracks"] = audio.isBreakdancePlaying && !audio.isChantPlaying
         audio.enabled = false
         checks["soundToggleMutesBreakdance"] = !audio.isBreakdancePlaying
+        character.react(.idle); audio.enabled = true
+        character.stimulation = StimulationState(cooldown: 60)
+        character.chooseDance(.house)
+        checks["chosenHousePlaysOnlyHouseLoop"] = audio.isHousePlaying && !audio.isChantPlaying && !audio.isBreakdancePlaying && !audio.isWaackingPlaying
+        character.paused = true
+        checks["pausingHousePausesMusic"] = !audio.isHousePlaying
+        character.paused = false
+        checks["resumingHouseContinuesMusic"] = audio.isHousePlaying
+        character.chooseDance(.waacking)
+        checks["chosenWaackingReplacesHouseLoop"] = audio.isWaackingPlaying && !audio.isHousePlaying && !audio.isChantPlaying
+        character.rubCrown()
+        checks["headPetInterruptsWaackingMusic"] = !audio.isWaackingPlaying && audio.isHeadPetPlaying
+        character.react(.idle); character.chooseDance(.house); startFocus(minutes: 25)
+        checks["focusInterruptsHouseMusic"] = !audio.isHousePlaying
+        endFocus(); character.react(.idle); character.chooseDance(.waacking); audio.enabled = false
+        checks["soundToggleMutesWaackingMusic"] = !audio.isAnyDancePlaying
+        character.react(.idle); audio.enabled = true
+        for dance in [Mood.house, .waacking, .vogue, .breakdance] {
+            character.react(dance)
+            checks["unchosen\(dance.rawValue)StaysSilent"] = !audio.isAnyDancePlaying
+            character.react(.idle)
+        }
+        character.react(.zoomies)
+        checks["latteZoomiesDoNotPlayHouseMusic"] = !audio.isHousePlaying && !audio.isAnyDancePlaying
+        character.react(.idle); character.makeRestless()
+        if let choice = character.makeDanceMenu().items.first(where: { $0.representedObject as? String == Mood.house.rawValue }), let action = choice.action {
+            NSApp.sendAction(action, to: choice.target, from: choice)
+            checks["restlessChooserStartsHouseMusic"] = character.mood == .house && audio.isHousePlaying
+        } else { checks["restlessChooserStartsHouseMusic"] = false }
+        character.react(.idle); audio.stopAll(); character.showOff()
+        checks["waitingForApplauseDoesNotPlayClap"] = !audio.isClapPlaying
+        let clapOrigin = pet.frame.origin, clapNote = store.selectedID, clapVisibility = notes.isVisible
+        character.clickApplauseButton()
+        checks["clickingApplauseEmojiPlaysClap"] = audio.isClapPlaying && character.mood == .takeBow && !character.showsApplause
+        checks["clapPreservesNotesAndDesktopPosition"] = notes.isVisible == clapVisibility && store.selectedID == clapNote && pet.frame.origin == clapOrigin
+        audio.stopAll(); character.applaud()
+        checks["refusedApplauseDoesNotPlayClap"] = !audio.isClapPlaying
+        character.react(.idle); character.showOff(); audio.enabled = false; character.clickApplauseButton()
+        checks["soundToggleMutesClap"] = !audio.isClapPlaying
         character.react(.idle); audio.enabled = true
         character.makeAnnoyed()
         checks["crossedArmsPlaysItsReactionOnly"] = audio.isCrossedArmsPlaying && !audio.isHeadPetPlaying && !audio.isBreakdancePlaying

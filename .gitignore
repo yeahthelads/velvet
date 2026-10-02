@@ -14,7 +14,7 @@ Assets/*.mp3
 Assets/*.m4a
 Assets/*.aiff
 Assets/*.aif
-# These seven approved samples ship with Velvet.
+# These approved samples ship with Velvet.
 !Assets/vogue-chant.wav
 !Assets/head-pet.wav
 !Assets/tumble.wav
@@ -22,3 +22,9 @@ Assets/*.aif
 !Assets/crossed-arms.wav
 !Assets/breakdance.wav
 !Assets/overwhelmed-sleep.wav
+!Assets/clap.wav
+!Assets/house.wav
+!Assets/waacking.wav
+!Assets/latte-riser.wav
+!Assets/latte-liquor.wav
+!Assets/latte-sip.wav

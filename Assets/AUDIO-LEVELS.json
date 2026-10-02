@@ -1,6 +1,6 @@
 {
   "target_lufs": -20,
-  "method": "Constant attenuation only; preserves timing, channel count, sample rate and dynamics. Effects below 400ms are repeated for measurement only. Master app volume remains 0.65.",
+  "method": "Constant gain to match approximately -20 LUFS; Liquor deliberately targets -28 LUFS beneath the riser. Effects below 400ms are repeated for measurement only. Master app volume remains 0.65. Source imports remain untouched.",
   "samples": [
     {
       "file": "vogue-chant.wav",
@@ -57,6 +57,68 @@
       "balanced_lufs": -20.01,
       "true_peak_db": -10.73,
       "duration_seconds": 3.073197
+    },
+    {
+      "file": "clap.wav",
+      "target_lufs": -20,
+      "original_lufs": -13.81,
+      "attenuation_db": -6.19,
+      "balanced_lufs": -20.01,
+      "true_peak_db": -6.12,
+      "duration_seconds": 0.25
+    },
+    {
+      "file": "waacking.wav",
+      "target_lufs": -20,
+      "original_lufs": -7.24,
+      "attenuation_db": -12.76,
+      "balanced_lufs": -20.0,
+      "true_peak_db": -12.41,
+      "duration_seconds": 14.769229
+    },
+    {
+      "file": "house.wav",
+      "target_lufs": -20,
+      "original_lufs": -15.75,
+      "attenuation_db": -4.25,
+      "balanced_lufs": -20.0,
+      "true_peak_db": -3.48,
+      "duration_seconds": 7.5
+    },
+    {
+      "file": "latte-riser.wav",
+      "target_lufs": -20,
+      "original_lufs": -18.99,
+      "attenuation_db": -1.01,
+      "balanced_lufs": -20.0,
+      "true_peak_db": -11.76,
+      "duration_seconds": 3.116599
+    },
+    {
+      "file": "latte-liquor.wav",
+      "target_lufs": -28,
+      "original_lufs": -25.13,
+      "attenuation_db": -2.87,
+      "balanced_lufs": -28.0,
+      "true_peak_db": -6.5,
+      "duration_seconds": 3.694467
+    },
+    {
+      "file": "latte-sip.wav",
+      "balanced_lufs": -20.0,
+      "true_peak_db": -6.04,
+      "duration_seconds": 6.0
     }
-  ]
+  ],
+  "latte_mix": {
+    "duration_seconds": 6,
+    "riser_start_frame": 74238,
+    "liquor_start_frame": 74238,
+    "nelly_start_frame": 211680,
+    "sample_rate": 44100,
+    "liquor_relative_loudness_db": -8,
+    "mix_gain_db": -0.43,
+    "filter_complex": "[0:a]adelay=74238S:all=1[r];[1:a]adelay=74238S:all=1[l];[2:a]adelay=211680S:all=1[n];[r][l][n]amix=inputs=3:duration=longest:normalize=0,apad=whole_dur=6,atrim=duration=6[out]",
+    "notes": "Original timing and pitch preserved. The two layers start together during the sip. Nelly begins with the approving nod at 4.8 seconds. Mixed as one asset to prevent timing drift. No ffmpeg dependency at app build time."
+  }
 }
