@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var lastPositionSave = Date.distantPast
     var terminationSignal: DispatchSourceSignal?
     var coffee = CoffeeState()
+    let systemAudio = SystemAudioMonitor()
     var coffeeTimer: Timer?
     var lastCoffeeTick = ProcessInfo.processInfo.systemUptime
     var lastCoffeeCheckpoint = ProcessInfo.processInfo.systemUptime
@@ -56,13 +57,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             registerShortcut(store.preferences.shortcut)
         }
         store.onSaved = { [weak self] in
-            guard let self, self.character.canGiveNotes, !self.store.focus.isActive, !self.character.hasGentleResponse, !self.character.performance.isEngaged, !self.character.stimulation.overstimulated, !self.character.isBusy, self.character.mood != .pickedUp, !self.character.mood.isDance else { return }
+            guard let self, self.character.canGiveNotes, !self.store.focus.isActive, !self.character.hasGentleResponse, !self.character.performance.isEngaged, !self.character.stimulation.overstimulated, !self.character.isBusy, !self.character.hasHeadphones, self.character.mood != .pickedUp, !self.character.mood.isDance else { return }
             self.character.react(.celebrate, duration: 1.2)
         }
         NotificationCenter.default.addObserver(self, selector: #selector(screenChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(willSleep), name: NSWorkspace.willSleepNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
         character.start()
+        if !args.contains("--smoke-test") && !args.contains("--render-preview") {
+            systemAudio.onChange = { [weak self] playing in self?.character.externalAudioPlaying = playing }
+            if character.listensToAudio { systemAudio.start() }
+        }
         startCoffeeClock()
         pet.orderFrontRegardless()
         if args.contains("--show-notes") { openNotes() }
@@ -100,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character = CharacterView(frame: NSRect(x: 0, y: 0, width: 190, height: 200))
         character.paused = store.preferences.paused
         character.danceProgress = store.danceProgress
+        character.listensToAudio = store.preferences.listensToAudio ?? true
         character.onDanceProgressChanged = { [weak self] progress in self?.store.setDanceProgress(progress) }
         character.care = store.care
         store.setCare(character.care)
@@ -265,6 +271,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.needsDisplay = true
         rebuildMenu()
     }
+    @objc func toggleListening() {
+        character.listensToAudio.toggle()
+        store.setPreferences { $0.listensToAudio = character.listensToAudio }
+        if character.listensToAudio { systemAudio.start() } else { systemAudio.stop() }
+        rebuildMenu()
+    }
     @objc func toggleOnTop() {
         store.setPreferences { $0.alwaysOnTop.toggle() }
         pet.level = store.preferences.alwaysOnTop ? .floating : .normal
@@ -279,8 +291,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func showStorage() { NSWorkspace.shared.open(store.directory) }
     @objc func screenChanged() { constrainPet(); petMoved() }
-    @objc func willSleep() { store.setCoffee(coffee); store.setCare(character.care); store.flush(); character.stop(); coffeeTimer?.invalidate() }
-    @objc func didWake() { if pet.isVisible { character.start() }; startCoffeeClock() }
+    @objc func willSleep() { store.setCoffee(coffee); store.setCare(character.care); store.flush(); character.stop(); systemAudio.stop(); coffeeTimer?.invalidate() }
+    @objc func didWake() { if pet.isVisible { character.start() }; if character.listensToAudio { systemAudio.start() }; startCoffeeClock() }
     func startCoffeeClock() {
         coffeeTimer?.invalidate()
         lastCoffeeTick = ProcessInfo.processInfo.systemUptime
@@ -378,6 +390,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             sound.state = character.audio.enabled ? .on : .off
             menu.addItem(sound)
         }
+        let listening = item("Listen to system audio", #selector(toggleListening))
+        listening.state = character.listensToAudio ? .on : .off
+        listening.isEnabled = systemAudio.supported
+        if !systemAudio.supported { listening.toolTip = "Requires macOS 14.2 or later" }
+        menu.addItem(listening)
         menu.addItem(item("Make her grumpy", #selector(makeGrumpy)))
         menu.addItem(.separator())
         menu.addItem(item(pet.isVisible ? "Hide Velvet" : "Show Velvet", #selector(togglePet)))
@@ -469,6 +486,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if alert.runModal() == .alertFirstButtonReturn { return .terminateCancel }
         }
         character.stop()
+        systemAudio.stop()
         coffeeTimer?.invalidate()
         if let hotKey { UnregisterEventHotKey(hotKey) }
         return .terminateNow
@@ -527,7 +545,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     }
                 }
             }
-            if mood.isPaper || [.affection, .annoyed, .stretch, .focusNap, .wakeUp, .tumble, .crying, .recover, .restless, .takeBow, .overstimulated].contains(mood) {
+            if mood.isHeadphones || mood.isPaper || [.affection, .annoyed, .stretch, .focusNap, .wakeUp, .tumble, .crying, .recover, .restless, .takeBow, .overstimulated].contains(mood) {
                 let times: [Double]
                 switch mood {
                 case .paperOpen: times = [0.2, 0.6, 1.0]
@@ -662,9 +680,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func checkPerformance(previewDirectory: URL, completion: @escaping ([String: Any]) -> Void) {
         var checks: [String: Any] = [:]
         let position = pet.frame.origin
-        let originalChance = character.applauseChance
-        checks["applauseHasFifteenPercentChance"] = originalChance == 0.15
-        character.applauseChance = 1 // Make this branch deterministic; check the zero-chance branch below.
         func capture(_ name: String) -> Data? {
             guard let bitmap = character.bitmapImageRepForCachingDisplay(in: character.bounds) else { return nil }
             character.cacheDisplay(in: character.bounds, to: bitmap)
@@ -770,13 +785,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["notesRemainUsableAfterPerformanceChecks"] = notes.isVisible && character.canGiveNotes
                 character.mood = .idle; character.moodUntil = .distantPast
                 character.stop(); character.start()
-                character.applauseChance = 0
                 character.makeRestless(); character.chooseDance(.house)
                 checks["houseRoutineLoadsAndStarts"] = character.hasClubAnimation && character.mood == .house && (60...63).contains(character.displayedSpriteIndex ?? -1)
                 character.moodUntil = .distantPast
             },
             { [self] in
-                checks["chosenDanceCanFinishWithoutApplause"] = !character.performance.restless && !character.performance.awaitingApplause && character.mood != .showOff
+                checks["everyChosenDanceOffersApplause"] = !character.performance.restless && character.performance.awaitingApplause && character.mood == .showOff
                 character.chooseDance(.waacking)
                 checks["waackingRoutineLoadsAndStarts"] = character.mood == .waacking && (64...67).contains(character.displayedSpriteIndex ?? -1)
                 checks["houseAutomaticVogueAndWaackingChoiceOnly"] = Mood.automaticDances.contains(.house) && !Mood.automaticDances.contains(.vogue) && !Mood.automaticDances.contains(.waacking)
@@ -802,7 +816,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         ]
         func runStep(_ index: Int) {
-            guard index < steps.count else { character.applauseChance = originalChance; completion(checks); return }
+            guard index < steps.count else { completion(checks); return }
             steps[index]()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { runStep(index + 1) }
         }
@@ -991,6 +1005,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     character.react(.wakeUp); startFocus(seconds: 60)
                     checks["newFocusInterruptsWakeWithStretch"] = character.mood == .stretch && store.focus.isActive
                     endFocus(); openNotes()
+                    checkListening().forEach { checks[$0.key] = $0.value }
                     checkCompanionAudio().forEach { checks[$0.key] = $0.value }
                     // Finish the rapid hide/restore checks on separate AppKit events.
                     closeNotes()
@@ -1007,11 +1022,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { runStep(0) }
     }
+    func checkListening() -> [String: Any] {
+        var checks: [String: Any] = [:]
+        let visible = notes.isVisible, noteID = store.selectedID
+        let enabled = character.listensToAudio
+        character.listensToAudio = true; character.externalAudioPlaying = true
+        character.audio.stopAll(); character.react(.idle)
+        character.advanceResponses(by: 90); character.react(.idle)
+        checks["listeningFixtureDiagnostic"] = "mood=\(character.mood) response=\(character.responses.phase) restless=\(character.performance.restless) applause=\(character.performance.awaitingApplause) quiet=\(character.stimulation.overstimulated) focus=\(String(describing: character.focusRest))"
+        character.advanceListening(by: 0.5)
+        checks["shortSystemSoundsDoNotPutOnHeadphones"] = !character.hasHeadphones
+        character.advanceListening(by: 0.5)
+        checks["sustainedPlaybackStartsPlugIn"] = character.mood == .plugIn && character.hasHeadphones
+        character.advanceListening(by: 0.8)
+        if let i = CommandLine.arguments.firstIndex(of: "--smoke-test"), CommandLine.arguments.count > i + 1,
+           let bitmap = character.bitmapImageRepForCachingDisplay(in: character.bounds) {
+            character.needsDisplay = true
+            character.cacheDisplay(in: character.bounds, to: bitmap)
+            let directory = URL(fileURLWithPath: CommandLine.arguments[i + 1]).deletingLastPathComponent()
+            try? bitmap.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("headphones-plug-preview.png"))
+        }
+        character.advanceListening(by: 0.8)
+        checks["headphonesSettleIntoCuteListening"] = character.mood == .listening && character.displayedSpriteIndex != nil
+        store.onSaved?()
+        checks["noteAutosaveKeepsHeadphonesOn"] = character.mood == .listening
+        checks["listeningLeavesNotesAndPositionAlone"] = notes.isVisible == visible && store.selectedID == noteID && character.canGiveNotes
+        character.paused = true
+        let elapsed = character.listeningState.elapsed
+        character.advanceListening(by: 100)
+        checks["pauseFreezesHeadphoneAnimation"] = character.listeningState.elapsed == elapsed
+        character.paused = false
+        character.externalAudioPlaying = false; character.advanceListening(by: 2.9)
+        checks["briefTrackGapKeepsHeadphonesOn"] = character.mood == .listening
+        character.advanceListening(by: 0.1)
+        checks["silenceStartsHeadphoneExit"] = character.mood == .unplug
+        character.advanceListening(by: 0.7)
+        checks["silenceReturnsHerToIdle"] = character.mood == .idle && !character.hasHeadphones
+        character.externalAudioPlaying = true; character.advanceListening(by: 1)
+        startFocus(minutes: 25); character.react(.listening)
+        checks["headphonePreviewsCannotOverrideFocus"] = character.mood == .stretch
+        character.advanceListening(by: 1)
+        checks["focusOverridesExternalMusic"] = character.mood == .stretch && !character.hasHeadphones
+        endFocus(); character.react(.idle); character.advanceListening(by: 1)
+        character.listensToAudio = false
+        checks["headphoneSettingRemovesHeadphonesImmediately"] = !character.hasHeadphones && !character.listeningState.isActive
+        character.listensToAudio = enabled; character.externalAudioPlaying = false
+        character.react(.idle)
+        return checks
+    }
     func checkCompanionAudio() -> [String: Any] {
         var checks: [String: Any] = [:]
         let audio = character.audio
         guard audio.available else { return ["optionalAudioMissingIsSilent": !audio.isChantPlaying && !audio.isHeadPetPlaying] }
-        checks["allBundledSoundEventsLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet && audio.hasHouse && audio.hasWaacking && audio.hasClap && audio.hasLatteMix
+        checks["allBundledSoundEventsLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet && audio.hasHouse && audio.hasWaacking && audio.hasBallet && audio.hasClap && audio.hasLatteMix
         let visible = notes.isVisible, noteID = store.selectedID, body = store.selected?.body
         character.stimulation = StimulationState(cooldown: 60)
         character.mood = .idle; character.moodUntil = .distantPast
@@ -1071,7 +1134,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         checks["soundToggleMutesBreakdance"] = !audio.isBreakdancePlaying
         character.react(.idle); audio.enabled = true
         character.stimulation = StimulationState(cooldown: 60)
+        if audio.hasFloorwork {
+            character.chooseDance(.floorwork)
+            checks["chosenFloorworkPlaysItsLocalExcerpt"] = audio.isFloorworkPlaying && !audio.isBalletPlaying && !audio.isChantPlaying && !audio.isHousePlaying && !audio.isWaackingPlaying && !audio.isBreakdancePlaying
+            character.paused = true
+            checks["pausingFloorworkPausesExcerpt"] = !audio.isFloorworkPlaying
+            character.paused = false
+            checks["resumingFloorworkContinuesExcerpt"] = audio.isFloorworkPlaying
+        }
+        character.chooseDance(.ballet)
+        checks["balletReplacesFloorworkMusic"] = !audio.isFloorworkPlaying
+        checks["chosenBalletPlaysOnlyPiano"] = audio.isBalletPlaying && !audio.isHousePlaying && !audio.isChantPlaying && !audio.isBreakdancePlaying && !audio.isWaackingPlaying
+        character.paused = true
+        checks["pausingBalletPausesPiano"] = !audio.isBalletPlaying
+        character.paused = false
+        checks["resumingBalletContinuesPiano"] = audio.isBalletPlaying
         character.chooseDance(.house)
+        checks["switchingFromBalletStopsPiano"] = !audio.isBalletPlaying && audio.isHousePlaying
         checks["chosenHousePlaysOnlyHouseLoop"] = audio.isHousePlaying && !audio.isChantPlaying && !audio.isBreakdancePlaying && !audio.isWaackingPlaying
         character.paused = true
         checks["pausingHousePausesMusic"] = !audio.isHousePlaying
@@ -1086,7 +1165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         endFocus(); character.react(.idle); character.chooseDance(.waacking); audio.enabled = false
         checks["soundToggleMutesWaackingMusic"] = !audio.isAnyDancePlaying
         character.react(.idle); audio.enabled = true
-        for dance in [Mood.house, .waacking, .vogue, .breakdance] {
+        for dance in [Mood.ballet, .floorwork, .house, .waacking, .vogue, .breakdance] {
             character.react(dance)
             checks["unchosen\(dance.rawValue)StaysSilent"] = !audio.isAnyDancePlaying
             character.react(.idle)
@@ -1166,8 +1245,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func checkDanceProgress(previewDirectory: URL, completion: @escaping ([String: Any]) -> Void) {
         var checks: [String: Any] = [:]
-        let originalChance = character.applauseChance
-        character.applauseChance = 1
         character.danceProgress = DanceProgress()
         character.mood = .idle; character.moodUntil = .distantPast
         checks["freshProfileOffersOnlyBallet"] = character.availableDances == [.ballet] && character.makeDanceMenu().items.filter { $0.representedObject != nil }.map(\.title) == ["Ballet"]
@@ -1210,7 +1287,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["earnedProgressSurvivesRestart"] = store.flush() && NoteStore(directory: store.directory).danceProgress == character.danceProgress
                 // Remaining regression checks use only this temporary, fully unlocked profile.
                 character.danceProgress = DanceProgress(completedClaps: 18, unlockedDanceIDs: DanceProgress.danceIDs)
-                character.applauseChance = originalChance
                 character.react(.idle); character.moodUntil = .distantPast
                 openNotes()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
@@ -1218,6 +1294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             character.chooseDance(.ballet); character.moodUntil = .distantPast
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
+                checks["eachBalletFinishOffersClap\(lap + 1)"] = character.showsApplause && !character.audio.isBalletPlaying
                 let count = character.danceProgress.completedClaps
                 character.clickApplauseButton()
                 lap += 1

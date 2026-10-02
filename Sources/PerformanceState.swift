@@ -12,10 +12,6 @@ struct PerformanceState: Equatable {
         return poses[thresholds.firstIndex { elapsed < $0 } ?? 11]
     }
     static let applauseDuration = 6.0
-    static let applauseChance = 0.15
-    static func asksForApplause(roll: Double = Double.random(in: 0..<1), chance: Double = applauseChance) -> Bool {
-        roll.isFinite && roll >= 0 && roll < 1 && roll < chance
-    }
     private(set) var restless = false
     private(set) var awaitingApplause = false
     private(set) var applauseRemaining = 0.0
@@ -25,14 +21,14 @@ struct PerformanceState: Equatable {
     var isEngaged: Bool { restless || awaitingApplause }
     mutating func makeRestless() { restless = true }
     mutating func beginDance() { cancelApplause() }
-    mutating func finishDance(chosen: Bool, asksForApplause: Bool, earnsUnlock: Bool = true) {
+    mutating func finishDance(chosen: Bool, earnsUnlock: Bool = true) {
         if chosen {
             restless = false
             timeUntilRestless = Double.random(in: 6 * 60...10 * 60)
         }
-        awaitingApplause = asksForApplause
-        applauseRemaining = asksForApplause ? Self.applauseDuration : 0
-        applauseEarnsUnlock = asksForApplause && earnsUnlock
+        awaitingApplause = true
+        applauseRemaining = Self.applauseDuration
+        applauseEarnsUnlock = earnsUnlock
     }
     @discardableResult mutating func applaud() -> Bool {
         guard awaitingApplause, applauseRemaining > 0 else { return false }

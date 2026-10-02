@@ -26,6 +26,7 @@ struct Preferences: Codable {
     var alwaysOnTop = true
     var paused = false
     var shortcut = 0
+    var listensToAudio: Bool? // Missing in older archives means enabled.
 }
 
 struct Archive: Codable {

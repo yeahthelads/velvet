@@ -20,13 +20,14 @@ import Foundation
         precondition(store.sortedNotes.first?.id == first)
         store.restore(first)
         precondition(store.activeCount == 2 && store.trashCount == 0)
-        store.setPreferences { $0.x = -1600; $0.y = 80; $0.shortcut = 1; $0.paused = true }
+        store.setPreferences { $0.x = -1600; $0.y = 80; $0.shortcut = 1; $0.paused = true; $0.listensToAudio = false }
         var danceProgress = DanceProgress()
         for _ in 0..<3 { danceProgress.recordClap() }
         precondition(danceProgress.unlock("house"))
         store.setDanceProgress(danceProgress)
         precondition(store.flush(), "Saving should succeed")
         let reopened = NoteStore(directory: directory)
+        precondition(reopened.preferences.listensToAudio == false, "Headphone preference survives restarting")
         precondition(reopened.archive.notes.count == 2, "Notes should survive a restart")
         precondition(reopened.danceProgress == danceProgress, "Three claps and the chosen dance must survive a restart")
         precondition(reopened.archive.notes.first(where: { $0.id == first })?.body == "Coffee\nCrème brûlée & a fabulous idea 👢")
@@ -43,6 +44,8 @@ import Foundation
         legacy.removeValue(forKey: "care")
         legacy.removeValue(forKey: "danceProgress")
         try JSONSerialization.data(withJSONObject: legacy).write(to: file)
+        let legacyPreferences = try JSONDecoder().decode(Preferences.self, from: Data(#"{"alwaysOnTop":true,"paused":false,"shortcut":0}"#.utf8))
+        precondition(legacyPreferences.listensToAudio == nil, "Existing preferences safely default to headphones enabled")
         let migrated = NoteStore(directory: directory)
         precondition(migrated.archive.notes.count == 2 && migrated.saveError == nil)
         precondition(!migrated.coffee.needsCoffee)

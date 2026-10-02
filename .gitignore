@@ -28,3 +28,5 @@ Assets/*.aif
 !Assets/latte-riser.wav
 !Assets/latte-liquor.wav
 !Assets/latte-sip.wav
+!Assets/ballet.wav
+Assets/floorwork-levels.json

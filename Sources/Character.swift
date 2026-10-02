@@ -1,6 +1,7 @@
 import AppKit
 
 enum Mood: String, CaseIterable {
+    case plugIn, listening, unplug
     case idle, walk, wave, pickedUp, sleep, sideEye, celebrate, ballet, floorwork, vogue, grumpy, coffee
     case paperOpen, paperClose, paperToss, affection, annoyed
     case stretch, focusNap, wakeUp, tumble, crying, recover
@@ -21,11 +22,15 @@ enum Mood: String, CaseIterable {
         default: return label
         }
     }
+    var isHeadphones: Bool { self == .plugIn || self == .listening || self == .unplug }
     var isDance: Bool { isChoreography || self == .zoomies }
     var isPaper: Bool { self == .paperOpen || self == .paperClose || self == .paperToss }
     var isInteraction: Bool { isPaper || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp }
     var label: String {
         switch self {
+        case .plugIn: return "Putting on headphones"
+        case .listening: return "Listening to your music"
+        case .unplug: return "Putting headphones away"
         case .idle: return "Just vibing"
         case .walk: return "A little strut"
         case .wave: return "Oh, hello"
@@ -83,6 +88,11 @@ final class CharacterView: NSView {
         }
     }
     let audio = CompanionAudio()
+    var externalAudioPlaying = false
+    var listensToAudio = true { didSet { if !listensToAudio { listeningState.reset(); if mood.isHeadphones { mood = baseMood } }; needsDisplay = true } }
+    private(set) var listeningState = ListeningState()
+    var hasHeadphones: Bool { mood.isHeadphones }
+
     private var pausedAt: Date?
     var paused = false {
         didSet {
@@ -156,7 +166,14 @@ final class CharacterView: NSView {
         case .zoomies: return .zoomies
         case .reconciliation: return .reconcile
         case .shySmile: return .shySmile
-        case .idle: return performance.restless ? .restless : .idle
+        case .idle:
+            if performance.restless { return .restless }
+            switch listeningState.phase {
+            case .puttingOn: return .plugIn
+            case .listening: return .listening
+            case .takingOff: return .unplug
+            case .inactive: return .idle
+            }
         }
     }
     var wantsCoffee = false {
@@ -194,12 +211,10 @@ final class CharacterView: NSView {
             }
         }
     }
-    var applauseChance = PerformanceState.applauseChance
     private let applauseButton = NSButton(title: "👏", target: nil, action: nil)
     private let danceButton = NSButton(title: "🩰", target: nil, action: nil)
     private var danceInProgress = false
     private var danceChosen = false
-    private var danceAsksForApplause = false
     private var showOffPose = 17
     private var heldFinish: (index: Int, rect: NSRect, angle: Double)?
     var hasGentleResponse: Bool { responses.isReconciling }
@@ -290,7 +305,8 @@ final class CharacterView: NSView {
         RunLoop.main.add(clock!, forMode: .common)
     }
     func stop() {
-        audio.stopAll()
+        audio.stopAll(); listeningState.reset()
+        if mood.isHeadphones { mood = baseMood }
         clock?.invalidate(); clock = nil
         if gesture != nil { NSCursor.arrow.set() }
         gesture = nil; mouseOrigin = nil; dragOrigin = nil
@@ -312,14 +328,14 @@ final class CharacterView: NSView {
         if mood == .coffee && Date() < moodUntil && ![.pickedUp, .grumpy, .coffee, .affection, .recover, .annoyed, .tumble, .crying].contains(newMood) { return }
         if isBusy && (newMood == .sideEye || newMood == .wave || newMood == .celebrate) { return }
         if newMood.isPaper { pendingPaper = nil }
-        let passive = newMood.isDance || [.idle, .wave, .walk, .sleep, .sideEye, .celebrate, .stretch, .focusNap, .wakeUp, .reconcile, .shySmile, .restless, .showOff, .overstimulated].contains(newMood)
+        let passive = newMood.isDance || newMood.isHeadphones || [.idle, .wave, .walk, .sleep, .sideEye, .celebrate, .stretch, .focusNap, .wakeUp, .reconcile, .shySmile, .restless, .showOff, .overstimulated].contains(newMood)
+        if !newMood.isHeadphones { listeningState.reset() }
         let previousMood = mood
         if passive && (focusRest != nil || stimulation.overstimulated) && canGiveNotes { mood = baseMood }
         else { mood = !canGiveNotes && passive ? baseMood : newMood }
         if previousMood.isChoreography && mood != previousMood { cancelDance() }
         if mood == newMood && mood.isChoreography {
             performance.beginDance(); danceInProgress = true; danceChosen = false
-            danceAsksForApplause = PerformanceState.asksForApplause(chance: applauseChance)
             updateAccessibilityHelp()
             onPerformanceChanged?()
         }
@@ -369,20 +385,21 @@ final class CharacterView: NSView {
         advanceStimulation(by: min(0.25, max(0, responseNow - lastResponseTick)))
         syncCompanionButtons()
         updateCompanionAudio()
+        advanceListening(by: min(0.25, max(0, responseNow - lastResponseTick)))
         lastResponseTick = responseNow
         if let held = gesture, held.target == .crown, held.phase == .pressed, ProcessInfo.processInfo.systemUptime - held.began >= 0.35 {
             updatePointer(at: held.last, screenPoint: mouseOrigin ?? .zero, time: ProcessInfo.processInfo.systemUptime)
         }
         if let began = latteReturnBegan, ProcessInfo.processInfo.systemUptime - began > 0.24 { latteReturnBegan = nil; latteOffset = .zero }
         if mood != .coffee || now.timeIntervalSince(moodBegan) > 0.3 { latteHandoffOrigin = nil }
-        if !paused && !reduceMotion && canGiveNotes && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !isBusy && !mood.isDance && mouseOrigin == nil && !hovering && now > nextIdle {
+        if !paused && !reduceMotion && canGiveNotes && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !isBusy && !mood.isDance && mouseOrigin == nil && !hovering && !listeningState.isActive && now > nextIdle {
             idleSequence += 1
             let playlist: [Mood] = [.wave, .walk, .sideEye, .stretch] + Mood.automaticDances.filter { danceProgress.allows($0.rawValue) }
             let next = playlist[idleSequence % playlist.count]
             react(next, duration: next == .stretch ? FocusSession.stretchDuration : (next.isDance ? 7 : 3))
             nextIdle = now.addingTimeInterval(18 + Double(idleSequence % 7))
         }
-        if now.timeIntervalSince(idleSince) > 75 && canGiveNotes && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !hovering && mouseOrigin == nil && !mood.isDance { mood = .sleep }
+        if now.timeIntervalSince(idleSince) > 75 && canGiveNotes && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !hovering && mouseOrigin == nil && !mood.isDance && !listeningState.isActive { mood = .sleep }
         let interval = ((paused || reduceMotion || mood == .sleep) && latteReturnBegan == nil) ? 0.8 : 1.0 / 24.0
         if now.timeIntervalSince(lastFrame) >= interval { needsDisplay = true; lastFrame = now }
     }
@@ -526,10 +543,10 @@ final class CharacterView: NSView {
     func makeAnnoyed() { guard canInteract else { return }; care.annoy(); react(baseMood) }
     private func updateCompanionAudio() {
         let chosen = danceChosen && !reduceMotion
-        audio.updateDance(vogue: chosen && mood == .vogue, breaking: chosen && mood == .breakdance, house: chosen && mood == .house, waacking: chosen && mood == .waacking, paused: paused)
+        audio.updateDance(vogue: chosen && mood == .vogue, breaking: chosen && mood == .breakdance, house: chosen && mood == .house, waacking: chosen && mood == .waacking, ballet: chosen && mood == .ballet, floorwork: chosen && mood == .floorwork, paused: paused)
         audio.updateCoffee(playing: mood == .coffee, paused: paused)
     }
-    private func cancelDance() { audio.stopDance(); danceInProgress = false; danceChosen = false; danceAsksForApplause = false }
+    private func cancelDance() { audio.stopDance(); danceInProgress = false; danceChosen = false }
     func chooseDance(_ dance: Mood) {
         guard dance.isChoreography, danceProgress.allows(dance.rawValue), canGiveNotes, focusRest == nil, !stimulation.overstimulated, mood != .coffee else { return }
         recordStimulation()
@@ -545,7 +562,7 @@ final class CharacterView: NSView {
     private func finishDanceIfNeeded() {
         guard danceInProgress, mood.isChoreography else { return }
         if let atlas { heldFinish = spritePose(time: animationTime, mood: mood, atlas: atlas); showOffPose = heldFinish!.index }
-        performance.finishDance(chosen: danceChosen, asksForApplause: danceAsksForApplause)
+        performance.finishDance(chosen: danceChosen)
         moodBegan = Date()
         cancelDance(); updateAccessibilityHelp()
         onPerformanceChanged?()
@@ -558,7 +575,7 @@ final class CharacterView: NSView {
     }
     func showOff() {
         guard canGiveNotes, focusRest == nil, !stimulation.overstimulated else { return }
-        showOffPose = 17; heldFinish = nil; performance.finishDance(chosen: false, asksForApplause: true, earnsUnlock: false)
+        showOffPose = 17; heldFinish = nil; performance.finishDance(chosen: false, earnsUnlock: false)
         react(baseMood); updateAccessibilityHelp()
         onPerformanceChanged?()
     }
@@ -655,6 +672,18 @@ final class CharacterView: NSView {
         let available = window?.isVisible == true && !paused && gesture == nil
         stimulation.advance(by: seconds, available: available)
     }
+    func advanceListening(by seconds: Double) {
+        let previous = listeningState.phase
+        let available = listensToAudio && window?.isVisible == true && canGiveNotes && focusRest == nil && !responses.isActive && !performance.isEngaged && !audio.isAnyDancePlaying && gesture == nil && ([Mood.idle, .sleep, .sideEye, .wave, .walk].contains(mood) || mood.isHeadphones)
+        listeningState.advance(by: seconds, playing: externalAudioPlaying, available: available, paused: paused)
+        if previous != listeningState.phase {
+            if listeningState.isActive || mood.isHeadphones {
+                mood = baseMood; moodBegan = Date(); moodUntil = .distantFuture
+                if !listeningState.isActive { idleSince = Date(); nextIdle = Date().addingTimeInterval(18) }
+                needsDisplay = true
+            }
+        }
+    }
     func advancePerformance(by seconds: Double) {
         let applauseAvailable = window?.isVisible == true && showsApplause && !paused && gesture == nil
         if performance.advanceApplause(by: seconds, available: applauseAvailable) {
@@ -662,7 +691,7 @@ final class CharacterView: NSView {
             updateAccessibilityHelp(); onPerformanceChanged?()
         }
         syncCompanionButtons()
-        let available = window?.isVisible == true && canGiveNotes && focusRest == nil && !paused && !reduceMotion && gesture == nil && !isBusy && !mood.isDance && mood != .sleep && !responses.isActive && !stimulation.overstimulated
+        let available = window?.isVisible == true && canGiveNotes && focusRest == nil && !paused && !reduceMotion && gesture == nil && !isBusy && !mood.isDance && mood != .sleep && !responses.isActive && !stimulation.overstimulated && !listeningState.isActive
         if performance.advance(by: seconds, available: available) {
             mood = baseMood; moodUntil = .distantFuture; updateAccessibilityHelp(); needsDisplay = true
             onPerformanceChanged?()
@@ -789,6 +818,9 @@ final class CharacterView: NSView {
         case .idle:
             if active && t.truncatingRemainder(dividingBy: 5.1) < 0.13 { index = 1 }
             else { index = hasClubAnimation && t.truncatingRemainder(dividingBy: 7) < 3.5 ? 56 : 0 }
+        case .plugIn: index = 0
+        case .listening: index = active && t.truncatingRemainder(dividingBy: 4.4) < 3.8 ? 1 : (hasClubAnimation ? 56 : 0)
+        case .unplug: index = 0
         case .sideEye: index = 2
         case .grumpy: index = hasLatteAnimation ? 20 : 2
         case .coffee:
@@ -882,6 +914,7 @@ final class CharacterView: NSView {
         if mood == .shySmile { angle = noteDirection * (active ? 0.025 + sin(elapsed * 1.4) * 0.005 : 0.025) }
         if mood == .takeBow && active { angle = sin(min(1, elapsed / 1.8) * .pi) * 0.055 }
         if mood == .affection && active { angle = sin(elapsed * 4) * 0.015 }
+        if mood == .listening && active { angle = sin(t * 2.7) * 0.024 }
         if mood == .stretch && active { angle = sin(t * 1.2) * 0.008 }
         if mood == .tumble && active && elapsed < 0.45 { angle = sin(elapsed / 0.45 * .pi) * 0.06 }
         if mood == .coffee && hasInteractionAnimation && elapsed > 4.8 && active { angle = sin((elapsed - 4.8) * .pi / 0.7) * 0.015 }
@@ -949,12 +982,65 @@ final class CharacterView: NSView {
         } else {
             atlas.frames[pose.index].image.draw(in: pose.rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }
+        if mood.isHeadphones { drawHeadphones(in: pose.rect, time: t, mood: mood) }
         ctx.restoreGState()
         if mood == .celebrate {
             for (x, y, r) in [(26.0, 57.0, 5.0), (168, 39, 6), (168, 144, 4)] {
                 star(center: accessoryPoint(x: x, y: y + sin(t * 6 + x) * 2), radius: r * Self.presentationRatio, color: Self.pink)
             }
         }
+    }
+
+    private func drawHeadphones(in rect: NSRect, time: Double, mood: Mood) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let elapsed = previewTime ?? listeningState.elapsed
+        let progress = reduceMotion ? 1 : min(1, max(0, elapsed / (mood == .unplug ? ListeningState.takeOffDuration : 0.65)))
+        let slide = mood == .plugIn ? (1 - progress) * -12 : (mood == .unplug ? progress * -12 : 0)
+        context.saveGState()
+        if mood == .unplug { context.setAlpha(1 - progress) }
+        context.translateBy(x: rect.minX, y: rect.minY + slide)
+        context.scaleBy(x: rect.width / 100, y: rect.height / 100)
+        let rim = NSColor(calibratedRed: 0.15, green: 0.19, blue: 0.42, alpha: 1)
+        let shell = NSColor(calibratedRed: 0.52, green: 0.63, blue: 0.98, alpha: 1)
+        let light = NSColor(calibratedRed: 0.76, green: 0.82, blue: 1, alpha: 1)
+        let blush = NSColor(calibratedRed: 0.93, green: 0.52, blue: 0.80, alpha: 1)
+        let cyan = NSColor(calibratedRed: 0.55, green: 0.95, blue: 0.97, alpha: 1)
+        let band = NSBezierPath()
+        band.move(to: NSPoint(x: 8, y: 36))
+        band.curve(to: NSPoint(x: 92, y: 36), controlPoint1: NSPoint(x: 3, y: -5), controlPoint2: NSPoint(x: 96, y: -5))
+        band.lineCapStyle = .round
+        rim.setStroke(); band.lineWidth = 8; band.stroke()
+        shell.setStroke(); band.lineWidth = 5; band.stroke()
+        light.setStroke(); band.lineWidth = 1.3; band.stroke()
+        for x in [2.0, 85.0] {
+            let pad = NSBezierPath(roundedRect: NSRect(x: x, y: 28, width: 13, height: 25), xRadius: 6, yRadius: 6)
+            rim.setFill(); pad.fill()
+            let cup = NSBezierPath(roundedRect: NSRect(x: x + 1, y: 29, width: 10, height: 22), xRadius: 5, yRadius: 5)
+            NSGradient(starting: light, ending: shell)?.draw(in: cup, angle: -40)
+            rim.setStroke(); cup.lineWidth = 1.5; cup.stroke()
+            roundRect(NSRect(x: x + 3, y: 34, width: 5, height: 13), radius: 2, fill: blush)
+            ellipse(NSRect(x: x + 4, y: 48, width: 3, height: 2), cyan)
+        }
+        // A loose cable lands in a tiny side port; the hand plugs it in after
+        // lowering the headband. The cable and earcups share the sprite transform.
+        let inserting = mood == .plugIn && !reduceMotion ? min(1, max(0, (elapsed - 0.65) / 0.65)) : 1
+        let tip = NSPoint(x: 64 + 20 * (1 - inserting), y: 77 - 12 * (1 - inserting))
+        let cable = NSBezierPath()
+        cable.move(to: NSPoint(x: 91, y: 52))
+        cable.curve(to: tip, controlPoint1: NSPoint(x: 102, y: 83), controlPoint2: NSPoint(x: 92, y: 93))
+        rim.setStroke(); cable.lineWidth = 1.5; cable.stroke()
+        roundRect(NSRect(x: 61, y: 74, width: 6, height: 7), radius: 2, fill: rim)
+        roundRect(NSRect(x: tip.x - 2, y: tip.y - 1, width: 6, height: 3), radius: 1, fill: light)
+        if mood == .plugIn && elapsed > 0.55 && elapsed < 1.5 && !reduceMotion {
+            let arm = NSBezierPath()
+            arm.move(to: NSPoint(x: 72, y: 73))
+            arm.curve(to: tip, controlPoint1: NSPoint(x: 90, y: 86), controlPoint2: NSPoint(x: tip.x + 9, y: tip.y + 4))
+            rim.setStroke(); arm.lineWidth = 7; arm.lineCapStyle = .round; arm.stroke()
+            shell.setStroke(); arm.lineWidth = 5; arm.stroke()
+            ellipse(NSRect(x: tip.x - 3, y: tip.y - 3, width: 8, height: 7), light)
+        }
+        if inserting == 1 { ellipse(NSRect(x: 61, y: 74, width: 2, height: 2), cyan) }
+        context.restoreGState()
     }
 
     private var latteRect: NSRect {
