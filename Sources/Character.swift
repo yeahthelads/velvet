@@ -71,6 +71,7 @@ final class PetPanel: NSPanel {
 
 final class CharacterView: NSView {
     var mood: Mood = .wave
+    let audio = CompanionAudio()
     var paused = false
     var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     var onClick: (() -> Void)?
@@ -97,7 +98,7 @@ final class CharacterView: NSView {
     var focusRest: Mood? {
         didSet {
             guard focusRest != oldValue else { return }
-            if focusRest != nil { responses.cancelZoomies(); performance.cancelApplause(); cancelDance() }
+            if focusRest != nil { audio.stopAll(); responses.cancelZoomies(); performance.cancelApplause(); cancelDance() }
             if focusRest != nil && mood == .wakeUp { mood = baseMood; moodUntil = .distantPast }
             if canGiveNotes && !isBusy { mood = baseMood; needsDisplay = true }
         }
@@ -223,7 +224,7 @@ final class CharacterView: NSView {
         var help = "Click her face or body for notes. Stroke or hold her head briefly for affection. Drag her body or Option-drag to move."
         if needsAffection { help += " She needs affection before she will return your notes." }
         if wantsCoffee { help += " She needs an iced latte before she will return your notes. Drag the cup into her hand or click it." }
-        if performance.restless { help += " Click the ballet-shoes button beside her to choose Ballet, Floorwork, Vogue Fem, Robot disco, House, or Waacking." }
+        if performance.restless { help += " Click the ballet-shoes button beside her to choose Ballet, Floorwork, Vogue Fem, Robot disco, House, Waacking, or Breakdance." }
         if performance.awaitingApplause { help += " Click the clapping-hands button beside her to applaud; she will take a little bow." }
         if stimulation.overstimulated { help += " Too much fuss. Give her thirty seconds of quiet or start focus; notes are still available." }
         setAccessibilityHelp(help)
@@ -238,6 +239,7 @@ final class CharacterView: NSView {
         RunLoop.main.add(clock!, forMode: .common)
     }
     func stop() {
+        audio.stopAll()
         clock?.invalidate(); clock = nil
         if gesture != nil { NSCursor.arrow.set() }
         gesture = nil; mouseOrigin = nil; dragOrigin = nil
@@ -283,6 +285,7 @@ final class CharacterView: NSView {
         default: length = duration
         }
         moodUntil = [.grumpy, .annoyed, .crying, .focusNap, .zoomies, .reconcile, .restless, .showOff, .overstimulated].contains(mood) ? .distantFuture : Date().addingTimeInterval(length)
+        if mood == .tumble { audio.playTumble() }
         idleSince = Date()
         syncCompanionButtons()
         needsDisplay = true
@@ -310,6 +313,7 @@ final class CharacterView: NSView {
         advancePerformance(by: min(0.25, max(0, responseNow - lastResponseTick)))
         advanceStimulation(by: min(0.25, max(0, responseNow - lastResponseTick)))
         syncCompanionButtons()
+        audio.updateVogue(playing: danceChosen && mood == .vogue && !reduceMotion, paused: paused)
         lastResponseTick = responseNow
         if let held = gesture, held.target == .crown, held.phase == .pressed, ProcessInfo.processInfo.systemUptime - held.began >= 0.35 {
             updatePointer(at: held.last, screenPoint: mouseOrigin ?? .zero, time: ProcessInfo.processInfo.systemUptime)
@@ -446,17 +450,22 @@ final class CharacterView: NSView {
         if care.needsAffection { responses.comfort() }
         attitude.pet(); care.soothe()
         react(wasCrying ? .recover : .affection)
+        audio.playHeadPet()
         recordStimulation()
     }
     func makeAnnoyed() { care.annoy(); react(baseMood) }
-    private func cancelDance() { danceInProgress = false; danceChosen = false; danceAsksForApplause = false }
+    private func cancelDance() { audio.stopVogue(); danceInProgress = false; danceChosen = false; danceAsksForApplause = false }
     func chooseDance(_ dance: Mood) {
         guard dance.isChoreography, canGiveNotes, focusRest == nil, !stimulation.overstimulated, mood != .coffee else { return }
         recordStimulation()
         guard !stimulation.overstimulated else { return }
         responses.cancelZoomies()
+        audio.stopVogue()
         react(dance, duration: 12)
-        if mood == dance { danceChosen = true }
+        if mood == dance {
+            danceChosen = true
+            audio.updateVogue(playing: dance == .vogue && !reduceMotion, paused: paused)
+        }
     }
     private func finishDanceIfNeeded() {
         guard danceInProgress, mood.isChoreography else { return }
@@ -670,7 +679,7 @@ final class CharacterView: NSView {
         case .sleep: index = 7
         case .ballet: index = active ? 8 + Int(t * 2.5) % 4 : 8
         case .floorwork: index = active ? 12 + Int(t * 2.5) % 4 : 12
-        case .vogue: index = atlas.frames.count >= 20 ? (active ? 16 + Int(t * 2.5) % 4 : 16) : 2
+        case .vogue: index = atlas.frames.count >= 20 ? (active ? (elapsed >= 9 ? 19 : 16 + Int(elapsed / (60.0 / 128)) % 4) : 16) : 2
         case .paperOpen: index = hasInteractionAnimation ? 28 + (active ? min(2, Int(elapsed / 0.38)) : 2) : 3
         case .paperClose: index = hasInteractionAnimation ? 31 + (active && elapsed < 0.45 ? 0 : 1) : 0
         case .paperToss: index = hasInteractionAnimation ? (active && elapsed < 0.40 ? 33 : 34) : 3

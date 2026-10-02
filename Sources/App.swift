@@ -336,6 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func petHead() { character.rubCrown() }
     @objc func applaudHer() { character.applaud() }
+    @objc func toggleCompanionSounds() { character.audio.enabled.toggle(); rebuildMenu() }
     func item(_ title: String, _ selector: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; return item
     }
@@ -365,6 +366,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let dances = NSMenuItem(title: character.showsDanceChooser ? "Choose a dance · she’s restless" : "Choose a dance", action: nil, keyEquivalent: "")
         dances.submenu = character.makeDanceMenu()
         menu.addItem(dances)
+        if character.audio.available {
+            let sound = item("Companion sounds", #selector(toggleCompanionSounds))
+            sound.state = character.audio.enabled ? .on : .off
+            menu.addItem(sound)
+        }
         menu.addItem(item("Make her grumpy", #selector(makeGrumpy)))
         menu.addItem(.separator())
         menu.addItem(item(pet.isVisible ? "Hide Velvet" : "Show Velvet", #selector(togglePet)))
@@ -944,7 +950,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     character.react(.wakeUp); startFocus(seconds: 60)
                     checks["newFocusInterruptsWakeWithStretch"] = character.mood == .stretch && store.focus.isActive
                     endFocus(); openNotes()
-                    completion(checks)
+                    checkCompanionAudio().forEach { checks[$0.key] = $0.value }
+                    // Let AppKit finish restoring the key note panel after the
+                    // sound checks exercise tumble/comfort in the same event.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
                 }
                 return
             }
@@ -953,7 +962,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { runStep(0) }
     }
+    func checkCompanionAudio() -> [String: Any] {
+        var checks: [String: Any] = [:]
+        let audio = character.audio
+        guard audio.available else { return ["optionalAudioMissingIsSilent": !audio.isChantPlaying && !audio.isHeadPetPlaying] }
+        checks["threeLocalSamplesLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble
+        let visible = notes.isVisible, noteID = store.selectedID, body = store.selected?.body
+        character.stimulation = StimulationState(cooldown: 60)
+        character.mood = .idle; character.moodUntil = .distantPast
+        audio.enabled = true; character.chooseDance(.vogue)
+        checks["chosenVoguePlaysLongChant"] = audio.isChantPlaying && !audio.isHeadPetPlaying
+        audio.updateVogue(playing: true, paused: true)
+        checks["pauseSilencesVogueWithoutPetSound"] = !audio.isChantPlaying && !audio.isHeadPetPlaying
+        audio.updateVogue(playing: true)
+        checks["resumeRestartsPausedChant"] = audio.isChantPlaying
+        character.rubCrown()
+        checks["headPetPlaysShortSampleAndInterruptsVogue"] = audio.isHeadPetPlaying && !audio.isChantPlaying && character.mood == .affection
+        checks["headPetSoundPreservesNoteAndVisibility"] = notes.isVisible == visible && store.selectedID == noteID && store.selected?.body == body
+        startFocus(minutes: 25)
+        checks["focusStopsBothSounds"] = !audio.isChantPlaying && !audio.isHeadPetPlaying
+        endFocus(); character.mood = .idle; character.moodUntil = .distantPast
+        character.chooseDance(.vogue); audio.enabled = false; character.rubCrown()
+        checks["soundToggleMutesBothSamples"] = !audio.isChantPlaying && !audio.isHeadPetPlaying
+        audio.enabled = true; character.mood = .idle; character.moodUntil = .distantPast
+        character.stumble()
+        checks["tumblePlaysOnlyItsSample"] = audio.isTumblePlaying && !audio.isChantPlaying && !audio.isHeadPetPlaying && character.mood == .tumble
+        character.rubCrown()
+        checks["comfortReplacesTumbleSoundWithHeadPetSound"] = !audio.isTumblePlaying && audio.isHeadPetPlaying && !character.needsAffection
+        audio.enabled = false; character.stumble()
+        checks["soundToggleAlsoMutesTumble"] = !audio.isTumblePlaying && !audio.isHeadPetPlaying && !audio.isChantPlaying
+        character.rubCrown(); audio.enabled = true
+        character.mood = .idle; character.moodUntil = .distantPast
+        if visible { openNotes() } else { closeNotes() }
+        return checks
+    }
     func runSmokeTest(to url: URL) {
+        character.audio.volume = 0 // Exercise playback without making the test run noisy.
         coffee = CoffeeState(); character.wantsCoffee = false
         character.care = CompanionCare(timeUntilTumble: 3000)
         character.stimulation = StimulationState(cooldown: 60)

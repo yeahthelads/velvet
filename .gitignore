@@ -9,3 +9,8 @@ notes.json.*
 *.notes.json
 # User-supplied audio stays local unless explicitly shared.
 Assets/vogue-sound.*
+Assets/*.wav
+Assets/*.mp3
+Assets/*.m4a
+Assets/*.aiff
+Assets/*.aif
