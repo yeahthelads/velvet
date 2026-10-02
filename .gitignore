@@ -7,3 +7,5 @@ xcuserdata/
 notes.json
 notes.json.*
 *.notes.json
+# User-supplied audio stays local unless explicitly shared.
+Assets/vogue-sound.*

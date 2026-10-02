@@ -1,0 +1,14 @@
+Use case: stylized-concept
+Asset type: eight-frame transparent sprite atlas for an existing tiny animated macOS desktop robot.
+Input image: reference only. Match exactly the same robot identity, soft periwinkle blue cloud-shaped head, rounded stubby blue body and limbs, dark navy face visor with cyan square pixel LED eyes and tiny smile, pink cheek pixels, pink right-ear accent and pink boot soles. Blank belly, no logo. Same soft 3D lighting and materials. Render smoothly; the app will apply subtle pixelation.
+Primary request: new playful breakdance poses. Eight separate complete robot illustrations in a precise 4-column by 2-row grid, read left to right, top row then bottom. All cells equal sized, centered, with generous transparent gutters and no overlap. Keep head size identical across every cell. First standing pose calibrates the head/body scale; floor poses retain that same head size and simply sit lower on the same floor baseline.
+Frames:
+1. Upright toprock ready stance, one foot lightly crossed, arms open, cheeky cyan > - wink.
+2. To the other side: crossed-step toprock with one arm across the chest and the other angled outward.
+3. Go-down: a crouched transition, one hand planted, other arm balancing, one leg extended.
+4. Six-step-inspired floor footwork, both hands supporting the body with one bent knee and one leg sweeping sideways.
+5. A low coffee-grinder leg sweep pose, one hand planted, one extended leg sweeping around, other knee bent.
+6. Baby freeze: balanced securely on bent arms, head tilted, legs tucked diagonally, visor still readable and playful.
+7. Backspin pose, resting on upper back/shoulders, short legs raised apart, head turned toward the viewer; clear anatomy, not a fall or a crying pose.
+8. Finish in a confident supported one-hand side freeze, body diagonal, one knee tucked and one leg extended, cheerful pixel wink.
+Constraints: robot character identical to reference, no hair/clothes/accessories, no belly symbol, no added props, no stage/floor/background, no cast shadow baked into image, no words/captions/numbers, no motion streaks, no duplicate or extra limbs, every pose wholly within its own cell. Real alpha transparency. Keep the limbs short and toy-like. Do not make a human dancer. 4 columns, 2 rows, eight poses only.

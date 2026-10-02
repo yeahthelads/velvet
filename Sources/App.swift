@@ -468,11 +468,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 try? data.write(to: directory.appendingPathComponent("\(mood.rawValue).png"))
             }
             if mood.isDance || mood == .coffee {
-                for i in 0..<(mood == .coffee ? 6 : 4) {
+                for i in 0..<(mood == .coffee ? 6 : (mood == .breakdance ? 8 : 4)) {
                     switch mood {
                     case .disco: character.previewTime = Double(i) * 0.65 + 0.2
                     case .house: character.previewTime = Double(i) * 0.28 + 0.05
                     case .waacking: character.previewTime = Double(i) * 0.24 + 0.05
+                    case .breakdance: character.previewTime = [0.2, 1.2, 2.2, 3.0, 3.6, 5.8, 7.0, 10.0][i]
                     default: character.previewTime = Double(i) * (mood == .coffee ? 0.8 : 0.4) + (mood == .coffee ? 0.2 : 0.05)
                     }
                     let frame = character.bitmapImageRepForCachingDisplay(in: character.bounds)!
@@ -656,8 +657,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["restlessKeepsNotesAvailable"] = character.canGiveNotes
                 let button = NSPoint(x: character.applauseButtonRect.midX, y: character.applauseButtonRect.midY)
                 checks["restlessShowsClickableDanceChooser"] = character.showsDanceChooser && character.interactiveArea(button) && character.hitTest(button) is NSButton
-                checks["danceMenuOffersSixClearChoices"] = character.makeDanceMenu().items.map(\.title) == ["Ballet", "Floorwork", "Vogue Fem", "Robot disco", "House", "Waacking"]
-                checks["contextMenuClearlyOffersDanceChooser"] = makeMenu().items.contains { $0.title == "Choose a dance · she’s restless" && $0.submenu?.items.count == 6 }
+                checks["danceMenuOffersSevenClearChoices"] = character.makeDanceMenu().items.map(\.title) == ["Ballet", "Floorwork", "Vogue Fem", "Robot disco", "House", "Waacking", "Breakdance"]
+                checks["contextMenuClearlyOffersDanceChooser"] = makeMenu().items.contains { $0.title == "Choose a dance · she’s restless" && $0.submenu?.items.count == 7 }
                 _ = capture("restless-preview.png")
                 openNotes()
                 checks["restlessCanOpenNotes"] = notes.isVisible && character.performance.restless
@@ -755,6 +756,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 character.previewTime = 1
                 checks["terminalVisorExpressionLoaded"] = character.displayedSpriteIndex == 56
                 character.previewTime = nil
+                character.makeDanceMenu().performActionForItem(at: 6)
+                checks["menuStartsBreakdanceWithLoadedArtwork"] = character.hasBreakdanceAnimation && character.mood == .breakdance
+                checks["breakdanceOnlyAvailableThroughChoices"] = Mood.danceChoices.contains(.breakdance) && !Mood.automaticDances.contains(.breakdance)
+                let frames = [0.2, 1.2, 2.2, 3.0, 3.6, 5.8, 7.0, 10.0].map { time -> Int? in
+                    character.previewTime = time
+                    return character.displayedSpriteIndex
+                }
+                checks["breakdanceShowsToprockFootworkFreezeAndBackspin"] = frames == Array(76...83).map { Optional($0) }
+                character.previewTime = nil
+                startFocus(minutes: 25)
+                checks["focusInterruptsBreakdance"] = character.mood == .stretch
+                endFocus(); makeGrumpy(); character.chooseDance(.breakdance)
+                checks["breakdanceCannotBypassCareNeeds"] = character.mood == .grumpy && !character.canGiveNotes
+                giveCoffee(); character.mood = .idle; character.moodUntil = .distantPast
             }
         ]
         func runStep(_ index: Int) {

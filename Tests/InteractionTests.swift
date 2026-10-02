@@ -75,6 +75,8 @@ import Foundation
         check(!focus.advance(by: 5), "Completion must not repeat")
         check([0.2, 0.7, 1.3, 1.9, 2.7, 3.3, 3.8].map { FocusSession.wakePoseStep(at: $0) } == Array(0...6), "Waking unfolds through sleepy eyes, sitting, stretching, blinking, and settling")
         check(FocusSession.wakePoseStep(at: 100) == 6, "Waking ends in a settled pose")
+        check([0.2, 1.2, 2.2, 3.0, 3.6, 5.8, 7.0, 10.0].map { PerformanceState.breakdancePose(at: $0) } == Array(0...7), "Breakdance includes toprock, footwork, freezes, and backspin in order")
+        check(PerformanceState.breakdancePose(at: 12) == 7, "Breakdance ends in its held finish rather than looping back to standing")
         focus.end()
         check(focus.label == "focus" && focus.remaining == 0, "Ending resets focus")
         var adjustableFocus = FocusSession()

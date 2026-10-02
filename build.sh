@@ -16,5 +16,6 @@ cp Assets/wellbeing-sprites-v1.png "$APP/Contents/Resources/wellbeing-sprites-v1
 cp Assets/disco-sprites-v1.png "$APP/Contents/Resources/disco-sprites-v1.png"
 cp Assets/club-sprites-v1.png "$APP/Contents/Resources/club-sprites-v1.png"
 cp Assets/stretch-sprites-v1.png "$APP/Contents/Resources/stretch-sprites-v1.png"
+cp Assets/breakdance-sprites-v1.png "$APP/Contents/Resources/breakdance-sprites-v1.png"
 codesign --force --sign - "$APP"
 echo "Built $APP"

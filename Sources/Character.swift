@@ -5,9 +5,9 @@ enum Mood: String, CaseIterable {
     case paperOpen, paperClose, paperToss, affection, annoyed
     case stretch, focusNap, wakeUp, tumble, crying, recover
     case zoomies, reconcile, shySmile, disco
-    case restless, showOff, takeBow, overstimulated, house, waacking
-    var isChoreography: Bool { self == .ballet || self == .floorwork || self == .vogue || self == .disco || self == .house || self == .waacking }
-    static let danceChoices: [Mood] = [.ballet, .floorwork, .vogue, .disco, .house, .waacking]
+    case restless, showOff, takeBow, overstimulated, house, waacking, breakdance
+    var isChoreography: Bool { self == .ballet || self == .floorwork || self == .vogue || self == .disco || self == .house || self == .waacking || self == .breakdance }
+    static let danceChoices: [Mood] = [.ballet, .floorwork, .vogue, .disco, .house, .waacking, .breakdance]
     static let automaticDances: [Mood] = [.ballet, .floorwork, .disco, .house]
     var danceTitle: String {
         switch self {
@@ -17,6 +17,7 @@ enum Mood: String, CaseIterable {
         case .disco: return "Robot disco"
         case .house: return "House"
         case .waacking: return "Waacking"
+        case .breakdance: return "Breakdance"
         default: return label
         }
     }
@@ -54,6 +55,7 @@ enum Mood: String, CaseIterable {
         case .disco: return "Robot disco"
         case .house: return "House"
         case .waacking: return "Waacking"
+        case .breakdance: return "A little breakdance"
         case .restless: return "Needs a dance break"
         case .showOff: return "Waiting for applause"
         case .takeBow: return "Thank you, darling"
@@ -169,6 +171,7 @@ final class CharacterView: NSView {
     var hasDiscoAnimation: Bool { spriteFrameCount >= 56 }
     var hasClubAnimation: Bool { spriteFrameCount >= 68 }
     var hasStretchAnimation: Bool { spriteFrameCount >= 76 }
+    var hasBreakdanceAnimation: Bool { spriteFrameCount >= 84 }
     var isBusy: Bool { mood.isInteraction && Date() < moodUntil }
     private var moodBegan = Date()
     private let sipDuration = 6.0
@@ -203,13 +206,13 @@ final class CharacterView: NSView {
         danceButton.target = self; danceButton.action = #selector(danceChooserPressed)
         danceButton.isBordered = false; danceButton.bezelStyle = .regularSquare
         danceButton.font = .systemFont(ofSize: 19)
-        danceButton.toolTip = "Choose a dance · Ballet, Floorwork, Vogue Fem, Robot disco, House, or Waacking"
+        danceButton.toolTip = "Choose a dance · Ballet, Floorwork, Vogue Fem, Robot disco, House, Waacking, or Breakdance"
         danceButton.setAccessibilityLabel("Choose a dance for Velvet")
         danceButton.isHidden = true
         addSubview(danceButton)
         updateAccessibilityHelp()
         if let url = Bundle.main.url(forResource: "velvet-sprites-v5", withExtension: "png") {
-            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"))
+            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"))
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -617,7 +620,7 @@ final class CharacterView: NSView {
     }
     var groundShadowRect: NSRect {
         let center = atlas.map { spritePose(time: animationTime, mood: mood, atlas: $0).rect.midX } ?? 95
-        let width = ([Mood.focusNap, .crying, .tumble, .floorwork, .stretch].contains(mood) ? 82.0 : 65.0) * Self.presentationRatio
+        let width = ([Mood.focusNap, .crying, .tumble, .floorwork, .stretch, .breakdance].contains(mood) ? 82.0 : 65.0) * Self.presentationRatio
         return NSRect(x: center - width / 2, y: 184.5, width: width, height: 8 * Self.presentationRatio)
     }
     private func drawGroundShadow() {
@@ -694,6 +697,7 @@ final class CharacterView: NSView {
         case .showOff: index = min(showOffPose, atlas.frames.count - 1)
         case .house: index = hasClubAnimation ? 60 + (active ? Int(elapsed / 0.28) % 4 : 0) : 5
         case .waacking: index = hasClubAnimation ? 64 + (active ? Int(elapsed / 0.24) % 4 : 0) : 3
+        case .breakdance: index = hasBreakdanceAnimation ? 76 + (active ? PerformanceState.breakdancePose(at: elapsed) : 0) : 12
         case .takeBow: index = hasInteractionAnimation ? 42 : 1
         case .overstimulated: index = hasInteractionAnimation && elapsed < 3 ? 39 : 7
         case .zoomies:
@@ -707,10 +711,10 @@ final class CharacterView: NSView {
         if let forcedIndex { index = forcedIndex }
         let frame = atlas.frames[index]
         var lift = active ? sin(t * 1.8) * 0.35 : 0
-        if [.focusNap, .wakeUp, .crying, .tumble, .showOff, .overstimulated].contains(mood) { lift = 0 }
+        if [.focusNap, .wakeUp, .crying, .tumble, .showOff, .overstimulated, .breakdance].contains(mood) { lift = 0 }
         if mood == .takeBow && active { lift += sin(min(1, elapsed / 1.8) * .pi) * 4 }
         if mood == .celebrate && active { lift -= abs(sin(t * 6)) * 8 }
-        if mood.isDance && mood != .zoomies && active { lift -= abs(sin(t * .pi * 2.5)) * (mood == .ballet ? 2 : 0.6) }
+        if mood.isDance && mood != .zoomies && mood != .breakdance && active { lift -= abs(sin(t * .pi * 2.5)) * (mood == .ballet ? 2 : 0.6) }
         var offsetX = mood == .walk && active ? sin(t * 2) * 7 : 0
         if mood == .zoomies && active {
             if zoom < 2 { offsetX = sin(zoom * .pi * 2) * 8; lift -= abs(sin(zoom * .pi * 5)) * 1.2 }
@@ -723,6 +727,7 @@ final class CharacterView: NSView {
         }
         if mood == .house && active { offsetX = sin(elapsed * .pi / 0.56) * 3; lift += abs(sin(elapsed * .pi / 0.56)) * 0.8 }
         if mood == .waacking && active { offsetX = sin(elapsed * .pi / 0.96) * 1.5 }
+        if mood == .breakdance && active && elapsed < 2 { offsetX = sin(elapsed * .pi * 2) * 2 }
         if mood == .disco && active { offsetX = sin(elapsed * .pi / 1.3) * 4 }
         if mood == .restless && active { offsetX = sin(elapsed * 3) * 0.7 }
         offsetX *= Self.presentationRatio
@@ -734,7 +739,7 @@ final class CharacterView: NSView {
         var angle = 0.0
         if mood == .pickedUp && active { angle = sin(t * 8) * 0.07 }
         if mood == .wave && active { angle = sin(t * 6) * 0.025 }
-        if mood.isDance && mood != .zoomies && active { angle = sin(t * .pi * 2.5) * 0.02 }
+        if mood.isDance && mood != .zoomies && mood != .breakdance && active { angle = sin(t * .pi * 2.5) * 0.02 }
         if mood == .zoomies && active && zoom < 6.4 { angle = sin(zoom * 5) * (zoom < 2 ? 0.022 : 0.012) }
         if mood == .shySmile { angle = noteDirection * (active ? 0.025 + sin(elapsed * 1.4) * 0.005 : 0.025) }
         if mood == .takeBow && active { angle = sin(min(1, elapsed / 1.8) * .pi) * 0.055 }

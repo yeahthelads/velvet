@@ -3,6 +3,14 @@ import Foundation
 /// These playful needs never gate notes. Time accrues only while she is awake
 /// and available; completing a chosen dance settles restlessness.
 struct PerformanceState: Equatable {
+    /// A twelve-second phrase: toprock, go-down, alternating footwork,
+    /// baby freeze, backspin, and a held side-freeze finish.
+    static func breakdancePose(at elapsed: Double) -> Int {
+        guard elapsed.isFinite else { return 0 }
+        let thresholds = [1.0, 2.0, 2.75, 3.4, 4.05, 4.7, 5.35, 6.7, 7.7, 8.4, 9.2]
+        let poses = [0, 1, 2, 3, 4, 3, 4, 5, 6, 3, 5, 7]
+        return poses[thresholds.firstIndex { elapsed < $0 } ?? 11]
+    }
     static let applauseChance = 0.15
     static func asksForApplause(roll: Double = Double.random(in: 0..<1), chance: Double = applauseChance) -> Bool {
         roll.isFinite && roll >= 0 && roll < 1 && roll < chance
