@@ -337,18 +337,28 @@ final class CharacterView: NSView {
         if wantsCoffee && latteContains(point) { return true }
         if let atlas {
             let pose = spritePose(time: animationTime, mood: mood, atlas: atlas)
-            let dx = point.x - 95, dy = point.y - spritePivotY
-            let x = 95 + dx * cos(pose.angle) + dy * sin(pose.angle)
-            let y = spritePivotY - dx * sin(pose.angle) + dy * cos(pose.angle)
+            // Keep animation math in Double; AppKit coordinates are CGFloat.
+            // Explicit boundaries also work with older Swift type checkers.
+            let dx = Double(point.x) - 95
+            let dy = Double(point.y) - spritePivotY
+            let cosine = cos(pose.angle), sine = sin(pose.angle)
+            let x = 95 + dx * cosine + dy * sine
+            let y = spritePivotY - dx * sine + dy * cosine
             let frame = atlas.frames[pose.index]
             let scale = atlas.scale * Self.appearanceScale * frame.unitScale
-            return frame.contains(x: (x - pose.rect.minX) / scale, y: (y - pose.rect.minY) / scale)
+            return frame.contains(x: (x - Double(pose.rect.minX)) / scale, y: (y - Double(pose.rect.minY)) / scale)
         }
         let pose = geometry(time: animationTime, mood: mood)
-        let dx = point.x - 95, dy = point.y - 110
-        let p = NSPoint(x: 95 + dx * cos(pose.wobble) + dy * sin(pose.wobble), y: 110 - dx * sin(pose.wobble) + dy * cos(pose.wobble) - pose.bounce + pose.lift)
-        let headX = p.x - 95, headY = p.y - 67
-        let h = NSPoint(x: 95 + headX * cos(pose.headTilt) + headY * sin(pose.headTilt), y: 67 - headX * sin(pose.headTilt) + headY * cos(pose.headTilt))
+        let dx = Double(point.x) - 95, dy = Double(point.y) - 110
+        let cosine = cos(pose.wobble), sine = sin(pose.wobble)
+        let bodyX = 95 + dx * cosine + dy * sine
+        let bodyY = 110 - dx * sine + dy * cosine - pose.bounce + pose.lift
+        let p = NSPoint(x: CGFloat(bodyX), y: CGFloat(bodyY))
+        let headX = bodyX - 95, headY = bodyY - 67
+        let headCosine = cos(pose.headTilt), headSine = sin(pose.headTilt)
+        let rotatedHeadX = 95 + headX * headCosine + headY * headSine
+        let rotatedHeadY = 67 - headX * headSine + headY * headCosine
+        let h = NSPoint(x: CGFloat(rotatedHeadX), y: CGFloat(rotatedHeadY))
         if headPath().contains(h) || NSRect(x: 141, y: 48, width: 13, height: 41).contains(h) { return true }
         if torsoPath().contains(p) { return true }
         if NSBezierPath(roundedRect: NSRect(x: 25, y: 110, width: 37, height: 37), xRadius: 3, yRadius: 3).contains(p) { return true }
@@ -583,7 +593,7 @@ final class CharacterView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.clear.setFill(); dirtyRect.fill()
         drawGroundShadow()
-        let width = Int(ceil(bounds.width / pixelSize)), height = Int(ceil(bounds.height / pixelSize))
+        let width = Int(ceil(Double(bounds.width) / pixelSize)), height = Int(ceil(Double(bounds.height) / pixelSize))
         if pixelCanvas?.pixelsWide != width || pixelCanvas?.pixelsHigh != height {
             pixelCanvas = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: width * 4, bitsPerPixel: 32)
         }
@@ -593,7 +603,7 @@ final class CharacterView: NSView {
         context.saveGState()
         context.clear(CGRect(x: 0, y: 0, width: width, height: height))
         context.translateBy(x: 0, y: Double(height))
-        context.scaleBy(x: Double(width) / bounds.width, y: -Double(height) / bounds.height)
+        context.scaleBy(x: CGFloat(Double(width) / Double(bounds.width)), y: CGFloat(-Double(height) / Double(bounds.height)))
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
         drawCompanion()
         context.restoreGState()
@@ -834,20 +844,20 @@ final class CharacterView: NSView {
         let scale = min(29 / Double(frame.width), 46 / Double(frame.height)) * Self.presentationRatio
         let width = Double(frame.width) * scale, height = Double(frame.height) * scale
         let anchor = accessoryPoint(x: 156, y: 185)
-        return NSRect(x: anchor.x - width / 2, y: anchor.y - height, width: width, height: height)
+        return NSRect(x: CGFloat(Double(anchor.x) - width / 2), y: CGFloat(Double(anchor.y) - height), width: CGFloat(width), height: CGFloat(height))
     }
     private func latteContains(_ point: NSPoint) -> Bool {
         let rect = offeredLatteRect
         guard let atlas, hasLatteAnimation, rect.contains(point) else { return false }
         let frame = atlas.frames[27]
-        return frame.contains(x: (point.x - rect.minX) * Double(frame.width) / rect.width,
-                              y: (point.y - rect.minY) * Double(frame.height) / rect.height)
+        return frame.contains(x: Double(point.x - rect.minX) * Double(frame.width) / Double(rect.width),
+                              y: Double(point.y - rect.minY) * Double(frame.height) / Double(rect.height))
     }
     private var currentLatteOffset: NSPoint {
         guard let began = latteReturnBegan else { return latteOffset }
         let progress = min(1, max(0, (ProcessInfo.processInfo.systemUptime - began) / 0.24))
         let remaining = pow(1 - progress, 3)
-        return NSPoint(x: latteOffset.x * remaining, y: latteOffset.y * remaining)
+        return NSPoint(x: latteOffset.x * CGFloat(remaining), y: latteOffset.y * CGFloat(remaining))
     }
     private var offeredLatteRect: NSRect { latteRect.offsetBy(dx: currentLatteOffset.x, dy: currentLatteOffset.y) }
     private func drawPaperToss() {
@@ -856,7 +866,7 @@ final class CharacterView: NSView {
         guard !paused || previewTime != nil, !reduceMotion, elapsed >= 0.4, elapsed <= 1.4 else { return }
         let progress = min(1, (elapsed - 0.4) / 0.8)
         let point = accessoryPoint(x: 64 - progress * 47, y: 135 + progress * 48 - sin(progress * .pi) * 54)
-        let x = point.x, y = point.y
+        let x = Double(point.x), y = Double(point.y)
         let frame = atlas.frames[35]
         let scale = min(13 / Double(frame.width), 13 / Double(frame.height)) * Self.presentationRatio
         let rect = NSRect(x: x - Double(frame.width) * scale / 2, y: y - Double(frame.height) * scale / 2, width: Double(frame.width) * scale, height: Double(frame.height) * scale)
@@ -869,8 +879,9 @@ final class CharacterView: NSView {
         guard !paused || previewTime != nil, !reduceMotion else { return }
         let elapsed = previewTime ?? Date().timeIntervalSince(moodBegan)
         let opacity = min(1, max(0, 2.3 - elapsed))
-        for (i, x) in [crownRect.minX + 8, crownRect.maxX - 20].enumerated() {
-            let y = crownRect.minY - 12 - min(1, elapsed / 1.6) * 9 + Double(i) * 3
+        for (i, crownX) in [crownRect.minX + 8, crownRect.maxX - 20].enumerated() {
+            let x = Double(crownX)
+            let y = Double(crownRect.minY) - 12 - min(1, elapsed / 1.6) * 9 + Double(i) * 3
             let rows = ["0110110", "1111111", "1111111", "0111110", "0011100", "0001000"]
             for (row, bits) in rows.enumerated() {
                 for (column, bit) in bits.enumerated() where bit == "1" {
@@ -893,7 +904,7 @@ final class CharacterView: NSView {
         let elapsed = previewTime ?? Date().timeIntervalSince(moodBegan)
         guard elapsed < 0.3 else { return }
         let progress = min(1, max(0, elapsed / 0.3))
-        let eased = progress * progress * (3 - 2 * progress)
+        let eased = CGFloat(progress * progress * (3 - 2 * progress))
         let pose = spritePose(time: animationTime, mood: .coffee, atlas: atlas, forcedIndex: 21)
         let destination = NSPoint(x: pose.rect.midX + pose.rect.width * 0.20, y: pose.rect.minY + pose.rect.height * 0.77)
         let point = NSPoint(x: origin.x + (destination.x - origin.x) * eased, y: origin.y + (destination.y - origin.y) * eased)
@@ -1092,7 +1103,9 @@ final class CharacterView: NSView {
         for i in 0..<8 {
             let angle = Double(i) * .pi / 4 - .pi / 2
             let r = i % 2 == 0 ? radius : radius * 0.32
-            let point = NSPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
+            let x = Double(center.x) + cos(angle) * r
+            let y = Double(center.y) + sin(angle) * r
+            let point = NSPoint(x: CGFloat(x), y: CGFloat(y))
             if i == 0 { p.move(to: point) } else { p.line(to: point) }
         }
         p.close(); paint(p, fill: color, stroke: nil)
