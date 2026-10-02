@@ -1,0 +1,15 @@
+Use case: stylized-concept.
+Asset type: transparent stretching sprite atlas for an existing tiny native desktop robot.
+Input images: identity/style references only, preserve their exact blue robot and material; ignore reference layout and background speckles.
+Create exactly EIGHT full-body poses in FOUR equal columns by TWO equal rows. Every robot entirely within its own equal cell, equal head size, generous transparent gutters, at least 10% empty padding on every side. No labels or grid lines.
+Identity invariants: satin periwinkle blue scalloped/cloud head, giant navy visor with tiny cyan SQUARE PIXEL LED eye glyphs and tiny smile, magenta pixel accents, pink accent on VIEWER'S RIGHT ear in every frame, short rounded blue limbs, pink foot soles, completely blank blue belly. Same near-frontal camera and studio lighting as the references. No clothing or accessories. Keep tiny robot proportions, no human limbs or extra fingers.
+Row-major poses:
+1 standing gentle overhead warm-up: both rounded arms raised beside the head, two feet planted, relaxed pixel smile. This is the standing height reference.
+2 seated straddle preparation: short legs extended in a wide V, pink soles visible, hands planted lightly between the legs, torso upright, calm half-closed eyes.
+3 full gentle middle split: short legs extended horizontally left and right, torso upright, hands on floor for support, no jump or performance flourish.
+4 split with a modest side lean: legs stay wide on the floor, torso inclines a little toward one leg and one hand reaches toward that foot, other hand supports her.
+5 pancake preparation: seated wide V legs, upright torso, both hands ahead on the floor between the legs.
+6 pancake halfway: same leg placement, soft forward hip hinge, torso and cloud head lower toward the floor, arms reaching forward between legs.
+7 low pancake stretch: folded forward between wide straight little legs, head and torso low to the floor, visor still visible with relaxed closed cyan pixel eyes, arms supported in front; she is comfortably stretching, NOT sad or crying.
+8 coming back from pancake: hands still supported, torso/head halfway raised toward upright with a tiny pleased pixel smile and the same wide seated legs.
+Constraints: same head dimensions across all cells, even standing/seated/forward-fold poses. Gentle, grounded, supported stretching. No airborne movement, ballet shoes, human anatomy, scenery, props, text, logo, belly symbol, shadows, colored speckles or opaque/checkerboard background. Actual transparent alpha, clean silhouettes. Do not mirror the pink ear to the left.

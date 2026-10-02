@@ -1,0 +1,25 @@
+Use case: stylized-concept.
+Asset type: transparent 3D desktop robot animation sprite atlas.
+Input image is the APPROVED character identity and rendering style reference. Create NEW poses, keeping her EXACT soft satin-plastic periwinkle blue scalloped oversized head, navy screen, tiny CYAN SQUARE PIXEL LED eye/mouth glyphs and magenta pixel outer lashes, pink ear accent, little blue limbs and pink boot soles. No smooth cartoon eyes or pupils. Plain blue belly, no logo. Same proportions, lighting, front three-quarter camera, size and floor-contact baseline across all character cells.
+Composition: exactly FOUR equal columns by FOUR equal rows, sixteen equal square cells in a square canvas. No grid lines, captions, background, particles or decorations. All subjects entirely inside their own cell, generous genuinely transparent padding. Do not reproduce the original poses. Physical paper should be a tiny buttery yellow lined Post-it with a thin pink margin, subtle paper grain and folded corner, rendered with the same soft lighting as the robot, no letters or logos. Rounded robot hands grasp or manipulate it naturally. Paper must not cover the face or merge with her body.
+Row 1 from left to right:
+1 holding a small folded yellow note between both hands at waist level, friendly pixel smile;
+2 unfolding that same note halfway, hands slightly separating at waist;
+3 holding fully open yellow lined Post-it at chest/waist, happy pixel smile;
+4 folding it closed again, one hand creasing it, sly smile.
+Row 2 from left to right:
+5 tucking the small folded paper against her hip, one hand drawing it aside, same identity;
+6 crumpling a tiny yellow paper sheet in her hands, playful pixel side eye;
+7 empty-handed just after flicking a paper ball toward viewer's LEFT, arm extending in a dramatic little throw, delighted pixel grin; NO flying ball in this cell;
+8 ONLY an isolated crumpled yellow lined paper ball, physically rendered, no robot. About 25% of cell width, centered.
+Row 3 from left to right:
+9 enjoying a head rub, relaxed arms, eyes small square-pixel happy ^ ^ glyphs, tiny smile and pink pixel blush, head leaning slightly toward viewer's left;
+10 same happy head-rub pose with a small opposite head tilt, maintaining exact body scale and location;
+11 annoyed with arms visibly crossed across her lower torso, tiny cyan narrowed pixel eyes and small pixel pout, cute bratty attitude;
+12 same crossed-arm pose, one tiny raised pixel eyebrow, exasperated pixel side eye.
+Row 4 from left to right:
+13 empty right-side hand reaching toward viewer's RIGHT to accept a latte, hand open at waist/chest height, small anticipatory pixel eyes, no cup or paper;
+14 same pose reaching a little farther toward viewer's RIGHT, other hand ready to help, no cup or paper;
+15 approving little nod after receiving a gift, both arms relaxed, happy pixel eyes and tiny smile, no objects;
+16 second small approving nod, playful tiny pixel wink, arms relaxed, no objects.
+Constraints: preserve reference character exactly, particularly tiny pixel face, plain belly, blue shell and pink accents. Consistent normal standing proportions (do not shrink bodies or enlarge heads). All character cells share the same floor baseline. Only cell 8 lacks a robot. Clean alpha background without checkerboard, ground plane, speckles or shadows outside the sprites.

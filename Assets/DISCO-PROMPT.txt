@@ -1,0 +1,11 @@
+Use case: stylized-concept.
+Asset type: transparent 3D robot dance sprite atlas for a native desktop companion.
+Input image: ONLY the approved robot identity and rendering reference; ignore its layout and any background speckles. Generate FOUR new robot disco dance poses of exactly this cute girly robot.
+Subject invariants: soft satin periwinkle blue robot, giant scalloped/cloud-shaped head, navy face screen with tiny cyan SQUARE PIXEL LED eye glyphs and tiny pixel smile, small magenta pixel lashes, pink accent on the viewer's RIGHT ear, pink boot soles, tiny rounded limbs, plain blue belly with NO logo. Same material, soft studio light, head size, proportions and near-frontal camera in every cell. No clothing or extra accessories.
+Composition: square canvas; TWO equal columns by TWO equal rows. Each complete character entirely inside its own equal cell with at least 10% transparent padding on every side. Generous clear gutters. Keep equal head size, feet on same baseline in every cell.
+Row-major dance poses:
+1 classic disco point: viewer-right arm reaches diagonally upward, other hand rests at hip, weight leaning slightly left, one little foot stepped out, confident tiny pixel smile.
+2 alternating disco point: viewer-left arm reaches diagonally upward, other hand at hip, weight leaning slightly right with the opposite foot stepping. Do NOT mirror the pink ear to the left.
+3 playful mechanical robot groove: both short arms held forward with distinct bent elbows/wrists, slightly bent knees, head tilted, small cheeky cyan pixel eye glyphs.
+4 finish: small three-quarter torso turn with face still toward viewer, one arm pointing horizontally, crossed/stepping little feet, cute pixel wink, pink ear still visible on viewer's RIGHT.
+Output: actual transparent alpha background, clean antialiased silhouettes, absolutely NO ground shadows, background speckles, colored confetti, scenery, labels, grid lines, checkerboard, text, watermark, belly logo or human eyes. Keep the exact robot identity rather than redesigning her.

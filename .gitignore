@@ -1,0 +1,9 @@
+build/
+.build/
+.DS_Store
+*.xcuserstate
+xcuserdata/
+# Personal note archives and exported notes never belong in source control.
+notes.json
+notes.json.*
+*.notes.json

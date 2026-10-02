@@ -1,0 +1,14 @@
+Use case: stylized-concept. Asset: transparent 3D robot animation sprite atlas.
+The input image is ONLY the approved character/style identity reference. Create eight NEW poses of this exact soft periwinkle blue chibi robot, scalloped oversized head, navy face screen with tiny CYAN SQUARE PIXEL LED glyph eyes and mouth (no smooth cartoon eyeballs/pupils), magenta pixel lashes, pink accent on the viewer's RIGHT ear and pink boot soles, plain blue belly without logos. Keep her cute girly robot identity and satin plastic rendering/soft lighting exactly. No accessories beyond those in the reference.
+Layout: FOUR equal columns by TWO equal rows, overall 2:1 canvas. All eight cells are separate sprites with true transparent background and generous gutters. Each complete character is fully inside their cell with at least 8% padding on all edges. Maintain the SAME head size, body proportions and camera/light across standing, sleeping and fallen poses; do not shrink the head when lying down. Ground baseline at about 88% of each cell height, no drawn ground plane. No labels, gridlines, particles or props.
+Row 1 left to right:
+1 gentle ballet stretch, standing with both little arms curving up beside her head, tiny content closed pixel ^ eyes;
+2 quiet side stretch, one arm curved over her head, slight torso lean, other hand at hip, tiny peaceful pixel smile;
+3 napping curled up/seated, head resting gently against folded little arms, sleepy pixel dash eyes, relaxed;
+4 same nap posture with a very slight tilt and a slow closed-eye blink, head size unchanged.
+Row 2 left to right:
+5 a cute accidental stumble, standing off balance, one little leg lifted, arms reaching to balance, surprised tiny square LED eyes;
+6 lying fallen on her side, giant head angled toward viewer and small limbs tucked near it, tiny surprised pixel mouth;
+7 same fallen-on-side pose, sad small pixel eyes and tiny pixel frown, a few small CYAN PIXEL tear glyphs on the visor and cheek, cute quietly crying; no injury marks;
+8 recovering after comfort, sitting up with one hand bracing on the ground, relieved small happy pixel eye glyphs, tiny smile.
+Keep the pink ear accent on the viewer's right in EVERY pose, don't mirror it to the left. Physical soft toy style, no clothing, no belly text, no drink. Transparent alpha, no checkerboard or colored speckles.
