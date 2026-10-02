@@ -13,7 +13,7 @@ struct StimulationState: Equatable {
 
     @discardableResult mutating func interact(at time: Double) -> Bool {
         guard time.isFinite else { return false }
-        if overstimulated { quietRemaining = Self.recoveryDuration; return false }
+        guard !overstimulated else { return false }
         guard cooldownRemaining == 0 else { return false }
         interactions.removeAll { time - $0 > 20 || time < $0 }
         interactions.append(time)
@@ -22,6 +22,7 @@ struct StimulationState: Equatable {
         return true
     }
     mutating func makeOverstimulated() {
+        guard !overstimulated else { return }
         overstimulated = true; quietRemaining = Self.recoveryDuration
         interactions.removeAll()
     }

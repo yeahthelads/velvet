@@ -165,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         requestNotes(createNew: false)
     }
     func requestNotes(createNew: Bool) {
+        guard character.canInteract else { return }
         guard character.canGiveNotes else {
             if createNew || pendingNote == .new { pendingNote = .new } else { pendingNote = .open }
             character.react(character.baseMood)
@@ -217,6 +218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if status != nil { rebuildMenu() }
     }
     @objc func toggleFocus() {
+        guard character.canInteract else { return }
         if store.focus.isActive { store.focus.togglePaused(); updateFocusRest(); rebuildMenu() }
         else { startFocus(seconds: store.focusDuration) }
     }
@@ -230,6 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         updateFocusRest(); rebuildMenu()
     }
     func adjustFocus(to seconds: TimeInterval) {
+        guard character.canInteract else { return }
         guard seconds.isFinite else { return }
         let value = min(FocusSession.adjustableRange.upperBound, max(FocusSession.adjustableRange.lowerBound, seconds))
         store.focusDuration = value
@@ -238,7 +241,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         updateFocusRest(); rebuildMenu()
     }
     @objc func chooseFocus(_ sender: NSMenuItem) { startFocus(minutes: sender.tag) }
-    @objc func endFocus() { adjustingFocusTime = false; store.focus.end(); updateFocusRest(); rebuildMenu() }
+    @objc func endFocus() { guard character.canInteract else { return }; adjustingFocusTime = false; store.focus.end(); updateFocusRest(); rebuildMenu() }
     func updateFocusRest() {
         character.focusStretchElapsed = store.focus.isStretching ? store.focus.stretchElapsed : nil
         character.focusRest = store.focus.isActive ? (store.focus.isStretching ? .stretch : .focusNap) : nil
@@ -266,6 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         rebuildMenu()
     }
     @objc func centerPet() {
+        guard character.canInteract else { return }
         let frame = NSScreen.main!.visibleFrame
         pet.setFrameOrigin(NSPoint(x: frame.maxX - 225, y: frame.minY + 38))
         pet.orderFrontRegardless(); character.start(); character.react(.wave)
@@ -300,7 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             rebuildMenu()
             return
         }
-        guard pet.isVisible && !character.paused else { return }
+        guard pet.isVisible && !character.paused && character.canInteract else { return }
         character.advanceTumble(by: elapsed)
         let wasGrumpy = coffee.needsCoffee
         coffee.advance(by: elapsed)
@@ -311,6 +315,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     @objc func giveCoffee() {
+        guard character.canInteract else { return }
         guard character.mood != .coffee else { return }
         coffee.giveCoffee()
         store.setCoffee(coffee)
@@ -319,12 +324,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         rebuildMenu()
     }
     @objc func makeGrumpy() {
+        guard character.canInteract else { return }
         coffee.makeGrumpy()
         store.setCoffee(coffee)
         character.wantsCoffee = true
         rebuildMenu()
     }
     @objc func previewMood(_ sender: NSMenuItem) {
+        guard character.canInteract else { return }
         guard let mood = Mood(rawValue: sender.representedObject as? String ?? "") else { return }
         if mood == .annoyed { character.makeAnnoyed(); return }
         if mood == .tumble || mood == .crying { character.stumble(); return }
@@ -389,16 +396,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let entry = item(mood.label, #selector(previewMood(_:))); entry.representedObject = mood.rawValue; moods.addItem(entry)
         }
         let animations = NSMenuItem(title: "Try a little attitude", action: nil, keyEquivalent: ""); animations.submenu = moods; menu.addItem(animations)
+        if !character.canInteract {
+            // Settings, mute, hide and quit remain available to manage the app.
+            for entry in menu.items {
+                if [#selector(openNotes), #selector(quickCapture), #selector(giveCoffee), #selector(petHead), #selector(applaudHer), #selector(makeGrumpy), #selector(centerPet)].contains(where: { entry.action == $0 }) {
+                    entry.isEnabled = false
+                }
+            }
+            focus.isEnabled = false; dances.isEnabled = false; animations.isEnabled = false
+            for entry in focusMenu.items + moods.items { entry.isEnabled = false }
+        }
         menu.addItem(.separator()); menu.addItem(item("Show notes folder", #selector(showStorage)))
         let quit = NSMenuItem(title: "Quit Velvet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"); menu.addItem(quit)
         return menu
     }
     func rebuildMenu() {
         status?.menu = makeMenu()
-        if character.needsAffection { status?.button?.toolTip = "She needs affection · Stroke or hold her head to get your notes back." }
+        if character.stimulation.overstimulated { status?.button?.toolTip = "A little quiet, please · Give her thirty seconds of quiet; interaction is paused." }
+        else if character.needsAffection { status?.button?.toolTip = "She needs affection · Stroke or hold her head to get your notes back." }
         else if coffee.needsCoffee { status?.button?.toolTip = "Iced latte. Now. · Drag the drink into her hand for your notes." }
         else if store.focus.isActive { status?.button?.toolTip = "Focus · \(store.focus.label) · \(store.focus.phase == .paused ? "paused" : (store.focus.isStretching ? "stretching" : "napping"))" }
-        else if character.stimulation.overstimulated { status?.button?.toolTip = "A little quiet, please · Let her rest for thirty seconds, or start focus." }
         else if character.performance.awaitingApplause { status?.button?.toolTip = "A little applause, please · Click the 👏 beside her." }
         else if character.performance.restless { status?.button?.toolTip = "Needs a dance break · Click the 🩰 beside her to choose a dance." }
         else { status?.button?.toolTip = "Velvet · Stroke or hold her head; click for notes." }
@@ -826,29 +843,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 for _ in 0..<6 { character.rubCrown() }
                 checks["repeatedFussingTriggersOverstimulation"] = character.stimulation.overstimulated && character.mood == .overstimulated
                 checks["overstimulationDoesNotOpenNotes"] = !notes.isVisible && pendingNote == nil
-                character.chooseDance(.ballet)
-                checks["overstimulationDeclinesDances"] = character.mood == .overstimulated
-                character.advanceStimulation(by: 10)
-                character.rubCrown()
-                checks["moreFussingRestartsQuietRecovery"] = character.stimulation.quietRemaining == StimulationState.recoveryDuration
-                character.paused = true
-                character.advanceStimulation(by: 100)
+                checks["naturalOverwhelmPlaysSleepCue"] = !character.audio.available || character.audio.isQuietPlaying
+                let origin = pet.frame.origin, care = character.care, count = store.activeCount
+                let coffeeState = coffee, remaining = character.stimulation.quietRemaining
+                let crown = character.crownRect, point = NSPoint(x: crown.midX, y: crown.minY + 12)
+                character.beginPointer(at: point, screenPoint: origin, time: 400)
+                character.updatePointer(at: NSPoint(x: point.x + 12, y: point.y), screenPoint: origin, time: 401)
+                character.endPointer(at: point, time: 402)
+                character.beginPointer(at: point, screenPoint: origin, time: 403, forceMove: true)
+                character.updatePointer(at: NSPoint(x: point.x + 30, y: point.y), screenPoint: NSPoint(x: origin.x + 30, y: origin.y), time: 404)
+                character.endPointer(at: point, time: 405)
+                character.rubCrown(); character.pokeCrown(); character.makeAnnoyed(); character.stumble()
+                checks["overwhelmBlocksPetsAndBodyOrOptionDragging"] = pet.frame.origin == origin && character.care == care && character.mood == .overstimulated
+                checks["overwhelmedRobotPassesThroughDesktopClicks"] = !character.interactiveArea(point) && !character.accessibilityPerformPress()
+                character.chooseDance(.ballet); character.react(.paperOpen); character.react(.zoomies)
+                checks["overwhelmBlocksDancePaperAndZoomies"] = character.mood == .overstimulated && !character.responses.latteWaiting
+                openNotes(); quickCapture(); giveCoffee(); makeGrumpy(); centerPet()
+                checks["overwhelmBlocksCaptureWithoutQueuingNotes"] = !notes.isVisible && !character.canGiveNotes && pendingNote == nil && store.activeCount == count
+                checks["overwhelmBlocksCoffeeAndMenuMovement"] = coffee == coffeeState && pet.frame.origin == origin
+                startFocus(minutes: 25)
+                checks["overwhelmBlocksStartingFocus"] = !store.focus.isActive && character.mood == .overstimulated
+                let blocked = [#selector(openNotes), #selector(quickCapture), #selector(giveCoffee), #selector(petHead), #selector(makeGrumpy), #selector(centerPet)]
+                let menu = makeMenu()
+                checks["overwhelmedInteractionMenuItemsDisabled"] = blocked.allSatisfy { action in menu.items.first(where: { $0.action == action })?.isEnabled == false } && menu.items.filter { $0.submenu != nil && ["Focus mode", "Choose a dance", "Try a little attitude"].contains($0.title) }.allSatisfy { !$0.isEnabled }
+                checks["ignoredInteractionDoesNotRestartQuietTimer"] = character.stimulation.quietRemaining == remaining
+                character.advanceStimulation(by: 10); character.rubCrown()
+                checks["ignoredPetDoesNotRestartQuietRecovery"] = character.stimulation.quietRemaining == remaining - 10
+                character.paused = true; character.advanceStimulation(by: 100)
                 checks["pauseFreezesQuietRecovery"] = character.stimulation.overstimulated
                 character.paused = false
-                character.mood = .overstimulated; character.moodUntil = .distantFuture
-                openNotes()
-                checks["notesUsableDuringOverstimulation"] = notes.isVisible && character.canGiveNotes
-                character.moodUntil = .distantPast
             },
             { [self] in
-                checks["quietMoodReturnsAfterPaper"] = character.mood == .overstimulated
-                character.react(.zoomies); character.advanceResponses(by: 1)
-                checks["overstimulationSuppressesZoomies"] = character.mood == .overstimulated && !character.responses.latteWaiting && character.responses.zoomiesRemaining == 0
-                startFocus(minutes: 25)
-                checks["focusProvidesQuietWhileOverstimulated"] = character.mood == .stretch && character.stimulation.overstimulated
+                checks["quietMoodStaysUntilRecovery"] = character.mood == .overstimulated && !character.canInteract
                 character.advanceStimulation(by: 30)
-                checks["quietFocusResolvesOverstimulation"] = !character.stimulation.overstimulated && character.mood == .stretch && store.focus.isActive
-                endFocus()
+                checks["quietRecoveryRestoresInteractions"] = character.canInteract && character.canGiveNotes && !store.focus.isActive
+                checks["quietRecoveryKeepsClosedNotesClosed"] = !notes.isVisible && pendingNote == nil
+                openNotes(); character.makeOverstimulated()
+                checks["overwhelmTemporarilyHidesAnAlreadyOpenNote"] = !notes.isVisible && pendingNote == .open
+                character.advanceStimulation(by: 30)
+            },
+            { [self] in
+                checks["quietRecoveryRestoresOnlyPreviouslyOpenNotes"] = notes.isVisible && pendingNote == nil
                 let shadow = character.groundShadowRect
                 let point = NSPoint(x: shadow.midX, y: shadow.midY)
                 if let bitmap = character.bitmapImageRepForCachingDisplay(in: character.bounds) {
@@ -1040,6 +1075,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         checks["overwhelmedPlaysQuietSampleOnly"] = character.mood == .overstimulated && audio.isQuietPlaying && !audio.isHeadPetPlaying && !audio.isCrossedArmsPlaying
         audio.stopAll(); character.makeOverstimulated()
         checks["sameOverwhelmedEpisodeDoesNotRepeatSample"] = !audio.isQuietPlaying
+        character.stimulation = StimulationState(cooldown: 60)
+        character.makeAnnoyed(); character.makeOverstimulated(); character.rubCrown()
+        checks["overwhelmWithAffectionNeedStillPlaysSleepCue"] = audio.isQuietPlaying && !audio.isCrossedArmsPlaying && character.mood == .overstimulated && character.needsAffection
+        character.advanceStimulation(by: 30)
+        checks["quietRecoveryPreservesUnderlyingAffectionNeed"] = character.canInteract && character.needsAffection && !character.canGiveNotes
+        character.rubCrown()
         character.stimulation = StimulationState(cooldown: 60)
         character.mood = .idle; character.moodUntil = .distantPast
         startFocus(minutes: 25)

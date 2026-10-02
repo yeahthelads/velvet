@@ -168,7 +168,9 @@ import Foundation
         stimulation.advance(by: 1000, available: false)
         check(stimulation.quietRemaining == 1, "Hidden or paused time cannot consume recovery")
         stimulation.interact(at: 10)
-        check(stimulation.quietRemaining == 30, "Continued fussing restarts her quiet time")
+        check(stimulation.quietRemaining == 1, "Ignored attention does not restart her quiet time")
+        stimulation.makeOverstimulated()
+        check(stimulation.quietRemaining == 1, "An existing overwhelmed episode cannot restart recovery")
         check(stimulation.advance(by: 30, available: true) && !stimulation.overstimulated, "Quiet company resolves overstimulation")
         for i in 0..<10 { stimulation.interact(at: 20 + Double(i)) }
         check(!stimulation.overstimulated && stimulation.cooldownRemaining == 60, "A cooldown prevents immediate retriggering")

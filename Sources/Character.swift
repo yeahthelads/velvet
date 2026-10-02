@@ -97,7 +97,7 @@ final class CharacterView: NSView {
                 mood = baseMood
                 moodBegan = Date()
                 moodUntil = needsAffection ? .distantFuture : Date()
-                if care.upset == .annoyed { audio.playCrossedArms() }
+                if care.upset == .annoyed && canInteract { audio.playCrossedArms() }
                 updateAccessibilityHelp()
                 needsDisplay = true
                 onNeedsChanged?()
@@ -110,19 +110,20 @@ final class CharacterView: NSView {
         didSet {
             guard focusRest != oldValue else { return }
             if focusRest != .focusNap { focusNapSoundPlayed = false }
-            if focusRest != nil { audio.stopAll(); responses.cancelZoomies(); performance.cancelApplause(); cancelDance() }
+            if focusRest != nil { if canInteract { audio.stopAll() }; responses.cancelZoomies(); performance.cancelApplause(); cancelDance() }
             if focusRest != nil && mood == .wakeUp { mood = baseMood; moodUntil = .distantPast }
             if canGiveNotes && !isBusy { mood = baseMood; needsDisplay = true }
         }
     }
     var needsAffection: Bool { care.needsAffection }
-    var canGiveNotes: Bool { care.canGiveNotes(needsCoffee: wantsCoffee) }
+    var canInteract: Bool { !stimulation.overstimulated }
+    var canGiveNotes: Bool { canInteract && care.canGiveNotes(needsCoffee: wantsCoffee) }
     var baseMood: Mood {
+        if stimulation.overstimulated { return .overstimulated }
         if care.upset == .crying { return .crying }
         if care.upset == .annoyed { return .annoyed }
         if wantsCoffee { return .grumpy }
         if let focusRest { return focusRest }
-        if stimulation.overstimulated { return .overstimulated }
         if performance.awaitingApplause { return .showOff }
         switch responses.phase {
         case .zoomies: return .zoomies
@@ -155,7 +156,17 @@ final class CharacterView: NSView {
     private var pendingPaper: Mood?
     private(set) var responses = CompanionResponse()
     private(set) var performance = PerformanceState()
-    var stimulation = StimulationState()
+    var stimulation = StimulationState() {
+        didSet {
+            guard stimulation.overstimulated != oldValue.overstimulated else { return }
+            if stimulation.overstimulated { enterQuietMood() }
+            else {
+                mood = baseMood; moodUntil = Date(); idleSince = Date()
+                updateAccessibilityHelp(); needsDisplay = true
+                onNeedsChanged?(); onPerformanceChanged?()
+            }
+        }
+    }
     var applauseChance = PerformanceState.applauseChance
     private let applauseButton = NSButton(title: "👏", target: nil, action: nil)
     private let danceButton = NSButton(title: "🩰", target: nil, action: nil)
@@ -231,14 +242,14 @@ final class CharacterView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override func accessibilityPerformPress() -> Bool { onClick?(); return true }
+    override func accessibilityPerformPress() -> Bool { guard canInteract else { return false }; onClick?(); return true }
     private func updateAccessibilityHelp() {
         var help = "Click her face or body for notes. Stroke or hold her head briefly for affection. Drag her body or Option-drag to move."
         if needsAffection { help += " She needs affection before she will return your notes." }
         if wantsCoffee { help += " She needs an iced latte before she will return your notes. Drag the cup into her hand or click it." }
         if performance.restless { help += " Click the ballet-shoes button beside her to choose Ballet, Floorwork, Vogue Fem, Robot disco, House, Waacking, or Breakdance." }
         if performance.awaitingApplause { help += " Click the clapping-hands button beside her to applaud; she will take a little bow." }
-        if stimulation.overstimulated { help += " Too much fuss. Give her thirty seconds of quiet or start focus; notes are still available." }
+        if stimulation.overstimulated { help += " Too much fuss. Give her thirty seconds of quiet. She cannot be interacted with until she settles." }
         setAccessibilityHelp(help)
         syncCompanionButtons()
     }
@@ -262,6 +273,7 @@ final class CharacterView: NSView {
         if mood.isInteraction { mood = baseMood }
     }
     func react(_ newMood: Mood, duration: TimeInterval = 2.3) {
+        guard canInteract else { mood = .overstimulated; pendingPaper = nil; needsDisplay = true; return }
         if newMood == .zoomies && reduceMotion { responses.cancelZoomies(); mood = baseMood; needsDisplay = true; return }
         if newMood == .coffee { responses.acceptLatte(allowed: canGiveNotes && focusRest == nil && !reduceMotion) }
         if newMood == .zoomies && canGiveNotes && focusRest == nil && !reduceMotion && responses.phase != .zoomies { responses.startZoomies() }
@@ -345,6 +357,7 @@ final class CharacterView: NSView {
         if now.timeIntervalSince(lastFrame) >= interval { needsDisplay = true; lastFrame = now }
     }
     func interactiveArea(_ point: NSPoint) -> Bool {
+        guard canInteract else { return false }
         if showsApplause && applauseButtonRect.contains(point) { return true }
         if showsDanceChooser && applauseButtonRect.contains(point) { return true }
         if wantsCoffee && latteContains(point) { return true }
@@ -407,6 +420,7 @@ final class CharacterView: NSView {
         return NSRect(x: rect.midX + rect.width * 0.29, y: rect.minY + rect.height * 0.53, width: rect.width * 0.25, height: rect.height * 0.20)
     }
     func beginPointer(at point: NSPoint, screenPoint: NSPoint, time: Double, forceMove: Bool = false) {
+        guard canInteract else { return }
         let target: CompanionGesture.Target = forceMove ? .body : (wantsCoffee && latteContains(point) ? .latte : (onCrown(point) ? .crown : .body))
         if target == .latte {
             lattePickupOffset = currentLatteOffset
@@ -419,6 +433,7 @@ final class CharacterView: NSView {
         dragOrigin = window?.frame.origin
     }
     func updatePointer(at point: NSPoint, screenPoint: NSPoint, time: Double) {
+        guard canInteract else { return }
         guard var current = gesture else { return }
         let previous = current.phase
         let phase = current.update(point: point, time: time, onCrown: onCrown(point))
@@ -439,6 +454,7 @@ final class CharacterView: NSView {
         needsDisplay = true
     }
     func endPointer(at point: NSPoint, time: Double) {
+        guard canInteract else { return }
         if let held = gesture, held.target == .crown, held.phase == .pressed {
             updatePointer(at: point, screenPoint: mouseOrigin ?? point, time: time)
         }
@@ -469,6 +485,7 @@ final class CharacterView: NSView {
         needsDisplay = true
     }
     func rubCrown() {
+        guard canInteract else { return }
         let wasCrying = care.upset == .crying
         if care.needsAffection { responses.comfort() }
         attitude.pet(); care.soothe()
@@ -476,7 +493,7 @@ final class CharacterView: NSView {
         audio.playHeadPet()
         recordStimulation()
     }
-    func makeAnnoyed() { care.annoy(); react(baseMood) }
+    func makeAnnoyed() { guard canInteract else { return }; care.annoy(); react(baseMood) }
     private func cancelDance() { audio.stopDance(); danceInProgress = false; danceChosen = false; danceAsksForApplause = false }
     func chooseDance(_ dance: Mood) {
         guard dance.isChoreography, canGiveNotes, focusRest == nil, !stimulation.overstimulated, mood != .coffee else { return }
@@ -499,6 +516,7 @@ final class CharacterView: NSView {
         onPerformanceChanged?()
     }
     func makeRestless() {
+        guard canInteract else { return }
         performance.makeRestless(); updateAccessibilityHelp()
         if canGiveNotes && focusRest == nil && !isBusy && !mood.isDance { react(baseMood) }
         onPerformanceChanged?()
@@ -550,29 +568,27 @@ final class CharacterView: NSView {
     @objc private func applausePressed() { applaud() }
     func clickApplauseButton() { applauseButton.performClick(nil) }
     func makeOverstimulated() {
-        let wasOverstimulated = stimulation.overstimulated
+        guard canInteract else { return }
         stimulation.makeOverstimulated()
-        enterQuietMood(playSound: !wasOverstimulated)
     }
     private func recordStimulation(at time: Double = ProcessInfo.processInfo.systemUptime) {
-        guard focusRest == nil else { return }
-        if stimulation.interact(at: time) { enterQuietMood() }
-        else if stimulation.overstimulated && canGiveNotes && !isBusy { mood = baseMood }
+        guard canInteract, focusRest == nil else { return }
+        stimulation.interact(at: time)
     }
-    private func enterQuietMood(playSound: Bool = true) {
+    private func enterQuietMood() {
         responses.cancelZoomies(); performance.cancelApplause(); cancelDance()
-        if canGiveNotes && focusRest == nil {
-            mood = .overstimulated; moodBegan = Date(); moodUntil = .distantFuture
-            if playSound { audio.playQuiet() }
-        }
-        updateAccessibilityHelp(); needsDisplay = true; onPerformanceChanged?()
+        // Cancel the gesture that tipped her over, so recovery needs no mouse-up.
+        gesture = nil; mouseOrigin = nil; dragOrigin = nil
+        latteOffset = .zero; latteReturnBegan = nil; latteHandoffOrigin = nil
+        pendingPaper = nil; NSCursor.arrow.set()
+        mood = .overstimulated; moodBegan = Date(); moodUntil = .distantFuture
+        audio.playQuiet()
+        updateAccessibilityHelp(); needsDisplay = true
+        onNeedsChanged?(); onPerformanceChanged?()
     }
     func advanceStimulation(by seconds: Double) {
         let available = window?.isVisible == true && !paused && gesture == nil
-        if stimulation.advance(by: seconds, available: available) {
-            if canGiveNotes && !isBusy && !mood.isDance { react(baseMood) }
-            updateAccessibilityHelp(); onPerformanceChanged?()
-        }
+        stimulation.advance(by: seconds, available: available)
     }
     func advancePerformance(by seconds: Double) {
         let available = window?.isVisible == true && canGiveNotes && focusRest == nil && !paused && !reduceMotion && gesture == nil && !isBusy && !mood.isDance && mood != .sleep && !responses.isActive && !stimulation.overstimulated
@@ -581,7 +597,7 @@ final class CharacterView: NSView {
             onPerformanceChanged?()
         }
     }
-    func stumble() { care.tumble(); react(.tumble) }
+    func stumble() { guard canInteract else { return }; care.tumble(); react(.tumble) }
     func advanceTumble(by seconds: Double) {
         guard canGiveNotes, focusRest == nil, !stimulation.overstimulated, !paused, !reduceMotion, gesture == nil, !isBusy, !mood.isDance, mood != .sleep else { return }
         if care.advanceEligible(by: seconds) { react(.tumble) }
@@ -598,10 +614,12 @@ final class CharacterView: NSView {
         }
     }
     func pokeCrown(at time: Double = ProcessInfo.processInfo.systemUptime) {
+        guard canInteract else { return }
         if attitude.poke(at: time) { makeAnnoyed() }
         else { react(.sideEye, duration: 0.7) }
     }
     override func rightMouseDown(with event: NSEvent) {
+        guard canInteract else { return }
         if let menu = contextMenu?() { NSMenu.popUpContextMenu(menu, with: event, for: self) }
     }
 
@@ -671,7 +689,7 @@ final class CharacterView: NSView {
     }
     private func drawCompanion() {
         drawCharacter(time: animationTime, mood: mood)
-        if wantsCoffee || mood == .grumpy { drawLatteOffer() }
+        if canInteract && (wantsCoffee || mood == .grumpy) { drawLatteOffer() }
         if mood == .coffee { drawLatteHandoff() }
         if mood == .paperToss { drawPaperToss() }
         if mood == .affection || mood == .recover || mood == .takeBow { drawAffection() }
