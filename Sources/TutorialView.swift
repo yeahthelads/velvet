@@ -1,25 +1,80 @@
-import SwiftUI
+import AppKit
 
-struct TutorialView: View {
-    @ObservedObject var store: NoteStore
-    var begin: () -> Void
-    var dismiss: () -> Void
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(store.tutorial.text)
-                .font(.system(size: 14)).foregroundColor(Color(red: 0.17, green: 0.17, blue: 0.22))
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Spacer()
-                if store.tutorial.step == .welcome {
-                    Button("Show me", action: begin).buttonStyle(.borderedProminent).tint(.indigo)
-                }
-                Button(store.tutorial.complete ? "Got it" : "Later", action: dismiss).buttonStyle(.plain)
-                    .foregroundColor(.secondary)
-            }.font(.system(size: 12))
+/// A bounded speech bubble. AppKit owns its size, so hosting-view layout cannot
+/// expand this panel over the desktop or cover the character's hitboxes.
+final class TutorialView: NSView {
+    static let bubbleWidth: CGFloat = 216
+    private let message = NSTextField(wrappingLabelWithString: "")
+    let primaryButton = NSButton(title: "Show me", target: nil, action: nil)
+    let dismissButton = NSButton(title: "Later", target: nil, action: nil)
+    var begin: (() -> Void)?
+    var dismiss: (() -> Void)?
+    var tailX: CGFloat = 108 { didSet { needsDisplay = true } }
+    var tailAtTop = false { didSet { layoutMessage(); needsDisplay = true } }
+    private(set) var bubbleSize = NSSize(width: bubbleWidth, height: 96)
+    private(set) var dialogue = ""
+    private var textHeight: CGFloat = 44
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        message.font = .systemFont(ofSize: 12)
+        message.textColor = NSColor(calibratedRed: 0.18, green: 0.19, blue: 0.25, alpha: 1)
+        message.isSelectable = false
+        addSubview(message)
+        for button in [primaryButton, dismissButton] {
+            button.isBordered = false
+            button.font = .systemFont(ofSize: 11, weight: .medium)
+            button.target = self
+            addSubview(button)
         }
-        .padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(red: 0.98, green: 0.96, blue: 0.88))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        primaryButton.contentTintColor = .systemIndigo
+        primaryButton.action = #selector(start)
+        dismissButton.contentTintColor = NSColor(calibratedWhite: 0.45, alpha: 1)
+        dismissButton.action = #selector(closeBubble)
+        setAccessibilityLabel("Velvet says")
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func update(text: String, primaryTitle: String?, complete: Bool) {
+        dialogue = text
+        message.stringValue = text
+        primaryButton.title = primaryTitle ?? ""
+        primaryButton.isHidden = primaryTitle == nil
+        dismissButton.title = complete ? "Got it" : "Later"
+        let attributes: [NSAttributedString.Key: Any] = [.font: message.font!]
+        textHeight = ceil((text as NSString).boundingRect(
+            with: NSSize(width: Self.bubbleWidth - 28, height: 200),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes).height) + 3
+        bubbleSize = NSSize(width: Self.bubbleWidth, height: textHeight + 50)
+        setFrameSize(bubbleSize)
+        layoutMessage()
+        needsDisplay = true
+    }
+    private func layoutMessage() {
+        let bottom: CGFloat = tailAtTop ? 0 : 10
+        message.frame = NSRect(x: 14, y: bottom + 32, width: Self.bubbleWidth - 28, height: textHeight)
+        dismissButton.sizeToFit()
+        dismissButton.frame = NSRect(x: Self.bubbleWidth - 14 - dismissButton.frame.width, y: bottom + 9,
+                                     width: dismissButton.frame.width, height: 18)
+        primaryButton.sizeToFit()
+        primaryButton.frame = NSRect(x: 14, y: bottom + 9, width: primaryButton.frame.width, height: 18)
+    }
+    @objc private func start() { begin?() }
+    @objc private func closeBubble() { dismiss?() }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let body = NSRect(x: 0.5, y: tailAtTop ? 0.5 : 10.5, width: bounds.width - 1, height: bounds.height - 11)
+        let path = NSBezierPath(roundedRect: body, xRadius: 12, yRadius: 12)
+        let x = min(bounds.width - 22, max(22, tailX))
+        let edge = tailAtTop ? body.maxY : body.minY
+        path.move(to: NSPoint(x: x - 7, y: edge))
+        path.line(to: NSPoint(x: x, y: tailAtTop ? bounds.maxY : 0))
+        path.line(to: NSPoint(x: x + 7, y: edge))
+        path.close()
+        NSColor(calibratedRed: 0.99, green: 0.98, blue: 0.94, alpha: 1).setFill()
+        path.fill()
+        NSColor(calibratedRed: 0.74, green: 0.74, blue: 0.78, alpha: 0.35).setStroke()
+        path.lineWidth = 0.75
+        path.stroke()
     }
 }

@@ -9,14 +9,33 @@ extension AppDelegate {
         character.wantsCoffee = false; character.stimulation = StimulationState(cooldown: 60)
         character.danceProgress = DanceProgress(); store.setTutorial(TutorialState())
         closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
-        showTutorial(); beginTutorial()
+        showTutorial()
+        checks["tutorialStartsWithSmallSpeechBubble"] = tutorialPanel?.frame.width == 216 && (tutorialPanel?.frame.height ?? 1000) < 130 && tutorialBubble?.dialogue == store.tutorial.text
+        let headFrame = pet.convertToScreen(character.convert(character.crownRect, to: nil))
+        checks["speechTailTouchesCharacterNotWindowPadding"] = abs((tutorialPanel?.frame.minY ?? 0) - headFrame.maxY - 4) < 1
+        if let bubble = tutorialBubble, let bitmap = bubble.bitmapImageRepForCachingDisplay(in: bubble.bounds) {
+            bubble.cacheDisplay(in: bubble.bounds, to: bitmap)
+            try? bitmap.representation(using: .png, properties: [:])?.write(to: previewDirectory.appendingPathComponent("tutorial-bubble.png"))
+        }
+        let originalPosition = pet.frame.origin
+        if let screen = pet.screen {
+            pet.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX, y: screen.visibleFrame.maxY - pet.frame.height))
+            anchorTutorial()
+            checks["bubbleFitsAtTopLeftAndPointsUp"] = tutorialBubble?.tailAtTop == true && screen.visibleFrame.contains(tutorialPanel!.frame)
+            pet.setFrameOrigin(originalPosition); anchorTutorial()
+            checks["bubbleFollowsCharacterMovement"] = tutorialBubble?.tailAtTop == false && abs(tutorialPanel!.frame.minY - headFrame.maxY - 4) < 1
+        }
+        tutorialBubble?.primaryButton.performClick(nil)
         checks["tutorialShowsRealFirstInteraction"] = tutorialPanel?.isVisible == true && character.tutorialActive && store.tutorial.step == .openNote
         character.react(.ballet); character.chooseDance(.house)
         checks["tutorialDoesNotPerformLockedDance"] = !character.mood.isDance && character.availableDances.isEmpty
         let before = character.lifestyle
         character.advanceLifestyle(by: 900); advanceActivity(by: 900)
         checks["tutorialFreezesNeeds"] = character.lifestyle == before && !coffee.needsCoffee
-        openNotes(); checks["realNoteAdvancesTutorial"] = notes.isVisible && store.tutorial.step == .closeNote
+        openNotes()
+        checks["tutorialLeavesNoteAndHeadUncovered"] = tutorialPanel?.frame.intersects(notes.frame) == false && tutorialPanel?.frame.intersects(headFrame) == false
+        checks["tutorialRemainsBoundedAfterStepChange"] = tutorialPanel?.frame.width == 216 && tutorialPanel?.contentView?.frame.size == tutorialPanel?.frame.size && (tutorialPanel?.frame.height ?? 1000) < 130
+        checks["realNoteAdvancesTutorial"] = notes.isVisible && store.tutorial.step == .closeNote
         closeNotes(); checks["closingNoteOffersProtein"] = store.tutorial.step == .snack && character.mood == .hungry
         let bar = NSPoint(x: character.snackButtonRect.midX, y: character.snackButtonRect.midY)
         checks["proteinHasClickableHitbox"] = character.interactiveArea(bar) && character.hitTest(bar) != nil
@@ -38,7 +57,22 @@ extension AppDelegate {
         character.endPointer(at: head, time: now + 0.4)
         checks["realHeadHoldEarnsBalletOnly"] = store.tutorial.complete && character.availableDances == [.ballet] && character.danceProgress.clapBalance == 0 && !character.tutorialActive
         checks["tutorialCareDoesNotOpenNotes"] = !notes.isVisible
-        tutorialPanel?.orderOut(nil)
+        tutorialBubble?.dismissButton.performClick(nil)
+        checks["bubbleDismissButtonClosesOnlyDialogue"] = tutorialPanel?.isVisible == false && !notes.isVisible && pet.isVisible && store.preferences.hasMetVelvet == true
+        // A paused/restarted lesson must offer an actionable instruction.
+        store.setTutorial(TutorialState()); showTutorial(); togglePaused()
+        tutorialBubble?.primaryButton.performClick(nil)
+        checks["tutorialStartResumesPausedCharacter"] = !character.paused && store.tutorial.step == .openNote
+        openNotes(); dismissTutorial(); showTutorial()
+        checks["tutorialResumesWithAlreadyOpenNote"] = store.tutorial.step == .closeNote
+        closeNotes(); feedVelvet(); dismissTutorial(); character.advanceLifestyle(by: 6); showTutorial()
+        checks["tutorialResumesAfterSnackFinished"] = store.tutorial.step == .affection
+        togglePaused(); syncTutorial()
+        checks["pausedTutorialExplainsHowToContinue"] = tutorialBubble?.primaryButton.title == "Resume" && tutorialBubble?.primaryButton.isHidden == false
+        tutorialBubble?.primaryButton.performClick(nil)
+        character.wantsCoffee = true
+        checks["tutorialExplainsExistingCoffeeGate"] = tutorialBubble?.dialogue.contains("Latte first") == true && !character.canGiveNotes
+        character.wantsCoffee = false; character.rubCrown(); dismissTutorial()
         character.mood = .idle; character.moodUntil = .distantPast
         character.lifestyle.phoneRemaining = 0; character.lifestyle.attentionRemaining = 600
         character.advanceLifestyle(by: 1)

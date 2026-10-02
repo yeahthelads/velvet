@@ -457,7 +457,7 @@ final class CharacterView: NSView {
         }
         if let began = latteReturnBegan, ProcessInfo.processInfo.systemUptime - began > 0.24 { latteReturnBegan = nil; latteOffset = .zero }
         if mood != .coffee || now.timeIntervalSince(moodBegan) > 0.3 { latteHandoffOrigin = nil }
-        if !paused && !reduceMotion && canGiveNotes && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !isBusy && !mood.isDance && mouseOrigin == nil && !hovering && !listeningState.isActive && !hasLifestyleActivity && now > nextIdle {
+        if !paused && !reduceMotion && canGiveNotes && !tutorialActive && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !isBusy && !mood.isDance && mouseOrigin == nil && !hovering && !listeningState.isActive && !hasLifestyleActivity && now > nextIdle {
             idleSequence += 1
             let playlist: [Mood] = [.wave, .walk, .sideEye, .stretch]
             let next = playlist[idleSequence % playlist.count]
@@ -769,7 +769,7 @@ final class CharacterView: NSView {
     }
     func advanceListening(by seconds: Double) {
         let previous = listeningState.phase
-        let available = listensToAudio && window?.isVisible == true && canGiveNotes && !hasLifestyleActivity && focusRest == nil && !responses.isActive && !performance.isEngaged && !audio.isAnyDancePlaying && gesture == nil && ([Mood.idle, .sleep, .sideEye, .wave, .walk].contains(mood) || mood.isHeadphones)
+        let available = listensToAudio && window?.isVisible == true && canGiveNotes && !tutorialActive && !hasLifestyleActivity && focusRest == nil && !responses.isActive && !performance.isEngaged && !audio.isAnyDancePlaying && gesture == nil && ([Mood.idle, .sleep, .sideEye, .wave, .walk].contains(mood) || mood.isHeadphones)
         listeningState.advance(by: seconds, playing: externalAudioPlaying, available: available, paused: paused)
         if previous != listeningState.phase {
             if listeningState.isActive || mood.isHeadphones {

@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var lastCoffeeCheckpoint = ProcessInfo.processInfo.systemUptime
     var adjustingFocusTime = false
     var tutorialPanel: NotesPanel?
+    var tutorialBubble: TutorialView?
     enum PendingNote { case open, new }
     var pendingNote: PendingNote?
     let shortcutLabels = ["⌃⌥N", "⌃⇧N", "⌘⇧J"]
@@ -123,7 +124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             var lesson = self.store.tutorial
             if state.phase == .snack { lesson.fed() }
             if state.phase == .idle { lesson.finishedSnack() }
-            if lesson != self.store.tutorial { self.store.setTutorial(lesson); self.syncTutorial() }
+            if lesson != self.store.tutorial { self.store.setTutorial(lesson) }
+            if self.tutorialPanel?.isVisible == true { self.syncTutorial() }
         }
         character.onAffection = { [weak self] in
             guard let self else { return }
@@ -153,6 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.constrainPet()
             self.store.setPreferences { $0.x = Double(self.pet.frame.minX); $0.y = Double(self.pet.frame.minY) }
             if self.notes.isVisible { self.anchorNotes() }
+            self.anchorTutorial()
         }
         character.contextMenu = { [weak self] in self?.makeMenu() ?? NSMenu() }
         pet.contentView = character
@@ -196,7 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func anchorNotes() {
         let frame = pet.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
         let width = min(340.0, frame.width - 16), height = min(350.0, frame.height - 16)
-        let inset = 24 + (1 - CharacterView.presentationRatio) * 60
+        let inset = tutorialPanel?.isVisible == true ? -16.0 : 24 + (1 - CharacterView.presentationRatio) * 60
         let preferredX = pet.frame.midX > frame.midX ? pet.frame.minX - width + inset : pet.frame.maxX - inset
         let x = min(max(preferredX, frame.minX + 8), frame.maxX - width - 8)
         let y = min(max(pet.frame.midY - height / 2 + 55 - (1 - CharacterView.presentationRatio) * 86, frame.minY + 8), frame.maxY - height - 8)
@@ -263,6 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self.requestNotes(createNew: request == .new)
             }
         }
+        if tutorialPanel?.isVisible == true { syncTutorial() }
         if status != nil { rebuildMenu() }
     }
     @objc func toggleFocus() {
@@ -310,6 +314,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         store.setPreferences { $0.paused.toggle() }
         character.paused = store.preferences.paused
         character.needsDisplay = true
+        if tutorialPanel?.isVisible == true { syncTutorial() }
         rebuildMenu()
     }
     @objc func toggleListening() {
@@ -334,41 +339,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard character.canInteract, !character.lifestyle.occupied || character.lifestyle.phase == .snack else { return }
         if store.archive.tutorial == nil { store.setTutorial(TutorialState()) }
         if tutorialPanel == nil {
-            let panel = NotesPanel(contentRect: NSRect(x: 0, y: 0, width: 310, height: 180), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            let bubble = TutorialView(frame: NSRect(x: 0, y: 0, width: TutorialView.bubbleWidth, height: 96))
+            bubble.begin = { [weak self] in self?.beginTutorial() }
+            bubble.dismiss = { [weak self] in self?.dismissTutorial() }
+            let panel = NotesPanel(contentRect: bubble.bounds, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true
             panel.isReleasedWhenClosed = false; panel.hidesOnDeactivate = false; panel.level = .floating
+            panel.becomesKeyOnlyIfNeeded = true
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            panel.title = "Meet Velvet"
-            panel.contentView = NSHostingView(rootView: TutorialView(store: store, begin: { [weak self] in self?.beginTutorial() }, dismiss: { [weak self] in
-                guard let self else { return }
-                if self.store.tutorial.complete { self.store.setPreferences { $0.hasMetVelvet = true } }
-                self.tutorialPanel?.orderOut(nil); self.character.tutorialActive = false; self.rebuildMenu()
-            }))
-            tutorialPanel = panel
+            panel.title = "Velvet says"
+            panel.contentView = bubble
+            tutorialBubble = bubble; tutorialPanel = panel
         }
         pet.orderFrontRegardless(); character.start(); tutorialPanel?.orderFrontRegardless()
         syncTutorial()
     }
+    func dismissTutorial() {
+        if store.tutorial.complete { store.setPreferences { $0.hasMetVelvet = true } }
+        tutorialPanel?.orderOut(nil); character.tutorialActive = false
+        if notes.isVisible { anchorNotes() }
+        rebuildMenu()
+    }
     func syncTutorial() {
-        character.tutorialActive = !store.tutorial.complete && tutorialPanel?.isVisible == true
-        if store.tutorial.step == .snack && character.lifestyle.phase == .idle {
+        guard tutorialPanel?.isVisible == true else { return }
+        // Reconcile saved steps with actual windows/activity when resuming.
+        var lesson = store.tutorial
+        if notes.isVisible { lesson.openedNote() } else { lesson.closedNote() }
+        if character.lifestyle.phase == .snack { lesson.fed() }
+        else if character.lifestyle.phase == .idle { lesson.finishedSnack() }
+        if lesson != store.tutorial { store.setTutorial(lesson) }
+        character.tutorialActive = !lesson.complete
+        if lesson.step == .snack && character.lifestyle.phase == .idle {
             character.lifestyle.foodRemaining = 0
             store.setLifestyle(character.lifestyle)
             character.mood = character.baseMood; character.syncCompanionButtons(); character.needsDisplay = true
         }
+        var text = lesson.text
+        var primary: String? = lesson.step == .welcome ? "Show me" : nil
+        if !lesson.complete && lesson.step != .welcome {
+            if store.focus.isActive {
+                text = "Let’s finish focus first. Then we’ll pick up where we left off."
+                primary = "Stop focus"
+            } else if character.paused {
+                text = "I’m paused. Resume me so we can keep going."
+                primary = "Resume"
+            } else if character.needsAffection && lesson.step != .affection {
+                text = "A little head rub first, please. Hold my head gently for a moment."
+            } else if character.wantsCoffee {
+                text = "Latte first. Click my iced latte, then we’ll carry on."
+            }
+        }
+        tutorialBubble?.update(text: text, primaryTitle: primary, complete: lesson.complete)
+        if notes.isVisible { anchorNotes() }
         anchorTutorial(); rebuildMenu()
     }
     func beginTutorial() {
+        if store.focus.isActive { endFocus() }
+        if character.paused { togglePaused() }
         var lesson = store.tutorial; lesson.begin(); store.setTutorial(lesson); syncTutorial()
     }
     func anchorTutorial() {
-        guard let panel = tutorialPanel, panel.isVisible, let screen = pet.screen ?? NSScreen.main else { return }
+        guard let panel = tutorialPanel, panel.isVisible, let bubble = tutorialBubble,
+              let screen = pet.screen ?? NSScreen.main else { return }
         let frame = screen.visibleFrame
-        let height = store.tutorial.complete ? 210.0 : 165.0
-        let x = min(max(frame.minX + 8, pet.frame.midX - 155), frame.maxX - 318)
-        let preferredY = pet.frame.maxY + 8
-        let y = min(max(frame.minY + 8, preferredY), frame.maxY - height - 8)
-        panel.setFrame(NSRect(x: x, y: y, width: 310, height: height), display: true)
+        // crownRect is in the flipped character view, not the padded pet window.
+        let head = pet.convertToScreen(character.convert(character.crownRect, to: nil))
+        let size = bubble.bubbleSize
+        let x = min(max(frame.minX + 8, head.midX - size.width / 2), frame.maxX - size.width - 8)
+        let above = head.maxY + 4 + size.height <= frame.maxY - 8
+        let y = above ? head.maxY + 4 : head.minY - size.height - 4
+        bubble.tailAtTop = !above
+        bubble.tailX = head.midX - x
+        panel.setFrame(NSRect(x: x, y: min(max(frame.minY + 8, y), frame.maxY - size.height - 8), width: size.width, height: size.height), display: true)
     }
     @objc func showStorage() { NSWorkspace.shared.open(store.directory) }
     @objc func screenChanged() { constrainPet(); petMoved() }
