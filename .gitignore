@@ -14,3 +14,8 @@ Assets/*.mp3
 Assets/*.m4a
 Assets/*.aiff
 Assets/*.aif
+# These four approved samples ship with Velvet.
+!Assets/vogue-chant.wav
+!Assets/head-pet.wav
+!Assets/tumble.wav
+!Assets/coffee.wav

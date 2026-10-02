@@ -576,6 +576,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     checks["zoomiesResumeAfterPaper"] = character.mood == .zoomies && character.responses.zoomiesRemaining > 0
                     character.advanceResponses(by: 8)
                     checks["zoomiesSettle"] = character.responses.phase != .zoomies && character.mood != .zoomies
+                    checks["zoomiesDiagnostic"] = "mood=\(character.mood) phase=\(character.responses.phase) quiet=\(character.stimulation.overstimulated) remaining=\(character.responses.zoomiesRemaining) paused=\(character.paused) busy=\(character.isBusy)"
                     character.react(.zoomies)
                     startFocus(minutes: 25)
                     checks["focusCancelsZoomies"] = character.mood == .stretch && !character.responses.latteWaiting && character.responses.zoomiesRemaining == 0
@@ -586,6 +587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         character.mood = .reconcile; character.moodUntil = .distantFuture
                         character.advanceResponses(by: 12)
                         checks["reconciliationSmilesBesideNote"] = character.mood == .shySmile && character.noteIsVisible && notes.isVisible && abs(character.noteDirection) == 1
+                        checks["reconciliationDiagnostic"] = "mood=\(character.mood) phase=\(character.responses.phase) quiet=\(character.stimulation.overstimulated) cooldown=\(character.stimulation.cooldownRemaining)"
                         let gentleTime = character.responses.reconciliationRemaining
                         character.paused = true; character.advanceResponses(by: 20)
                         checks["pauseFreezesGentleResponse"] = character.responses.reconciliationRemaining == gentleTime
@@ -660,6 +662,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             { [self] in
                 character.makeRestless()
                 checks["restlessUsesFidgetMood"] = character.mood == .restless && character.performance.restless
+                checks["restlessDiagnostic"] = "mood=\(character.mood) quiet=\(character.stimulation.overstimulated) cooldown=\(character.stimulation.cooldownRemaining) busy=\(character.isBusy)"
                 checks["restlessKeepsNotesAvailable"] = character.canGiveNotes
                 let button = NSPoint(x: character.applauseButtonRect.midX, y: character.applauseButtonRect.midY)
                 checks["restlessShowsClickableDanceChooser"] = character.showsDanceChooser && character.interactiveArea(button) && character.hitTest(button) is NSButton
@@ -953,7 +956,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     checkCompanionAudio().forEach { checks[$0.key] = $0.value }
                     // Let AppKit finish restoring the key note panel after the
                     // sound checks exercise tumble/comfort in the same event.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
+                        openNotes()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
+                    }
                 }
                 return
             }
@@ -966,7 +972,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var checks: [String: Any] = [:]
         let audio = character.audio
         guard audio.available else { return ["optionalAudioMissingIsSilent": !audio.isChantPlaying && !audio.isHeadPetPlaying] }
-        checks["threeLocalSamplesLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble
+        checks["fourLocalSamplesLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee
         let visible = notes.isVisible, noteID = store.selectedID, body = store.selected?.body
         character.stimulation = StimulationState(cooldown: 60)
         character.mood = .idle; character.moodUntil = .distantPast
@@ -993,6 +999,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         checks["soundToggleAlsoMutesTumble"] = !audio.isTumblePlaying && !audio.isHeadPetPlaying && !audio.isChantPlaying
         character.rubCrown(); audio.enabled = true
         character.mood = .idle; character.moodUntil = .distantPast
+        audio.stopAll(); makeGrumpy(); giveCoffee()
+        checks["acceptedLattePlaysOnlyNellySample"] = character.mood == .coffee && audio.isCoffeePlaying && !audio.isHeadPetPlaying && !audio.isTumblePlaying && !audio.isChantPlaying
+        startFocus(minutes: 25)
+        checks["focusStopsCoffeeSound"] = !audio.isCoffeePlaying
+        endFocus(); audio.enabled = false; makeGrumpy(); giveCoffee()
+        checks["soundToggleAlsoMutesCoffee"] = character.mood == .coffee && !audio.isCoffeePlaying
+        audio.enabled = true; character.mood = .idle; character.moodUntil = .distantPast
         if visible { openNotes() } else { closeNotes() }
         return checks
     }
@@ -1042,6 +1055,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             character.updatePointer(at: miss, screenPoint: miss, time: now + 0.1)
             character.endPointer(at: miss, time: now + 0.2)
             checks["missedLatteDoesNotFeed"] = coffee.needsCoffee && !character.isCarryingLatte && pet.frame.origin == position
+            checks["missedLatteDoesNotPlayCoffeeSound"] = !character.audio.isCoffeePlaying
             for i in 0..<4 { character.pokeCrown(at: now + Double(i) * 0.2) }
             checks["fourPokesCrossArms"] = character.care.upset == .annoyed && character.mood == .annoyed
             let head = NSPoint(x: character.crownRect.midX, y: character.crownRect.midY)

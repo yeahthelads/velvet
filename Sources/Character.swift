@@ -286,6 +286,7 @@ final class CharacterView: NSView {
         }
         moodUntil = [.grumpy, .annoyed, .crying, .focusNap, .zoomies, .reconcile, .restless, .showOff, .overstimulated].contains(mood) ? .distantFuture : Date().addingTimeInterval(length)
         if mood == .tumble { audio.playTumble() }
+        if mood == .coffee { audio.playCoffee() }
         idleSince = Date()
         syncCompanionButtons()
         needsDisplay = true
