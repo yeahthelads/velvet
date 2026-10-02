@@ -21,9 +21,14 @@ import Foundation
         store.restore(first)
         precondition(store.activeCount == 2 && store.trashCount == 0)
         store.setPreferences { $0.x = -1600; $0.y = 80; $0.shortcut = 1; $0.paused = true }
+        var danceProgress = DanceProgress()
+        for _ in 0..<3 { danceProgress.recordClap() }
+        precondition(danceProgress.unlock("house"))
+        store.setDanceProgress(danceProgress)
         precondition(store.flush(), "Saving should succeed")
         let reopened = NoteStore(directory: directory)
         precondition(reopened.archive.notes.count == 2, "Notes should survive a restart")
+        precondition(reopened.danceProgress == danceProgress, "Three claps and the chosen dance must survive a restart")
         precondition(reopened.archive.notes.first(where: { $0.id == first })?.body == "Coffee\nCrème brûlée & a fabulous idea 👢")
         precondition(reopened.preferences.x == -1600 && reopened.preferences.shortcut == 1 && reopened.preferences.paused)
         precondition(reopened.markdown(reopened.archive.notes.first(where: { $0.id == first })!).contains("# First thought ✨\n\nCoffee"))
@@ -36,11 +41,13 @@ import Foundation
         var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
         legacy.removeValue(forKey: "coffee")
         legacy.removeValue(forKey: "care")
+        legacy.removeValue(forKey: "danceProgress")
         try JSONSerialization.data(withJSONObject: legacy).write(to: file)
         let migrated = NoteStore(directory: directory)
         precondition(migrated.archive.notes.count == 2 && migrated.saveError == nil)
         precondition(!migrated.coffee.needsCoffee)
         precondition(!migrated.care.needsAffection)
+        precondition(migrated.danceProgress == DanceProgress(), "Existing archives without unlocks start with Ballet while preserving notes")
         var wellbeing = CompanionCare(timeUntilTumble: 3200)
         wellbeing.annoy(); migrated.setCare(wellbeing)
         precondition(migrated.flush())

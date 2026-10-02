@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         pet.becomesKeyOnlyIfNeeded = true
         character = CharacterView(frame: NSRect(x: 0, y: 0, width: 190, height: 200))
         character.paused = store.preferences.paused
+        character.danceProgress = store.danceProgress
+        character.onDanceProgressChanged = { [weak self] progress in self?.store.setDanceProgress(progress) }
         character.care = store.care
         store.setCare(character.care)
         character.wantsCoffee = coffee.needsCoffee
@@ -350,8 +352,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
-        let heading = NSMenuItem(title: "VELVET · tiny diva, good memory", action: nil, keyEquivalent: ""); heading.isEnabled = false
-        menu.addItem(heading); menu.addItem(.separator())
         menu.addItem(item("Open thoughts", #selector(openNotes)))
         menu.addItem(item("New thought    \(shortcutLabels[max(0, min(2, store.preferences.shortcut))])", #selector(quickCapture)))
         menu.addItem(item("Give her an iced latte", #selector(giveCoffee)))
@@ -391,8 +391,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         let shortcut = NSMenuItem(title: "Quick-capture shortcut", action: nil, keyEquivalent: ""); shortcut.submenu = shortcuts; menu.addItem(shortcut)
         let moods = NSMenu()
-        for mood in Mood.allCases {
-            if mood == .grumpy || mood == .coffee { continue }
+        moods.autoenablesItems = false
+        for mood in Mood.allCases.filter({ !$0.isDance && $0 != .grumpy && $0 != .coffee }).sorted(by: { $0.label.localizedStandardCompare($1.label) == .orderedAscending }) {
             let entry = item(mood.label, #selector(previewMood(_:))); entry.representedObject = mood.rawValue; moods.addItem(entry)
         }
         let animations = NSMenuItem(title: "Try a little attitude", action: nil, keyEquivalent: ""); animations.submenu = moods; menu.addItem(animations)
@@ -684,7 +684,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["restlessKeepsNotesAvailable"] = character.canGiveNotes
                 let button = NSPoint(x: character.applauseButtonRect.midX, y: character.applauseButtonRect.midY)
                 checks["restlessShowsClickableDanceChooser"] = character.showsDanceChooser && character.interactiveArea(button) && character.hitTest(button) is NSButton
-                checks["danceMenuOffersSevenClearChoices"] = character.makeDanceMenu().items.map(\.title) == ["Ballet", "Floorwork", "Vogue Fem", "Robot disco", "House", "Waacking", "Breakdance"]
+                checks["danceMenuOffersSevenClearChoices"] = character.makeDanceMenu().items.map(\.title) == ["Ballet", "Breakdance", "Floorwork", "House", "Robot disco", "Vogue Fem", "Waacking"]
                 checks["contextMenuClearlyOffersDanceChooser"] = makeMenu().items.contains { $0.title == "Choose a dance · she’s restless" && $0.submenu?.items.count == 7 }
                 _ = capture("restless-preview.png")
                 openNotes()
@@ -693,7 +693,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             },
             { [self] in
                 checks["restlessReturnsAfterPaper"] = character.mood == .restless
-                character.makeDanceMenu().performActionForItem(at: 3)
+                let danceMenu = character.makeDanceMenu()
+                if let index = danceMenu.items.firstIndex(where: { $0.representedObject as? String == Mood.disco.rawValue }) { danceMenu.performActionForItem(at: index) }
                 checks["chosenDanceStartsWithoutPrematureRelief"] = character.mood == .disco && character.performance.restless && !character.showsDanceChooser
                 character.moodUntil = .distantPast
             },
@@ -783,7 +784,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 character.previewTime = 1
                 checks["terminalVisorExpressionLoaded"] = character.displayedSpriteIndex == 56
                 character.previewTime = nil
-                character.makeDanceMenu().performActionForItem(at: 6)
+                let breakMenu = character.makeDanceMenu()
+                if let index = breakMenu.items.firstIndex(where: { $0.representedObject as? String == Mood.breakdance.rawValue }) { breakMenu.performActionForItem(at: index) }
                 checks["menuStartsBreakdanceWithLoadedArtwork"] = character.hasBreakdanceAnimation && character.mood == .breakdance
                 checks["breakdanceOnlyAvailableThroughChoices"] = Mood.danceChoices.contains(.breakdance) && !Mood.automaticDances.contains(.breakdance)
                 let frames = [0.2, 1.2, 2.2, 3.0, 3.6, 5.8, 7.0, 10.0].map { time -> Int? in
@@ -990,11 +992,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     checks["newFocusInterruptsWakeWithStretch"] = character.mood == .stretch && store.focus.isActive
                     endFocus(); openNotes()
                     checkCompanionAudio().forEach { checks[$0.key] = $0.value }
-                    // Let AppKit finish restoring the key note panel after the
-                    // sound checks exercise tumble/comfort in the same event.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
+                    // Finish the rapid hide/restore checks on separate AppKit events.
+                    closeNotes()
+                    NSApp.activate(ignoringOtherApps: true) // Request keyboard focus before testing the editor.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [self] in
                         openNotes()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { completion(checks) }
                     }
                 }
                 return
@@ -1161,6 +1164,81 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if visible { openNotes() } else { closeNotes() }
         return checks
     }
+    func checkDanceProgress(previewDirectory: URL, completion: @escaping ([String: Any]) -> Void) {
+        var checks: [String: Any] = [:]
+        let originalChance = character.applauseChance
+        character.applauseChance = 1
+        character.danceProgress = DanceProgress()
+        character.mood = .idle; character.moodUntil = .distantPast
+        checks["freshProfileOffersOnlyBallet"] = character.availableDances == [.ballet] && character.makeDanceMenu().items.filter { $0.representedObject != nil }.map(\.title) == ["Ballet"]
+        character.chooseDance(.house); character.react(.vogue)
+        checks["lockedDancesCannotStartOrPlayMusic"] = !character.mood.isDance && !character.audio.isAnyDancePlaying
+        let menu = makeMenu()
+        checks["mainMenuHasNoCringeHeading"] = !menu.items.contains { $0.title.localizedCaseInsensitiveContains("tiny diva") || $0.title.localizedCaseInsensitiveContains("good memory") }
+        if let moods = menu.items.first(where: { $0.title == "Try a little attitude" })?.submenu {
+            let names = moods.items.map(\.title)
+            checks["actionPreviewsAreAlphabeticalWithoutDances"] = names == names.sorted { $0.localizedStandardCompare($1) == .orderedAscending } && !moods.items.contains { Mood(rawValue: $0.representedObject as? String ?? "")?.isDance == true }
+        } else { checks["actionPreviewsAreAlphabeticalWithoutDances"] = false }
+        character.showOff(); character.clickApplauseButton()
+        checks["previewApplauseDoesNotFarmUnlocks"] = character.danceProgress.completedClaps == 0
+        character.react(.idle); character.showOff()
+        func capture(_ name: String) {
+            character.syncCompanionButtons(); character.needsDisplay = true
+            guard let bitmap = character.bitmapImageRepForCachingDisplay(in: character.bounds) else { return }
+            character.cacheDisplay(in: character.bounds, to: bitmap)
+            try? bitmap.representation(using: .png, properties: [:])?.write(to: previewDirectory.appendingPathComponent(name))
+        }
+        capture("clap-countdown-full.png")
+        let full = character.applauseOpacity
+        character.advancePerformance(by: 3)
+        checks["clapCountdownGraduallyFadesEmoji"] = full == 1 && character.applauseOpacity == 0.5
+        capture("clap-countdown-half.png")
+        character.paused = true; character.advancePerformance(by: 100)
+        checks["pauseFreezesClapCountdown"] = character.performance.applauseRemaining == 3
+        character.paused = false; character.react(.paperOpen); character.advancePerformance(by: 100)
+        checks["paperGestureFreezesInvisibleClapCountdown"] = character.performance.applauseRemaining == 3
+        character.react(character.baseMood); character.advancePerformance(by: 3)
+        checks["missedClapGetsDisappointedWithoutNoteGate"] = character.mood == .disappointed && !character.showsApplause && character.canGiveNotes
+        capture("clap-countdown-missed.png")
+        character.applaud()
+        checks["lateClapDoesNotEarnProgress"] = character.danceProgress.completedClaps == 0
+        var lap = 0
+        func performNext() {
+            guard lap < 6 else {
+                checks["sixClapsOfferOneMoreDance"] = character.danceProgress.completedClaps == 6 && character.danceProgress.availableUnlocks == 1
+                checks["secondRewardAddsOnlyChosenDance"] = character.unlockDance(.waacking) && character.availableDances == [.ballet, .house, .waacking] && character.danceProgress.availableUnlocks == 0
+                checks["earnedProgressSurvivesRestart"] = store.flush() && NoteStore(directory: store.directory).danceProgress == character.danceProgress
+                // Remaining regression checks use only this temporary, fully unlocked profile.
+                character.danceProgress = DanceProgress(completedClaps: 18, unlockedDanceIDs: DanceProgress.danceIDs)
+                character.applauseChance = originalChance
+                character.react(.idle); character.moodUntil = .distantPast
+                openNotes()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { completion(checks) }
+                return
+            }
+            character.chooseDance(.ballet); character.moodUntil = .distantPast
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
+                let count = character.danceProgress.completedClaps
+                character.clickApplauseButton()
+                lap += 1
+                checks["realBalletClap\(lap)EarnsExactlyOnePoint"] = character.danceProgress.completedClaps == count + 1
+                if lap == 2 { checks["twoClapsKeepEveryOtherDanceHidden"] = character.availableDances == [.ballet] && character.danceProgress.availableUnlocks == 0 }
+                if lap == 3 {
+                    checks["thirdClapOffersExactlyOneDanceReward"] = character.danceProgress.availableUnlocks == 1 && character.availableDances == [.ballet]
+                    let choices = character.makeDanceMenu()
+                    if let unlock = choices.items.first(where: { $0.title == "Unlock a dance" })?.submenu,
+                       let choice = unlock.items.first(where: { $0.representedObject as? String == Mood.house.rawValue }), let action = choice.action {
+                        NSApp.sendAction(action, to: choice.target, from: choice)
+                    }
+                    checks["rewardMenuUnlocksAndStartsOnlySelectedDance"] = character.availableDances == [.ballet, .house] && character.mood == .house && character.audio.isHousePlaying
+                    checks["spentRewardCannotUnlockAnotherRoutine"] = !character.unlockDance(.vogue) && character.danceProgress.availableUnlocks == 0
+                }
+                character.react(.idle); character.moodUntil = .distantPast
+                performNext()
+            }
+        }
+        performNext()
+    }
     func runSmokeTest(to url: URL) {
         character.audio.volume = 0 // Exercise playback without making the test run noisy.
         coffee = CoffeeState(); character.wantsCoffee = false
@@ -1169,12 +1247,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.paused = false; character.previewTime = nil
         pendingNote = nil; endFocus(); openNotes()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+            checkDanceProgress(previewDirectory: url.deletingLastPathComponent()) { [self] progressChecks in
             func findEditor(_ view: NSView) -> NSTextView? {
                 if let editor = view as? EditorTextView { return editor }
                 for child in view.subviews { if let found = findEditor(child) { return found } }
                 return nil
             }
-            var checks: [String: Any] = [:]
+            var checks: [String: Any] = progressChecks
             let editor = findEditor(notes.contentView!)
             checks["petVisible"] = pet.isVisible
             checks["petCannotBecomeKey"] = !pet.canBecomeKey
@@ -1297,6 +1376,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         checks.merge(timerChecks) { _, new in new }
                         checks["editorFocused"] = editor != nil && notes.firstResponder === editor
                         checks["notesKey"] = notes.isKeyWindow
+                        checks["keyWindowDiagnostic"] = "key=\(NSApp.keyWindow?.title ?? "none") active=\(NSApp.isActive) keyAllowed=\(notes.canBecomeKey)"
                         checks["notesVisible"] = notes.isVisible
                         checks["saveSucceeded"] = store.flush()
                         if let data = try? JSONSerialization.data(withJSONObject: checks, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: url) }
@@ -1312,6 +1392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         }
                     }
                 }
+            }
             }
         }
     }

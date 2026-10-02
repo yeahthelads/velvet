@@ -34,6 +34,7 @@ struct Archive: Codable {
     var preferences = Preferences()
     var coffee: CoffeeState?
     var care: CompanionCare?
+    var danceProgress: DanceProgress?
 }
 
 final class NoteStore: ObservableObject {
@@ -69,6 +70,8 @@ final class NoteStore: ObservableObject {
     var preferences: Preferences { archive.preferences }
     var coffee: CoffeeState { archive.coffee ?? CoffeeState() }
     var care: CompanionCare { archive.care ?? CompanionCare() }
+    var danceProgress: DanceProgress { archive.danceProgress ?? DanceProgress() }
+    func setDanceProgress(_ progress: DanceProgress) { archive.danceProgress = progress; scheduleSave(celebrate: false) }
     func setCare(_ care: CompanionCare) { archive.care = care; scheduleSave(celebrate: false) }
     func setCoffee(_ coffee: CoffeeState) {
         archive.coffee = coffee
