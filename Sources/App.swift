@@ -464,6 +464,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.noteIsVisible = true
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         character.wantsCoffee = false
+        character.audio.enabled = false // Rendering still images must stay silent.
         for mood in Mood.allCases {
             if mood == .showOff { character.showOff() }
             character.mood = mood; character.paused = true; character.previewTime = mood == .idle ? 1 : 0.2
@@ -972,7 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var checks: [String: Any] = [:]
         let audio = character.audio
         guard audio.available else { return ["optionalAudioMissingIsSilent": !audio.isChantPlaying && !audio.isHeadPetPlaying] }
-        checks["fourLocalSamplesLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee
+        checks["sevenBundledSamplesLoad"] = audio.hasChant && audio.hasHeadPet && audio.hasTumble && audio.hasCoffee && audio.hasCrossedArms && audio.hasBreakdance && audio.hasQuiet
         let visible = notes.isVisible, noteID = store.selectedID, body = store.selected?.body
         character.stimulation = StimulationState(cooldown: 60)
         character.mood = .idle; character.moodUntil = .distantPast
@@ -1006,6 +1007,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         endFocus(); audio.enabled = false; makeGrumpy(); giveCoffee()
         checks["soundToggleAlsoMutesCoffee"] = character.mood == .coffee && !audio.isCoffeePlaying
         audio.enabled = true; character.mood = .idle; character.moodUntil = .distantPast
+        character.stimulation = StimulationState(cooldown: 60)
+        character.chooseDance(.breakdance)
+        checks["chosenBreakdancePlaysItsTrackOnly"] = audio.isBreakdancePlaying && !audio.isChantPlaying && !audio.isCoffeePlaying
+        audio.updateDance(vogue: false, breaking: true, paused: true)
+        checks["pauseSilencesBreakdance"] = !audio.isBreakdancePlaying
+        audio.updateDance(vogue: false, breaking: true)
+        checks["resumeContinuesBreakdance"] = audio.isBreakdancePlaying
+        character.rubCrown()
+        checks["headPetInterruptsBreakdanceMusic"] = !audio.isBreakdancePlaying && audio.isHeadPetPlaying
+        character.mood = .idle; character.moodUntil = .distantPast
+        character.chooseDance(.breakdance); startFocus(minutes: 25)
+        checks["focusInterruptsBreakdanceMusic"] = !audio.isBreakdancePlaying
+        endFocus(); character.mood = .idle; character.moodUntil = .distantPast
+        character.react(.breakdance)
+        checks["unchosenBreakdanceDoesNotPlayMusic"] = !audio.isBreakdancePlaying
+        character.react(.idle); character.chooseDance(.vogue); character.chooseDance(.breakdance)
+        checks["switchingDancesDoesNotLayerTracks"] = audio.isBreakdancePlaying && !audio.isChantPlaying
+        audio.enabled = false
+        checks["soundToggleMutesBreakdance"] = !audio.isBreakdancePlaying
+        character.react(.idle); audio.enabled = true
+        character.makeAnnoyed()
+        checks["crossedArmsPlaysItsReactionOnly"] = audio.isCrossedArmsPlaying && !audio.isHeadPetPlaying && !audio.isBreakdancePlaying
+        audio.stopAll(); character.react(character.baseMood)
+        checks["heldCrossedArmsDoesNotRepeatReaction"] = !audio.isCrossedArmsPlaying
+        character.rubCrown()
+        checks["affectionReplacesCrossedArmsReaction"] = audio.isHeadPetPlaying && !audio.isCrossedArmsPlaying
+        audio.enabled = false; character.makeAnnoyed()
+        checks["soundToggleMutesCrossedArms"] = !audio.isCrossedArmsPlaying
+        character.rubCrown(); audio.enabled = true
+        character.makeOverstimulated()
+        checks["overwhelmedPlaysQuietSampleOnly"] = character.mood == .overstimulated && audio.isQuietPlaying && !audio.isHeadPetPlaying && !audio.isCrossedArmsPlaying
+        audio.stopAll(); character.makeOverstimulated()
+        checks["sameOverwhelmedEpisodeDoesNotRepeatSample"] = !audio.isQuietPlaying
+        character.stimulation = StimulationState(cooldown: 60)
+        character.mood = .idle; character.moodUntil = .distantPast
+        startFocus(minutes: 25)
+        checks["focusStretchDoesNotPlaySleepSample"] = character.mood == .stretch && !audio.isQuietPlaying
+        advanceActivity(by: FocusSession.stretchDuration + 1)
+        checks["focusNapPlaysSleepSample"] = character.mood == .focusNap && audio.isQuietPlaying
+        audio.stopAll(); updateFocusRest()
+        checks["sameFocusNapDoesNotRepeatSleepSample"] = !audio.isQuietPlaying
+        endFocus(); character.mood = .idle; character.moodUntil = .distantPast
+        startFocus(minutes: 25); character.react(.paperOpen)
+        advanceActivity(by: FocusSession.stretchDuration + 1)
+        checks["sleepCueWaitsForBusyPaperGesture"] = character.mood == .paperOpen && !audio.isQuietPlaying
+        character.react(character.baseMood)
+        checks["delayedFocusNapStillPlaysSleepCue"] = character.mood == .focusNap && audio.isQuietPlaying
+        audio.stopAll(); character.react(.paperOpen); character.react(character.baseMood)
+        checks["noteGestureDoesNotReplaySameNapCue"] = !audio.isQuietPlaying
+        endFocus(); character.mood = .idle; character.moodUntil = .distantPast
+        character.react(.focusNap)
+        checks["napPreviewPlaysSleepSample"] = audio.isQuietPlaying
+        character.react(.idle); audio.stopAll()
+        character.react(.sleep)
+        checks["ordinarySleepPlaysSameSample"] = audio.isQuietPlaying
+        audio.stopAll(); character.react(.sleep)
+        checks["heldSleepDoesNotRepeatSample"] = !audio.isQuietPlaying
+        character.react(.idle); audio.enabled = false; character.react(.sleep)
+        checks["soundToggleMutesSleepSample"] = !audio.isQuietPlaying
+        character.react(.idle); character.makeOverstimulated()
+        checks["soundToggleMutesOverwhelmedSample"] = !audio.isQuietPlaying
+        character.stimulation = StimulationState(cooldown: 60)
+        audio.enabled = true; character.mood = .idle; character.moodUntil = .distantPast
+        character.chooseDance(.breakdance); character.stop()
+        checks["hidingStopsNewDanceAudio"] = !audio.isBreakdancePlaying
+        character.start()
         if visible { openNotes() } else { closeNotes() }
         return checks
     }

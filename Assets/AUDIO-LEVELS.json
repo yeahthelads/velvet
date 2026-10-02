@@ -1,0 +1,62 @@
+{
+  "target_lufs": -20,
+  "method": "Constant attenuation only; preserves timing, channel count, sample rate and dynamics. Effects below 400ms are repeated for measurement only. Master app volume remains 0.65.",
+  "samples": [
+    {
+      "file": "vogue-chant.wav",
+      "original_lufs": -8.07,
+      "attenuation_db": -11.93,
+      "balanced_lufs": -20.0,
+      "true_peak_db": -12.44,
+      "duration_seconds": 7.5
+    },
+    {
+      "file": "head-pet.wav",
+      "original_lufs": -12.15,
+      "attenuation_db": -7.85,
+      "balanced_lufs": -20.03,
+      "true_peak_db": -8.36,
+      "duration_seconds": 3.0
+    },
+    {
+      "file": "tumble.wav",
+      "original_lufs": -8.93,
+      "attenuation_db": -11.07,
+      "balanced_lufs": -20.0,
+      "true_peak_db": -10.67,
+      "duration_seconds": 0.313469
+    },
+    {
+      "file": "coffee.wav",
+      "original_lufs": -14.26,
+      "attenuation_db": -5.74,
+      "balanced_lufs": -19.99,
+      "true_peak_db": -7.49,
+      "duration_seconds": 0.75
+    },
+    {
+      "file": "crossed-arms.wav",
+      "original_lufs": -7.28,
+      "attenuation_db": -12.72,
+      "balanced_lufs": -20.02,
+      "true_peak_db": -12.26,
+      "duration_seconds": 0.859093
+    },
+    {
+      "file": "breakdance.wav",
+      "original_lufs": -9.28,
+      "attenuation_db": -10.72,
+      "balanced_lufs": -20.0,
+      "true_peak_db": -9.75,
+      "duration_seconds": 11.707313
+    },
+    {
+      "file": "overwhelmed-sleep.wav",
+      "original_lufs": -9.28,
+      "attenuation_db": -10.72,
+      "balanced_lufs": -20.01,
+      "true_peak_db": -10.73,
+      "duration_seconds": 3.073197
+    }
+  ]
+}

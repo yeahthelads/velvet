@@ -1,26 +1,52 @@
 import AppKit
 
-/// Optional local samples. Source-only builds work silently without them.
+/// Bundled, loudness-balanced samples; builds without audio stay silent.
 final class CompanionAudio {
-    private let chant: NSSound?
+    private final class DanceSample {
+        let sound: NSSound?
+        private var started = false
+        private var paused = false
+        var isPlaying: Bool { !paused && sound?.isPlaying == true }
+        init(_ sound: NSSound?, loops: Bool) { self.sound = sound; sound?.loops = loops }
+        func update(playing: Bool, pause: Bool) {
+            guard playing else { stop(); return }
+            if pause {
+                if started && !paused { paused = sound?.pause() == true }
+            } else if paused {
+                if sound?.resume() == true { paused = false }
+            } else if !started { started = sound?.play() == true }
+        }
+        func stop() {
+            if started || paused { sound?.stop() }
+            started = false; paused = false
+        }
+    }
+    private let chant: DanceSample
+    private let breakdance: DanceSample
     private let headPet: NSSound?
     private let tumble: NSSound?
     private let coffee: NSSound?
-    private var chantStarted = false
-    private var chantPaused = false
+    private let crossedArms: NSSound?
+    private let quiet: NSSound?
+    private var oneShots: [NSSound] { [headPet, tumble, coffee, crossedArms, quiet].compactMap { $0 } }
     var enabled = true { didSet { if !enabled { stopAll() } } }
-    var volume: Float = 0.65 {
-        didSet { chant?.volume = volume; headPet?.volume = volume; tumble?.volume = volume; coffee?.volume = volume }
-    }
-    var available: Bool { chant != nil || headPet != nil || tumble != nil || coffee != nil }
-    var hasChant: Bool { chant != nil }
+    // Assets share a measured -20 LUFS level; this remains the master control.
+    var volume: Float = 0.65 { didSet { applyVolume() } }
+    var available: Bool { hasChant || hasBreakdance || !oneShots.isEmpty }
+    var hasChant: Bool { chant.sound != nil }
+    var hasBreakdance: Bool { breakdance.sound != nil }
     var hasHeadPet: Bool { headPet != nil }
     var hasTumble: Bool { tumble != nil }
     var hasCoffee: Bool { coffee != nil }
-    var isChantPlaying: Bool { !chantPaused && chant?.isPlaying == true }
+    var hasCrossedArms: Bool { crossedArms != nil }
+    var hasQuiet: Bool { quiet != nil }
+    var isChantPlaying: Bool { chant.isPlaying }
+    var isBreakdancePlaying: Bool { breakdance.isPlaying }
     var isHeadPetPlaying: Bool { headPet?.isPlaying == true }
     var isTumblePlaying: Bool { tumble?.isPlaying == true }
     var isCoffeePlaying: Bool { coffee?.isPlaying == true }
+    var isCrossedArmsPlaying: Bool { crossedArms?.isPlaying == true }
+    var isQuietPlaying: Bool { quiet?.isPlaying == true }
     init(bundle: Bundle = .main) {
         func sample(_ name: String) -> NSSound? {
             for ext in ["wav", "mp3", "m4a", "aiff", "aif"] {
@@ -28,43 +54,37 @@ final class CompanionAudio {
             }
             return nil
         }
-        chant = sample("vogue-chant") ?? sample("vogue-sound")
+        chant = DanceSample(sample("vogue-chant") ?? sample("vogue-sound"), loops: true)
+        // The supplied track covers the phrase; its ending stays intact.
+        breakdance = DanceSample(sample("breakdance"), loops: false)
         headPet = sample("head-pet")
         tumble = sample("tumble")
         coffee = sample("coffee")
-        chant?.loops = true
-        chant?.volume = volume; headPet?.volume = volume; tumble?.volume = volume; coffee?.volume = volume
+        crossedArms = sample("crossed-arms")
+        quiet = sample("overwhelmed-sleep")
+        applyVolume()
     }
-    func updateVogue(playing: Bool, paused: Bool = false) {
-        guard enabled, playing else { stopVogue(); return }
-        if paused {
-            if chantStarted && !chantPaused { chantPaused = chant?.pause() == true }
-            return
-        }
-        if chantPaused { if chant?.resume() == true { chantPaused = false } }
-        else if !chantStarted { chantStarted = chant?.play() == true }
+    private func applyVolume() {
+        for sound in oneShots + [chant.sound, breakdance.sound].compactMap({ $0 }) { sound.volume = volume }
     }
-    func playHeadPet() {
+    func updateDance(vogue: Bool, breaking: Bool, paused: Bool = false) {
+        chant.update(playing: enabled && vogue, pause: paused)
+        breakdance.update(playing: enabled && breaking, pause: paused)
+    }
+    func updateVogue(playing: Bool, paused: Bool = false) { updateDance(vogue: playing, breaking: false, paused: paused) }
+    private func playOnce(_ sound: NSSound?) {
         guard enabled else { return }
-        // A new stroke restarts one sample; repeated pets never layer sounds.
-        stopAll(); headPet?.play()
+        // Restart one sound without layering reactions or music.
+        stopAll(); sound?.play()
     }
-    func playTumble() {
-        guard enabled else { return }
-        stopAll(); tumble?.play()
-    }
-    func playCoffee() {
-        guard enabled else { return }
-        stopAll(); coffee?.play()
-    }
-    func stopVogue() {
-        if chantStarted || chantPaused { chant?.stop() }
-        chantStarted = false; chantPaused = false
-    }
+    func playHeadPet() { playOnce(headPet) }
+    func playTumble() { playOnce(tumble) }
+    func playCoffee() { playOnce(coffee) }
+    func playCrossedArms() { playOnce(crossedArms) }
+    func playQuiet() { playOnce(quiet) }
+    func stopDance() { chant.stop(); breakdance.stop() }
     func stopAll() {
-        stopVogue()
-        if headPet?.isPlaying == true { headPet?.stop() }
-        if tumble?.isPlaying == true { tumble?.stop() }
-        if coffee?.isPlaying == true { coffee?.stop() }
+        stopDance()
+        for sound in oneShots where sound.isPlaying { sound.stop() }
     }
 }
