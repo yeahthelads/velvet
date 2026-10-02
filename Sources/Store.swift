@@ -26,6 +26,7 @@ struct Preferences: Codable {
     var alwaysOnTop = true
     var paused = false
     var shortcut = 0
+    var hasMetVelvet: Bool?
     var listensToAudio: Bool? // Missing in older archives means enabled.
 }
 
@@ -36,6 +37,8 @@ struct Archive: Codable {
     var coffee: CoffeeState?
     var care: CompanionCare?
     var danceProgress: DanceProgress?
+    var lifestyle: LifestyleState?
+    var tutorial: TutorialState?
 }
 
 final class NoteStore: ObservableObject {
@@ -60,6 +63,8 @@ final class NoteStore: ObservableObject {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: file.path) {
                 archive = try JSONDecoder().decode(Archive.self, from: Data(contentsOf: file))
+                // Previous releases already offered Ballet; preserve that upgrade path.
+                if archive.danceProgress == nil { archive.danceProgress = DanceProgress(unlockedDanceIDs: ["ballet"]) }
             }
         } catch {
             saveError = "Could not read your notes: \(error.localizedDescription)"
@@ -69,6 +74,10 @@ final class NoteStore: ObservableObject {
     }
 
     var preferences: Preferences { archive.preferences }
+    var tutorial: TutorialState { archive.tutorial ?? TutorialState() }
+    func setTutorial(_ state: TutorialState) { archive.tutorial = state; scheduleSave(celebrate: false) }
+    var lifestyle: LifestyleState { archive.lifestyle ?? LifestyleState() }
+    func setLifestyle(_ state: LifestyleState) { archive.lifestyle = state; scheduleSave(celebrate: false) }
     var coffee: CoffeeState { archive.coffee ?? CoffeeState() }
     var care: CompanionCare { archive.care ?? CompanionCare() }
     var danceProgress: DanceProgress { archive.danceProgress ?? DanceProgress() }

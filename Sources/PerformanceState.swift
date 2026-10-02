@@ -11,20 +11,29 @@ struct PerformanceState: Equatable {
         let poses = [0, 1, 2, 3, 4, 3, 4, 5, 6, 3, 5, 7]
         return poses[thresholds.firstIndex { elapsed < $0 } ?? 11]
     }
+    /// Standing breath, arabesque, contraction, spiral, floor reach, roll, rise.
+    static func contemporaryPose(at elapsed: Double) -> (index: Int, tilt: Double, travel: Double) {
+        let boundaries = [1.0, 2.2, 3.3, 4.4, 5.5, 6.8, 8.0, 9.2, 10.3, 11.2]
+        let poses = [0, 8, 9, 45, 12, 70, 72, 14, 75, 44, 8]
+        let step = boundaries.firstIndex { elapsed < $0 } ?? 10
+        let tilt = [0.0, -0.04, -0.07, 0.08, 0.12, -0.04, 0.02, -0.1, 0.05, -0.02, 0][step]
+        let travel = [0.0, -2, -4, -2, 1, 3, 4, 2, 0, -1, 0][step]
+        return (poses[step], tilt, travel)
+    }
     static let applauseDuration = 6.0
     private(set) var restless = false
     private(set) var awaitingApplause = false
     private(set) var applauseRemaining = 0.0
     private(set) var applauseEarnsUnlock = false
     var applauseFraction: Double { min(1, max(0, applauseRemaining / Self.applauseDuration)) }
-    var timeUntilRestless: Double = Double.random(in: 6 * 60...10 * 60)
+    var timeUntilRestless: Double = Double.random(in: 12 * 60...18 * 60)
     var isEngaged: Bool { restless || awaitingApplause }
     mutating func makeRestless() { restless = true }
     mutating func beginDance() { cancelApplause() }
     mutating func finishDance(chosen: Bool, earnsUnlock: Bool = true) {
         if chosen {
             restless = false
-            timeUntilRestless = Double.random(in: 6 * 60...10 * 60)
+            timeUntilRestless = Double.random(in: 12 * 60...18 * 60)
         }
         guard !chosen else { cancelApplause(); return }
         awaitingApplause = true
@@ -57,14 +66,14 @@ struct PerformanceState: Equatable {
 struct DanceProgress: Codable, Equatable {
     static let clapCost = 3
     static let replayCost = 1
-    static let danceIDs = ["ballet", "breakdance", "floorwork", "house", "disco", "vogue", "waacking"]
+    static let danceIDs = ["ballet", "breakdance", "contemporary", "floorwork", "house", "disco", "vogue", "waacking"]
     private(set) var replayClapsSpent: Int
     private(set) var completedClaps: Int
     private(set) var unlockedDanceIDs: [String]
-    init(completedClaps: Int = 0, unlockedDanceIDs: [String] = ["ballet"], replayClapsSpent: Int = 0) {
+    init(completedClaps: Int = 0, unlockedDanceIDs: [String] = [], replayClapsSpent: Int = 0) {
         self.completedClaps = max(0, completedClaps)
         self.replayClapsSpent = min(max(0, replayClapsSpent), self.completedClaps)
-        self.unlockedDanceIDs = Array(Set(unlockedDanceIDs.filter { Self.danceIDs.contains($0) } + ["ballet"])).sorted()
+        self.unlockedDanceIDs = Array(Set(unlockedDanceIDs.filter { Self.danceIDs.contains($0) })).sorted()
     }
     private enum CodingKeys: String, CodingKey { case completedClaps, unlockedDanceIDs, replayClapsSpent }
     init(from decoder: Decoder) throws {
@@ -73,7 +82,7 @@ struct DanceProgress: Codable, Equatable {
     }
     var spentUnlocks: Int { unlockedDanceIDs.filter { $0 != "ballet" }.count }
     var clapBalance: Int { max(0, completedClaps - spentUnlocks * Self.clapCost - replayClapsSpent) }
-    var availableUnlocks: Int { min(Self.danceIDs.count - unlockedDanceIDs.count, clapBalance / Self.clapCost) }
+    var availableUnlocks: Int { allows("ballet") ? min(Self.danceIDs.count - unlockedDanceIDs.count, clapBalance / Self.clapCost) : 0 }
     var clapsToNextUnlock: Int { max(0, Self.clapCost - clapBalance) }
     func canReplay(_ danceID: String) -> Bool { allows(danceID) && clapBalance >= Self.replayCost }
     @discardableResult mutating func payForReplay(_ danceID: String) -> Bool {
@@ -81,10 +90,18 @@ struct DanceProgress: Codable, Equatable {
         replayClapsSpent += Self.replayCost
         return true
     }
+    @discardableResult mutating func refundReplay() -> Bool {
+        guard replayClapsSpent >= Self.replayCost else { return false }
+        replayClapsSpent -= Self.replayCost
+        return true
+    }
     func allows(_ danceID: String) -> Bool { unlockedDanceIDs.contains(danceID) }
+    mutating func earnTutorialBallet() {
+        if !allows("ballet") { unlockedDanceIDs.append("ballet"); unlockedDanceIDs.sort() }
+    }
     mutating func recordClap() { if completedClaps < Int.max { completedClaps += 1 } }
     @discardableResult mutating func unlock(_ danceID: String) -> Bool {
-        guard availableUnlocks > 0, Self.danceIDs.contains(danceID), !allows(danceID) else { return false }
+        guard allows("ballet"), availableUnlocks > 0, Self.danceIDs.contains(danceID), !allows(danceID) else { return false }
         unlockedDanceIDs.append(danceID); unlockedDanceIDs.sort()
         return true
     }

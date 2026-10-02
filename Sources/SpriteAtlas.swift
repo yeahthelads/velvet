@@ -24,7 +24,7 @@ final class SpriteAtlas {
     let scale: Double
     let cellWidth: Double
 
-    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil) {
+    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil) {
         guard let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let edges = rowFractions ?? (0...rows).map { Double($0) / Double(rows) }
         guard edges.count == rows + 1, edges.first == 0, edges.last == 1 else { return nil }
@@ -109,6 +109,13 @@ final class SpriteAtlas {
         }
         if let breakdanceURL, let extra = SpriteAtlas(url: breakdanceURL, columns: 4, rows: 2, rowFractions: [0, 461.0 / 887, 1]) {
             // Standing toprock calibrates the sheet so floorwork keeps her head size.
+            let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
+            output.append(contentsOf: extra.frames.map {
+                var frame = $0; frame.unitScale *= sizeRatio
+                return frame
+            })
+        }
+        if let lifestyleURL, let extra = SpriteAtlas(url: lifestyleURL, columns: 4, rows: 4) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
                 var frame = $0; frame.unitScale *= sizeRatio

@@ -13,19 +13,55 @@ zsh build.sh
 open build/Velvet.app
 ```
 
-She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That personal archive, build outputs, and test data are excluded from this repository. The four sound samples are included. There is no cloud sync, telemetry, or network service. The source and character artwork are included; the app currently uses a local ad-hoc signature rather than a notarized release.
+She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That personal archive, build outputs, and test data are excluded from this repository. The seventeen balanced sound samples are included. There is no cloud sync, telemetry, or network service. The source and character artwork are included; the app currently uses a local ad-hoc signature rather than a notarized release.
 
 ## Use
 
 Open `build/Velvet.app`. Velvet appears near the lower-right corner of your desktop; click her face or body to open notes, stroke or briefly hold her head for affection, and drag her body to move. Option-drag moves her from anywhere. The sparkle in the menu bar contains hide/show, pause, always-on-top, position reset and animation previews.
 
-Choose a routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Ballet, Floorwork, Robot disco, and House also join her occasional idle animations. Vogue Fem, Waacking, and Breakdance play only when explicitly selected. The choreography uses four illustrated poses per dance with continuous bobbing and a subtle sway; it is a short sprite animation, not motion-captured dance.
+Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 6–10 minutes of eligible time. Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps permanently unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
 
 “Vogue Fem” adds hand performance, a cross-step, a low step and a supported dip. The character first rendered 20% smaller and now renders another 30% smaller, at 56% of the original size. Her latte, paper effects, shadow, motion, and rotation pivot scale with her; notes retain their existing size and stay beside her. Notes have unbranded, textured ruled paper and handwriting-style text; the text and rules scroll together.
 
+## Meet Velvet, care and privacy
+
+On first launch a small dialogue teaches real interactions: open and close a note,
+give her a robot protein bar, then stroke or briefly hold her head. Only then does
+Ballet unlock, without spending claps. No locked dance is performed, including in
+latte zoomies. “Later” dismisses the tutorial; “Meet Velvet” resumes the saved step.
+Ordinary needs pause while learning. Existing earned dances survive an upgrade.
+
+She asks for food after about 15–22 minutes, attention after 8–14 minutes, and takes
+25–45 seconds of phone time after 12–20 minutes. A hungry robot reaches for a foil
+protein bar beside her; click it or give it from her menu. She grips, unwraps and
+bites it. A click answers her attention request without opening notes. Ignoring
+that request earns a side-eye and leaves the attention need unresolved. She may scroll her lavender phone with a little
+screen light on her visor.
+
+Interrupt phone time and she gives an offended glance, turns her **whole body**
+away, and ignores care and animation requests for 45 visible, unpaused seconds.
+Her rear view has a back panel, pink heels and small rounded robot hips. Petting
+cannot shorten or restart that interval. Notes remain reachable from the menu
+and quick-capture shortcut during this sulk; existing coffee/affection gates
+remain independent. Overstimulation still blocks notes as before.
+
+She spends energy while awake and dancing. Food restores some energy; coffee
+still handles her latte mood rather than replacing sleep. After about 30–45
+minutes awake or enough routines, she yawns and takes a 2–4 minute beauty nap,
+then uncurls and wakes. Focus naps also recover energy. Hunger, tiredness,
+attention, phone time, care needs and open notes all prevent dancing. Need clocks
+freeze while hidden, paused or closed, and care state persists across restarts.
+Automatic performances are spaced by 6–10 eligible minutes and only use unlocked
+routines, so applause cannot be farmed from the menu.
+
+Contemporary is a twelve-second phrase with breath, reach, contraction, spiral,
+floor reach, roll and recovery. Its selected performance plays a licensed excerpt
+of “Dreams Become Real” by Kevin MacLeod. Credits and license details are bundled
+and available at the bottom of the app menu.
+
 ## Coffee and attitude
 
-After 15 minutes of visible, unpaused time she gets grumpy. Drag the rendered iced latte into her waiting hand on the right. She reaches toward it, accepts the cup, raises the pink straw, sips and gives an approving nod. A missed drop slides the cup back without feeding her or resetting the timer. You can also click the cup or choose “Give her an iced latte” in the menu. The drink has a clear lid, ice cubes and milk/espresso layers, with lighting matched to the character. She refuses notes and dances until she gets her latte. If a note was open, she tucks it away and returns it once her needs are met; its contents stay saved. A blocked new-note request creates one note after she is soothed, rather than accumulating empty notes. Hiding her, pausing animations, focus mode, or sleeping the Mac pauses the coffee clock. Her coffee state persists across restarts. “Make her grumpy” in the menu lets you try the mechanic immediately.
+After 15 minutes of visible, unpaused time she gets grumpy. Drag the rendered iced latte into her waiting hand on the right. She reaches toward it, accepts the cup, raises the pink straw, sips and gives an approving nod. A missed drop slides the cup back without feeding her or resetting the timer. You can also click the cup or choose “Give her an iced latte” in the menu. The drink has a clear lid, ice cubes and milk/espresso layers, with lighting matched to the character. She refuses notes and dances until she gets her latte. If a note was open, she tucks it away and returns it once her needs are met; its contents stay saved. A blocked new-note request creates one note after she is soothed, rather than accumulating empty notes. Hiding her, pausing animations, focus mode, or sleeping the Mac pauses the coffee clock. Her coffee state persists across restarts. Care triggers are grouped separately from app controls in the menu.
 
 Her whole head, including her face, is pettable. Stroke at least 8 points or hold for about 0.35 seconds to give affection and see a happy pixel smile with tiny hearts. A head gesture stays a pet even if the pointer leaves her head; it cannot become a window drag. A quick tap opens notes. Drag her body or hold Option to move her instead. Her idle float is now less than half a point from top to bottom.
 
@@ -35,15 +71,15 @@ A rare stumble makes her fall onto her side, then cry with tiny pixel tears. Hea
 
 ## Latte zoomies and reconciliation
 
-After a successful iced latte she finishes her six-second sip and any queued paper gesture, then gets eight seconds of zoomies: a quick in-place strut, three House footwork poses, a nod/wink, and a gentle settle. Opening notes interrupts the burst immediately for the paper gesture, then the remaining zoomies resume. Nothing moves her desktop window. Each accepted latte triggers at most one burst; missed drops do not trigger it. Focus and new upset states cancel a queued or active burst, and reduced-motion mode keeps a settled pose. Animation pause, hiding, and dragging freeze the eligible response clock.
+After a successful iced latte she finishes her six-second sip and any queued paper gesture, then gets eight seconds of zoomies: a quick in-place strut, three House footwork poses, a nod/wink, and a gentle settle. Opening notes cancels the burst immediately. No dancing takes place while notes are open. Nothing moves her desktop window. Each accepted latte triggers at most one burst; missed drops do not trigger it. Focus and new upset states cancel a queued or active burst, and reduced-motion mode keeps a settled pose. Animation pause, hiding, and dragging freeze the eligible response clock.
 
-Comforting crossed arms or crying starts 90 seconds of quiet reconciliation after the initial affection/recovery. She leans slightly toward the visible note and gives a shy pixel smile after 12 seconds, then every 16 seconds for about two seconds each. Normal head rubs still work without starting a new reconciliation. Her random dances, hover side-eye, and autosave celebrations stay quiet during this phase. Notes remain accessible. Focus pauses the phase while she stretches/naps, a new upset overrides it, and she returns to her usual idle behavior when it ends. These brief responses are session-only; notes and care needs remain saved. The animation menu includes “Latte zoomies”, “Staying close”, and “A shy little smile” for previews. Existing approved sprites are reused with small position, tilt, and crossfade changes.
+Comforting crossed arms or crying starts 90 seconds of quiet reconciliation after the initial affection/recovery. She leans slightly toward the visible note and gives a shy pixel smile after 12 seconds, then every 16 seconds for about two seconds each. Normal head rubs still work without starting a new reconciliation. Her random dances, hover side-eye, and autosave celebrations stay quiet during this phase. Notes remain accessible. Focus pauses the phase while she stretches/naps, a new upset overrides it, and she returns to her usual idle behavior when it ends. These brief responses are session-only; notes and care needs remain saved. Quiet response poses are automatic. Existing approved sprites are reused with small position, tilt, and crossfade changes.
 
 ## Restless and show-off moods
 
-After 6–10 minutes of eligible awake time she gets restless, tapping and shifting her feet until you click the **🩰** beside her and choose an unlocked routine. Ballet is available from the start; Floorwork, Vogue Fem, Robot disco, House, Waacking, and Breakdance are earned one at a time. The robot’s right-click menu, menu-bar sparkle, and restless chooser share the same alphabetized list of unlocked dances. Finishing that twelve-second routine settles her and resets the interval; an interrupted routine leaves the need unresolved. Every completed dance holds the actual finishing pose with a small clickable **👏** beside her. Its countdown ring and emoji fade over six visible, unpaused seconds. Clap before the ring runs out: the emoji disappears, she gives a bow with tiny hearts, and you earn one clap. Missing the window gives her a brief disappointed reaction and earns no credit; previous progress stays intact. The timer freezes while she is hidden, paused, being dragged, or performing a note gesture, and focus/care interruptions cancel it without disappointment. The emoji click leaves notes and her desktop position alone. Face and body clicks keep their normal notes behavior. A head stroke or brief hold still gives affection. “Needs a dance break” and “Waiting for applause” in the animation menu let you try both moods; “Applaud her” also appears in her menu while she is waiting.
+After 12–18 minutes of eligible awake time she gets restless, tapping and shifting her feet until you click the **🩰** beside her and choose an unlocked routine. New profiles earn Ballet through the short care tutorial; Contemporary, Floorwork, Vogue Fem, Robot disco, House, Waacking, and Breakdance are earned one at a time. Existing earned routines are preserved. The robot’s right-click menu, menu-bar sparkle, and restless chooser share the same alphabetized list of unlocked dances. Finishing that twelve-second routine settles her and resets the interval; an interrupted routine leaves the need unresolved. Every completed spontaneous dance holds the actual finishing pose with a small clickable **👏** beside her. Its countdown ring and emoji fade over six visible, unpaused seconds. Clap before the ring runs out: the emoji disappears, she gives a bow with tiny hearts, and you earn one clap. Missing the window gives her a brief disappointed reaction and earns no credit; previous progress stays intact. The timer freezes while she is hidden or paused. Opening notes, focus, and care interruptions cancel it without disappointment. The emoji click leaves notes and her desktop position alone. Face and body clicks keep their normal notes behavior. A head stroke or brief hold still gives affection. “Needs a dance break” and “Waiting for applause” in the animation menu let you try both moods; “Applaud her” also appears in her menu while she is waiting.
 
-These playful moods keep notes available. Paper gestures briefly interrupt them and return to the same need or held finish. Focus suspends restlessness and cancels applause requests; care needs and overstimulation override both, and dances or applause cannot clear coffee or affection requirements. Restless time pauses while hidden, asleep, paused, in reduced-motion mode, dancing, receiving care, interacting, or reconciling. Restlessness and applause prompts are session-only; earned claps and chosen dance unlocks persist with her notes. Existing sprites keep the same small size, pixel rendering, and direct pose changes; the 🩰 button appears only while she is restless, and the 👏 button appears only while she is waiting for applause. Both stay outside her silhouette and disappear during focus or care needs. The 🩰 also offers earned dance rewards after her bow; it never overlaps the clap prompt.
+These playful moods keep notes available. Opening notes cancels the applause prompt and stops the dance; a paid replay interrupted by opening notes refunds its one clap. Restlessness remains unresolved. Focus suspends restlessness and cancels applause requests; care needs and overstimulation override both, and dances or applause cannot clear coffee or affection requirements. Restless time pauses while hidden, asleep, paused, in reduced-motion mode, dancing, receiving care, interacting, or reconciling. Restlessness and applause prompts are session-only; earned claps and chosen dance unlocks persist with her notes. Existing sprites keep the same small size, pixel rendering, and direct pose changes; the 🩰 button appears only while she is restless, and the 👏 button appears only while she is waiting for applause. Both stay outside her silhouette and disappear during focus or care needs. The 🩰 also offers earned dance rewards after her bow; it never overlaps the clap prompt.
 
 ## Overstimulation and grounding
 
@@ -77,10 +113,13 @@ The build uses only system frameworks and applies a local ad-hoc signature. It h
 ## Verification
 
 ```sh
-swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
 build/store-tests
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CompanionCare.swift Sources/FocusSession.swift Sources/CompanionInteraction.swift Sources/CompanionResponse.swift Sources/PerformanceState.swift Sources/ListeningState.swift Sources/StimulationState.swift Tests/InteractionTests.swift -o build/interaction-tests
 build/interaction-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/LifestyleState.swift Sources/TutorialState.swift Sources/PerformanceState.swift Tests/LifestyleTests.swift -o build/lifestyle-tests
+build/lifestyle-tests
+python3 Tests/AudioAssetsTests.py
 ```
 
 Persistence tests cover Unicode text, search, pinning, trash, restore, preferences, export content and preservation of an unreadable archive. `--data-dir /absolute/path` uses an isolated data folder for development. `--smoke-test /absolute/path/result.json` checks windows, focus, hit regions and hotkey registration, renders a notes preview, and exits. `--render-preview /absolute/path` renders the character's poses and exits.
@@ -122,15 +161,15 @@ Included sounds: `Assets/vogue-chant.wav` (or `vogue-sound.wav`) plays the longe
 `Assets/clap.wav` plays once when you click the 👏 button or successfully choose the applause action; waiting for applause and refused applause actions stay silent. `Assets/house.wav` and `Assets/waacking.wav` supply the new dance loops. Dance music plays only when a routine is chosen from the menu bar, robot menu, animation menu, or restless dance chooser. Spontaneous routines and latte zoomies stay silent. Switching routines replaces the track; pets, focus, hiding, ending the routine, or muting stop it. Pausing freezes chosen dance time and music together, then resumes both. House loops as needed through its twelve-second phrase; the longer Waacking track stops when its routine ends. No new libraries or audio tools are needed to build the app.
 
 
-`python3 Tests/AudioAssetsTests.py` verifies all fourteen bundled WAV assets against their saved loudness/peak measurements and checks the actual latte mix waveform: simultaneous riser/Liquor starts, the quieter Liquor layer, Nelly at the 4.8-second approving nod, and an exact six-second duration. It uses only Python’s standard library.
+`python3 Tests/AudioAssetsTests.py` verifies all seventeen bundled WAV assets against their saved loudness/peak measurements and checks the actual latte mix waveform: simultaneous riser/Liquor starts, the quieter Liquor layer, Nelly at the 4.8-second approving nod, and an exact six-second duration. It uses only Python’s standard library.
 
 
 ## Dance unlocks
 
-Ballet is the only routine initially available. Three timely claps buy one permanent dance of your choice, including its first performance. Replaying any unlocked routine from the menu costs one clap; the menu shows the spendable balance and disables unaffordable choices. Menu dances never offer applause afterward. Only spontaneous dances offer the six-second fading 👏 prompt. Missing the prompt earns no credit and briefly disappoints her. Lifetime claps, unlocks and replay spending persist together; existing profiles keep their progress. Actions and dances remain in separate, alphabetically sorted menus. The first profile can earn its initial claps from spontaneous Ballet without spending anything. When restless at zero balance, she offers a free Ballet to settle that need; this selected performance grants no applause reward.
+Ballet is earned free through the first-launch tutorial. Three timely claps buy one permanent dance of your choice, including its first performance. Replaying any unlocked routine from the menu costs one clap; the menu shows the spendable balance and disables unaffordable choices. Menu dances never offer applause afterward. Only spontaneous dances offer the six-second fading 👏 prompt. Missing the prompt earns no credit and briefly disappoints her. Lifetime claps, unlocks and replay spending persist together; existing profiles keep their progress. Actions and dances remain in separate, alphabetically sorted menus. The first profile can earn its initial claps from spontaneous Ballet without spending anything. When restless at zero balance, she offers a free Ballet to settle that need; this selected performance grants no applause reward.
 
 
-The latest full native run passed all **272 checks**, covering menu-replay spending and no applause farming, zero-balance restless Ballet, spontaneous clap rewards, unlocks and persistence, the white-earbud animation, focus priority, preserved notes, and every chosen dance track including Robot disco and licensed Floorwork. Interaction, persistence, sixteen bundled audio assets and the live non-Spotify playback exclusion check also pass. Native checks can be launched with `open -n build/Velvet.app --args --data-dir /absolute/temporary/path --smoke-test /absolute/path/result.json`. Spotify filtering is checked against its exact installed bundle identifiers; a live Spotify playback session was not started for the tests.
+The final native run passed **311 checks** (278 regression checks and 33 care/tutorial checks). The suite covers menu-replay spending and no applause farming, zero-balance restless Ballet, spontaneous clap rewards, unlocks and persistence, the white-earbud animation, focus priority, preserved notes, and every chosen dance track including Contemporary, Robot disco and licensed Floorwork. The care checks exercise the real protein-bar click and head hold, resumable Ballet tutorial, whole-body phone sulk, naps/waking, hunger/attention gates, and refund when notes interrupt a paid replay. Interaction, persistence, seventeen bundled audio assets and the live non-Spotify playback exclusion check also pass. Native checks can be launched with `open -n build/Velvet.app --args --data-dir /absolute/temporary/path --smoke-test /absolute/path/result.json`. Spotify filtering is checked against its exact installed bundle identifiers; a live Spotify playback session was not started for the tests.
 
 
 Ballet now plays a twelve-second excerpt of Chopin’s **Waltz in A minor, B. 150**, performed by **Aya Higuchi**, when deliberately chosen. The performance is explicitly released under CC0; the composition is public domain. Source, license, excerpt boundaries, preparation recipe, and recording checksum are recorded in [Assets/BALLET-AUDIO.md](Assets/BALLET-AUDIO.md). The piano preserves its dynamics and matches the other foreground sounds at -20 LUFS, with a gentle one-second ending. Spontaneous Ballet and latte zoomies stay silent.
@@ -151,4 +190,10 @@ swiftc -swift-version 5 -module-cache-path build/module-cache Sources/SystemAudi
 build/system-audio-tests Assets/ballet.wav
 ```
 
-Robot disco uses “Disco Medusae” by Kevin MacLeod and Floorwork uses “Sexy Scene Instrumentals Vol. 8” by Sascha Ende. Both recordings are CC BY 4.0, ship in the repository and app, and have attribution available through Music credits. Twelve-second excerpts are matched to the other foreground sounds at approximately -20 LUFS. See [Disco credits and preparation](Assets/DISCO-AUDIO.md), [Floorwork credits and preparation](Assets/FLOORWORK-AUDIO.md) and [bundled credits](Assets/MUSIC-CREDITS.txt).
+Robot disco uses “Disco Medusae” by Kevin MacLeod and Floorwork uses “Sexy Scene Instrumentals Vol. 8” by Sascha Ende. Both recordings are CC BY 4.0, ship in the repository and app, and have attribution available through Music credits. Twelve-second excerpts are matched to the other foreground sounds at approximately -20 LUFS. Contemporary uses “Dreams Become Real” by Kevin MacLeod under the same license and loudness target; see [Contemporary credits and preparation](Assets/CONTEMPORARY-AUDIO.md). See [Disco credits and preparation](Assets/DISCO-AUDIO.md), [Floorwork credits and preparation](Assets/FLOORWORK-AUDIO.md) and [bundled credits](Assets/MUSIC-CREDITS.txt).
+
+The care artwork was generated with the built-in imagegen tool. The bundled sixteen-frame sheet is `Assets/care-sprites-v1.png`; its final prompt and layout are saved in [Assets/CARE-ART.md](Assets/CARE-ART.md). Native care checks use a separate profile:
+
+```sh
+build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/path --lifestyle-smoke /absolute/path/result.json
+```
