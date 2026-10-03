@@ -7,7 +7,7 @@ extension CharacterView {
         !coffeeOverload.occupied && !needsAffection && !wantsCoffee && !noteIsVisible &&
         mood != .sleep && !mood.isDance && !isBusy && !performance.awaitingApplause
     }
-    var showsScrews: Bool { iron.needsScrews && ironAvailable }
+    var showsScrews: Bool { iron.freeOfferAvailable && ironAvailable }
     var currentScrewOffset: NSPoint {
         guard let began = screwReturnBegan else { return screwOffset }
         let u = min(1, max(0, (ProcessInfo.processInfo.systemUptime - began) / 0.24))
@@ -23,22 +23,38 @@ extension CharacterView {
         return screwDropRect.contains(point) || (!overlap.isNull && overlap.width >= 5 && overlap.height >= 5)
     }
     func advanceIron(by seconds: Double) {
-        let phase = iron.phase, eating = iron.eating
+        let phase = iron.phase, eating = iron.eating, offerAvailable = iron.freeOfferAvailable, neglected = iron.feelsNeglected
         let eatingAvailable = !screenLocked && !paused && window?.isVisible == true && scheduledMood == nil && canInteract && focusRest == nil && !tutorialActive
         iron.advance(by: seconds, available: iron.eating ? eatingAvailable : (ironAvailable && !pointerIsActive))
-        if phase != iron.phase || eating != iron.eating {
-            if iron.lowIron { disappoint(.missedIron) }
+        if offerAvailable && iron.lowIron && !iron.freeOfferAvailable && danceProgress.clapBalance == 0 { iron.feelNeglected() }
+        if phase != iron.phase || eating != iron.eating || offerAvailable != iron.freeOfferAvailable || neglected != iron.feelsNeglected {
+            if phase != .low && iron.lowIron { disappoint(.missedIron) }
             react(baseMood)
             onIronChanged?(iron); onPerformanceChanged?(); updateAccessibilityHelp(); needsDisplay = true
         }
         syncCompanionButtons()
     }
+    var canBuyScrews: Bool {
+        iron.lowIron && ironAvailable && !pointerIsActive && !iron.eating && danceProgress.clapBalance >= IronState.rescueClapCost
+    }
+    @discardableResult func buyScrews() -> Bool {
+        guard canBuyScrews else { return false }
+        var nextIron = iron, nextProgress = danceProgress
+        guard nextIron.feed(), nextProgress.payForCare(cost: IronState.rescueClapCost) else { return false }
+        iron = nextIron; danceProgress = nextProgress
+        screwHandoffStart = NSPoint(x: barHandRect.midX, y: barHandRect.midY)
+        finishScrewFeed()
+        return true
+    }
     @discardableResult func giveScrews() -> Bool {
-        guard ironAvailable, !pointerIsActive, iron.feed() else { return false }
+        guard iron.freeOfferAvailable, ironAvailable, !pointerIsActive, iron.feed() else { return false }
+        finishScrewFeed()
+        return true
+    }
+    private func finishScrewFeed() {
         lifestyle.energy = min(100, lifestyle.energy + 8)
         onLifestyleChanged?(lifestyle); receiveCare(.iron)
         react(.ironSnack); onIronChanged?(iron); onPerformanceChanged?(); syncCompanionButtons(); needsDisplay = true
-        return true
     }
     @objc func screwsPressed() { /* The visible object is handed over by dragging, like her protein bar. */ }
 
@@ -103,7 +119,7 @@ extension CharacterView {
     }
     func drawIronDeadline() {
         guard showsScrews && !isCarryingScrews else { return }
-        let r = offeredScrewRect, width = CGFloat(iron.lowIron ? 1 : iron.deadlineFraction) * 23
+        let r = offeredScrewRect, width = CGFloat(iron.deadlineFraction) * 23
         NSColor(calibratedWhite: 0.6, alpha: 0.3).setFill()
         NSBezierPath(roundedRect: NSRect(x: r.minX + 3, y: r.maxY + 5, width: 23, height: 2), xRadius: 1, yRadius: 1).fill()
         (iron.lowIron ? NSColor.systemOrange : Self.pink).setFill()
@@ -112,9 +128,10 @@ extension CharacterView {
 }
 
 extension AppDelegate {
+    @objc func buyIronScrews() { _ = character.buyScrews() }
     func syncIronRequest(announce: Bool = false) {
         if announce { ironMessagePending = character.iron.needsScrews }
-        guard ironMessagePending && character.showsScrews else { ironPanel?.orderOut(nil); return }
+        guard ironMessagePending && character.iron.needsScrews && character.ironAvailable else { ironPanel?.orderOut(nil); return }
         if ironPanel == nil {
             let bubble = TutorialView(frame: NSRect(x: 0, y: 0, width: 216, height: 96))
             bubble.begin = { [weak self] in self?.ironMessagePending = false; self?.ironPanel?.orderOut(nil) }
@@ -124,7 +141,16 @@ extension AppDelegate {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]; panel.contentView = bubble
             ironPanel = panel; ironBubble = bubble
         }
-        let text = character.iron.lowIron ? "Velvet’s iron is low and she’s getting sleepy. Drag the screws onto her." : "Velvet needs a few screws. Drag them onto her within two minutes to keep her iron up."
+        let text: String
+        if character.iron.feelsNeglected {
+            text = "Velvet thinks you don’t like her and has a little cry. Free screws return after five awake minutes."
+        } else if character.iron.lowIron && character.iron.freeOfferAvailable {
+            text = "Velvet still needs iron. Drag the screws onto her while they’re here."
+        } else if character.iron.lowIron && character.danceProgress.clapBalance == 0 {
+            text = "Velvet’s iron is low. She’ll offer free screws again after five awake minutes."
+        } else {
+            text = character.iron.lowIron ? "Velvet’s iron is low. Give her screws from the menu for one clap." : "Velvet needs a few screws. Drag them onto her within two minutes to keep her iron up."
+        }
         if ironBubble?.dialogue != text { ironBubble?.update(text: text, primaryTitle: "Continue", complete: true); ironBubble?.dismissButton.isHidden = true }
         if ironPanel?.isVisible != true { ironPanel?.orderFrontRegardless() }; anchorIronRequest()
     }

@@ -619,6 +619,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let focus = NSMenuItem(title: store.focus.isActive ? "Focus · \(store.focus.label)" : "Focus mode", action: nil, keyEquivalent: "")
         focus.submenu = focusMenu; focus.isEnabled = character.canInteract && (!character.isNightVisit || store.focus.isActive); menu.addItem(focus)
         let latte = item("Give her an iced latte", #selector(giveCoffee)); latte.isEnabled = character.canInteract && !character.iron.eating && !character.lifestyle.occupied && !character.coffeeOverload.occupied && !character.isNightVisit && character.scheduledMood == nil; menu.addItem(latte)
+        if character.iron.lowIron {
+            let screws = item("Give her screws · 1 clap", #selector(buyIronScrews))
+            screws.isEnabled = character.canBuyScrews
+            if character.danceProgress.clapBalance < IronState.rescueClapCost { screws.toolTip = "Requires one clap" }
+            menu.addItem(screws)
+        }
         let dances = NSMenuItem(title: character.showsDanceChooser ? "Choose a dance · she’s restless" : "Choose a dance", action: nil, keyEquivalent: "")
         dances.submenu = character.makeDanceMenu(); dances.isEnabled = character.canInteract; menu.addItem(dances)
         let moods = NSMenu(); moods.autoenablesItems = false

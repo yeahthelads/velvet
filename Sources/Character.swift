@@ -557,7 +557,9 @@ final class CharacterView: NSView {
     func updateAccessibilityHelp() {
         var help = "Click her face or body for notes. Stroke or hold her head briefly for affection. Drag her body or Option-drag to move."
         if lifestyle.hungry { help += " She wants a robot protein bar before dancing. Drag the chocolate bar into her open hand." }
-        if iron.needsScrews { help += iron.lowIron ? " Her iron is low, making her sleepier. Drag the screws into her hand." : " She needs iron. Drag the silver screws into her hand within two minutes." }
+        if iron.needsScrews {
+            help += iron.freeOfferAvailable ? " She needs iron. Drag the silver screws into her hand within two minutes." : " Her iron is low, making her sleepier. Give her screws from the menu for one clap, or wait for the free offer after her cooldown."
+        }
         if lifestyle.phase == .attention { help += " She wants you to notice her. Click her to acknowledge." }
         if lifestyle.ignoring { help += " Her phone time was interrupted. Give her forty-five seconds to cool off. Notes remain available from the menu or shortcut." }
         if lifestyle.phase == .nap { help += " She is resting. Notes remain available." }
@@ -1320,7 +1322,7 @@ final class CharacterView: NSView {
         case .reserved: index = 13
         case .yoga: index = hasDailyAnimation ? [112, 113, 114, 115, 112][min(4, Int(elapsed / 3.6))] : 70
         case .ironNeed: index = hasDailyAnimation ? 100 : 85
-        case .ironLow: index = hasLifestyleAnimation ? 96 : 1
+        case .ironLow: index = iron.feelsNeglected && hasWellbeingAnimation ? 50 : (hasLifestyleAnimation ? 96 : 1)
         case .ironSnack:
             let eating = IronState.biteDuration - iron.eatingRemaining
             index = hasDailyAnimation && eating < 0.72 ? 101 : (hasLifestyleAnimation && eating < 3.0 ? 96 : 36)

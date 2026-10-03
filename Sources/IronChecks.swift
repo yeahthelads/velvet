@@ -7,6 +7,7 @@ extension AppDelegate {
         character.coffeeOverload = CoffeeOverload(); character.wantsCoffee = false; character.awaitingSong = false
         character.stimulation = StimulationState(cooldown: 60); character.focusRest = nil; character.noteIsVisible = false
         character.mood = .idle; character.moodUntil = .distantPast
+        character.danceProgress = DanceProgress(unlockedDanceIDs: ["ballet"])
         character.iron = IronState(timeUntilNeed: 0)
         character.advanceIron(by: 1)
         c["requestGetsFullTwoMinutes"] = character.iron.phase == .requested && character.iron.requestRemaining == 120
@@ -57,11 +58,44 @@ extension AppDelegate {
         c["notLowBeforeDeadline"] = !character.iron.lowIron
         character.advanceIron(by: 1)
         c["lowAfterTwoMinutes"] = character.iron.lowIron && character.mood == .ironLow
+        c["expiredScrewsDisappearAndCannotBeFedFree"] = !character.showsScrews && character.screwButton.isHidden && !character.giveScrews()
+        c["noClapsShowsNeglectedCry"] = character.iron.feelsNeglected && character.displayedSpriteIndex == 50
+        c["noClapsDisablesPaidMenuRescue"] = !character.canBuyScrews && makeMenu().items.first { $0.title == "Give her screws · 1 clap" }?.isEnabled == false
+        let ironWithoutClaps = character.iron
+        buyIronScrews()
+        c["noClapsCannotBuyOrCureIron"] = character.iron == ironWithoutClaps && character.danceProgress.clapBalance == 0
         capture("iron-low")
         store.setIron(character.iron); store.flush()
         c["deficiencySurvivesRestart"] = NoteStore(directory: store.directory).iron.lowIron
         character.lifestyle.restAfterNight()
         c["sleepCannotCureIron"] = character.iron.lowIron
+        character.advanceIron(by: 8)
+        c["cryEndsButDeficiencyAndCooldownRemain"] = !character.iron.feelsNeglected && character.iron.lowIron && !character.showsScrews
+        character.advanceIron(by: 291)
+        c["retryCannotArriveBeforeFiveAwakeMinutes"] = character.iron.lowIron && !character.showsScrews
+        store.setIron(character.iron); store.flush()
+        c["retryCooldownSurvivesRestart"] = NoteStore(directory: store.directory).iron.retryRemaining == 1
+        character.advanceIron(by: 1)
+        c["cooldownOffersFreeScrewsWithoutCuringIron"] = character.iron.lowIron && character.showsScrews && character.iron.requestRemaining == 120
+        character.advanceIron(by: 120)
+        character.danceProgress = DanceProgress(completedClaps: 1, unlockedDanceIDs: ["ballet"])
+        c["oneClapEnablesMenuRescue"] = makeMenu().items.first { $0.title == "Give her screws · 1 clap" }?.isEnabled == true
+        character.noteIsVisible = true
+        buyIronScrews()
+        c["unavailableRescueDoesNotSpendClap"] = character.iron.lowIron && character.danceProgress.clapBalance == 1
+        character.noteIsVisible = false
+        buyIronScrews()
+        c["menuRescueSpendsExactlyOneClapAndStartsReach"] = character.danceProgress.clapBalance == 0 && !character.iron.lowIron && character.iron.eating && character.displayedSpriteIndex == 101
+        let rescuedIron = character.iron, rescuedProgress = character.danceProgress
+        buyIronScrews()
+        c["repeatedMenuRescueCannotSpendAgain"] = character.iron == rescuedIron && character.danceProgress == rescuedProgress
+        store.setIron(character.iron); store.setDanceProgress(character.danceProgress); store.flush()
+        let rescuedStore = NoteStore(directory: store.directory)
+        c["menuRescueAndCareCostPersistTogether"] = rescuedStore.iron == rescuedIron && rescuedStore.danceProgress == rescuedProgress
+        character.advanceIron(by: 3.5)
+        character.iron = IronState(timeUntilNeed: 0); character.advanceIron(by: 1)
+        let freeBalance = character.danceProgress.clapBalance
+        character.happiness = HappinessState() // Independent timely-feeding fixture, outside the rescue reward cooldown.
         let food = character.lifestyle.foodRemaining, happy = character.happiness.level
         character.lifestyle.energy = 70
         let hand = NSPoint(x: character.barHandRect.midX, y: character.barHandRect.midY)
@@ -70,6 +104,7 @@ extension AppDelegate {
         c["reachesForDraggedScrews"] = character.displayedSpriteIndex == 101 && pet.frame.origin == origin
         capture("iron-reaching")
         character.endPointer(at: hand, time: 3.3)
+        c["timelyDropCostsNoClaps"] = character.danceProgress.clapBalance == freeBalance
         c["dropCuresIronAndStartsEating"] = !character.iron.needsScrews && character.iron.eating && character.mood == .ironSnack
         c["modestEnergyAndHappinessWithoutFoodReset"] = character.lifestyle.energy == 78 && character.happiness.level > happy && character.lifestyle.foodRemaining == food
         c["noRepeatedFeeding"] = !character.giveScrews()
