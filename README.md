@@ -52,9 +52,9 @@ remain independent. Overstimulation still blocks notes as before.
 At **22:00 local Mac time**, she winds down watching her series on a little MacBook, with screen light on her visor. At **23:00** she closes it and sleeps; sometimes she clumsily flops onto her belly. At **08:00** she yawns, stretches awake and regains energy. The same overnight pose survives midnight and restarts; needs pause overnight. Notes remain available through the menu. The beginner tutorial takes precedence over the bedtime poses.
 
 Her enthusiasm follows recent company gradually. Lingering over her for a moment, stroking her head and moving her lift her activity, with cooldowns to prevent rapid-hover farming. Without company she settles into quieter activities and stops spontaneous dances. Unanswered attention bids make her more withdrawn; responding and petting help her reconnect. Yoga is a rare solo activity: an opportunity every 15–25 visible, unpaused minutes alone, with at least five uninterrupted minutes without company before she starts. Hovering, petting, moving her or opening notes resets that solitude. She only starts when free and physically rested, doing cat/cow, a compact downward dog, cobra and child’s pose. Yoga is not a menu action.
-She spends energy while awake and dancing. Each routine costs 20 energy when it **starts**, including an interrupted performance. A running dance cannot be replaced or restarted from the menu; after a few routines, she needs her nap before dancing again. Food restores some energy; coffee
-still handles her latte mood rather than replacing sleep. After about 30–45
-minutes awake or enough routines, she yawns and takes a 2–4 minute beauty nap,
+She spends energy while awake and dancing. Each routine costs 18 energy when it **starts**, including an interrupted performance. A running dance cannot be replaced or restarted from the menu; after a few routines, she needs her nap before dancing again. Food restores some energy; coffee
+still handles her latte mood rather than replacing sleep. After about 35–50
+minutes awake or enough routines, she yawns and takes a 90–180 second beauty nap,
 then uncurls and wakes. Focus naps also recover energy. Hunger, tiredness,
 attention, phone time, care needs and open notes all prevent dancing. Need clocks
 freeze while hidden, paused or closed, and care state persists across restarts.
@@ -135,12 +135,14 @@ The build uses only system frameworks and applies a local ad-hoc signature. It h
 ## Verification
 
 ```sh
-swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/IronState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
 build/store-tests
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CompanionCare.swift Sources/FocusSession.swift Sources/CompanionInteraction.swift Sources/CompanionResponse.swift Sources/PerformanceState.swift Sources/ListeningState.swift Sources/StimulationState.swift Tests/InteractionTests.swift -o build/interaction-tests
 build/interaction-tests
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/LifestyleState.swift Sources/TutorialState.swift Sources/PerformanceState.swift Tests/LifestyleTests.swift -o build/lifestyle-tests
 build/lifestyle-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/IronState.swift Sources/LifestyleState.swift Tests/IronTests.swift -o build/iron-tests
+build/iron-tests
 python3 Tests/AudioAssetsTests.py
 ```
 
@@ -246,3 +248,5 @@ build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/path --cpu
 ```
 
 See [PERFORMANCE.md](PERFORMANCE.md) for before/after results and their limits.
+
+Every 25–35 eligible awake minutes, Velvet asks for silver screws. Drag them into her reaching hand within two minutes. A shrinking pink line shows the deadline; missing it leaves her low on iron, with faster fatigue and naps. Only screws cure low iron, with a modest energy and happiness boost. Coffee and sleeping do not clear it. Iron clocks pause during notes, focus, sleep, hidden/locked/paused states and other activities or care needs that prevent feeding. The need and deadline survive restarting.

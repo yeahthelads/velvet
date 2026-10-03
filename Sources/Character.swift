@@ -2,6 +2,7 @@ import AppKit
 
 enum Mood: String, CaseIterable {
     case windDown, nightSleep, bellySleep, yoga, reserved
+    case ironNeed, ironLow, ironSnack
     case hungry, snack, attention, acknowledged, phone, phoneSulk, yawn, naturalNap, contemporary
     case plugIn, listening, unplug
     case idle, walk, wave, pickedUp, sleep, sideEye, celebrate, ballet, floorwork, vogue, grumpy, coffee
@@ -26,11 +27,11 @@ enum Mood: String, CaseIterable {
         }
     }
     var isScheduled: Bool { [.windDown, .nightSleep, .bellySleep].contains(self) }
-    var isLifestyle: Bool { [.yoga, .reserved, .windDown, .nightSleep, .bellySleep, .hungry, .snack, .attention, .acknowledged, .phone, .phoneSulk, .yawn, .naturalNap].contains(self) }
+    var isLifestyle: Bool { [.ironNeed, .ironLow, .yoga, .reserved, .windDown, .nightSleep, .bellySleep, .hungry, .snack, .attention, .acknowledged, .phone, .phoneSulk, .yawn, .naturalNap].contains(self) }
     var isHeadphones: Bool { self == .plugIn || self == .listening || self == .unplug }
     var isDance: Bool { isChoreography || self == .zoomies }
     var isPaper: Bool { self == .paperOpen || self == .paperClose || self == .paperToss }
-    var isInteraction: Bool { isPaper || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp || self == .snack || self == .acknowledged }
+    var isInteraction: Bool { isPaper || self == .ironSnack || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp || self == .snack || self == .acknowledged }
     var label: String {
         switch self {
         case .windDown: return "Series time"
@@ -38,6 +39,9 @@ enum Mood: String, CaseIterable {
         case .bellySleep: return "Clumsy beauty sleep"
         case .yoga: return "A little yoga"
         case .reserved: return "Keeping herself company"
+        case .ironNeed: return "Screws, please"
+        case .ironLow: return "Running low on iron"
+        case .ironSnack: return "A metallic little snack"
         case .hungry: return "Protein. Obviously."
         case .snack: return "Unwrapping, approvingly"
         case .attention: return "Look at me"
@@ -116,6 +120,14 @@ final class CharacterView: NSView {
     var onAffection: (() -> Void)?
     var tutorialActive = false
     var activity = ActivityState()
+    var iron = IronState()
+    var onIronChanged: ((IronState) -> Void)?
+    var screwOffset = NSPoint.zero
+    var screwPickupOffset = NSPoint.zero
+    var screwReturnBegan: Double?
+    var screwHandoffStart: NSPoint?
+    var isCarryingScrews: Bool { gesture?.phase == .carryingScrews }
+    let screwButton = NSButton(title: "", target: nil, action: nil)
     var coffeeOverload = CoffeeOverload()
     var onCoffeeOverloadChanged: ((CoffeeOverload) -> Void)?
     var onDanceLost: ((Mood) -> Void)?
@@ -152,7 +164,7 @@ final class CharacterView: NSView {
         if let scheduledMood {
             cancelDance(); responses.cancelZoomies(); performance.cancelApplause(); listeningState.reset()
             gesture = nil; mouseOrigin = nil; dragOrigin = nil
-            barOffset = .zero; barReturnBegan = nil; latteOffset = .zero; latteReturnBegan = nil
+            barOffset = .zero; barReturnBegan = nil; screwOffset = .zero; screwReturnBegan = nil; latteOffset = .zero; latteReturnBegan = nil
             mood = scheduledMood; moodBegan = Date(); moodUntil = .distantFuture
         } else if waking && !tutorialActive {
             lifestyle.restAfterNight(); onLifestyleChanged?(lifestyle)
@@ -228,7 +240,7 @@ final class CharacterView: NSView {
                 audio.stopAll(); listeningState.reset(); responses.cancelZoomies()
                 performance.cancelApplause(); cancelDance()
                 gesture = nil; mouseOrigin = nil; dragOrigin = nil; pendingPaper = nil
-                barOffset = .zero; barReturnBegan = nil; latteOffset = .zero; latteReturnBegan = nil
+                barOffset = .zero; barReturnBegan = nil; screwOffset = .zero; screwReturnBegan = nil; latteOffset = .zero; latteReturnBegan = nil
                 mood = baseMood; moodBegan = Date(); moodUntil = .distantFuture
             } else { mood = baseMood; moodUntil = .distantPast }
             syncCompanionButtons(); updateAccessibilityHelp(); needsDisplay = true
@@ -236,8 +248,8 @@ final class CharacterView: NSView {
         }
     }
     private var paidDanceInProgress = false
-    var hasLifestyleActivity: Bool { lifestyle.occupied || lifestyle.hungry || lifestyle.needsAttention }
-    var danceRequirementsMet: Bool { dailyRoutine.period == .awake && scheduledMood == nil && canGiveNotes && lifestyle.readyToDance && !tutorialActive && !coffeeOverload.occupied && !noteIsVisible && focusRest == nil && !reduceMotion }
+    var hasLifestyleActivity: Bool { lifestyle.occupied || lifestyle.hungry || lifestyle.needsAttention || iron.needsScrews || iron.eating }
+    var danceRequirementsMet: Bool { dailyRoutine.period == .awake && scheduledMood == nil && canGiveNotes && lifestyle.readyToDance && !tutorialActive && !coffeeOverload.occupied && !iron.needsScrews && !iron.eating && !noteIsVisible && focusRest == nil && !reduceMotion }
     var hasHeadphones: Bool { mood.isHeadphones }
 
     private var pausedAt: Date?
@@ -315,6 +327,7 @@ final class CharacterView: NSView {
         if wantsCoffee { return .grumpy }
         if isNightVisit { return .yawn }
         if let focusRest { return focusRest }
+        if iron.eating { return .ironSnack }
         switch lifestyle.phase {
         case .snack: return .snack
         case .attention: return activity.withdrawn ? .reserved : .attention
@@ -327,6 +340,7 @@ final class CharacterView: NSView {
         }
         if lifestyle.hungry { return .hungry }
         if lifestyle.needsAttention { return activity.withdrawn ? .reserved : .attention }
+        if iron.needsScrews { return iron.lowIron ? .ironLow : .ironNeed }
         if performance.awaitingApplause { return .showOff }
         switch responses.phase {
         case .zoomies: return .zoomies
@@ -425,6 +439,7 @@ final class CharacterView: NSView {
         return NSRect(x: rect.maxX - rect.width * 0.39, y: rect.maxY - rect.height * 0.3, width: rect.width * 0.41, height: rect.height * 0.32).insetBy(dx: -3, dy: -3)
     }
     override func hitTest(_ point: NSPoint) -> NSView? {
+        if showsScrews && screwHitbox.contains(point) { return self }
         if !snackButton.isHidden && snackButtonRect.contains(point) { return self }
         return super.hitTest(point)
     }
@@ -452,12 +467,12 @@ final class CharacterView: NSView {
         return VisualState(mood: mood, index: pose.index, rect: pose.rect, angle: pose.angle, bounds: bounds, paused: paused, reduced: reduceMotion)
     }
     var animationInterval: TimeInterval {
-        if gesture != nil || latteReturnBegan != nil || barReturnBegan != nil { return 1.0 / 24 }
+        if gesture != nil || latteReturnBegan != nil || barReturnBegan != nil || screwReturnBegan != nil { return 1.0 / 24 }
         if paused || reduceMotion { return 0.25 }
         if showsApplause { return 1.0 / 24 }
         if mood == .phoneSulk && Date().timeIntervalSince(moodBegan) < 1.2 { return 1.0 / 24 }
         if [.nightSleep, .bellySleep, .windDown, .naturalNap, .focusNap, .yoga, .reserved, .phone, .phoneSulk, .showOff, .sleep].contains(mood) { return 0.25 }
-        if [.idle, .sideEye, .grumpy, .hungry, .annoyed, .attention, .overstimulated].contains(mood) { return 1.0 / 12 }
+        if [.ironNeed, .ironLow, .idle, .sideEye, .grumpy, .hungry, .annoyed, .attention, .overstimulated].contains(mood) { return 1.0 / 12 }
         return 1.0 / 24
     }
     private func updateAnimationClock() {
@@ -481,7 +496,7 @@ final class CharacterView: NSView {
     private var cachedPixelImage: NSImage?
     private var cachedVisual: VisualState?
     private var canReusePixels: Bool {
-        previewTime == nil && gesture == nil && latteReturnBegan == nil && barReturnBegan == nil && !wantsCoffee &&
+        previewTime == nil && gesture == nil && latteReturnBegan == nil && barReturnBegan == nil && screwReturnBegan == nil && !showsScrews && !iron.eating && !wantsCoffee &&
         (paused || reduceMotion || [.nightSleep, .bellySleep, .windDown, .naturalNap, .focusNap, .yoga, .reserved, .phone, .phoneSulk, .showOff, .wakeUp].contains(mood))
     }
     private let pixelSize = 1.6
@@ -514,6 +529,11 @@ final class CharacterView: NSView {
         snackButton.isBordered = false; snackButton.setAccessibilityLabel("Give Velvet her robot protein bar")
         snackButton.toolTip = "Drag her chocolate protein bar into her open hand."
         snackButton.isHidden = true; addSubview(snackButton)
+        screwButton.target = self; screwButton.action = #selector(screwsPressed)
+        screwButton.isBordered = false; screwButton.isHidden = true
+        screwButton.setAccessibilityLabel("Feed Velvet screws for iron")
+        screwButton.toolTip = "Drag the silver screws into her open hand."
+        addSubview(screwButton)
         updateAccessibilityHelp()
         if let url = Bundle.main.url(forResource: "velvet-sprites-v5", withExtension: "png") {
             atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"), yogaURL: Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png"))
@@ -523,9 +543,10 @@ final class CharacterView: NSView {
     override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func accessibilityPerformPress() -> Bool { guard acceptCharacterInteraction() else { return false }; if acknowledgeAttention() { return true }; onClick?(); return true }
-    private func updateAccessibilityHelp() {
+    func updateAccessibilityHelp() {
         var help = "Click her face or body for notes. Stroke or hold her head briefly for affection. Drag her body or Option-drag to move."
         if lifestyle.hungry { help += " She wants a robot protein bar before dancing. Drag the chocolate bar into her open hand." }
+        if iron.needsScrews { help += iron.lowIron ? " Her iron is low, making her sleepier. Drag the screws into her hand." : " She needs iron. Drag the silver screws into her hand within two minutes." }
         if lifestyle.phase == .attention { help += " She wants you to notice her. Click her to acknowledge." }
         if lifestyle.ignoring { help += " Her phone time was interrupted. Give her forty-five seconds to cool off. Notes remain available from the menu or shortcut." }
         if lifestyle.phase == .nap { help += " She is resting. Notes remain available." }
@@ -561,6 +582,7 @@ final class CharacterView: NSView {
         latteOffset = .zero; latteReturnBegan = nil
         latteHandoffOrigin = nil
         barOffset = .zero; barReturnBegan = nil
+        screwOffset = .zero; screwReturnBegan = nil
         pendingPaper = nil
         if danceInProgress { cancelDance(); mood = baseMood }
         if mood.isInteraction { mood = baseMood }
@@ -614,6 +636,7 @@ final class CharacterView: NSView {
         case .recover: length = 1.4
         case .takeBow: length = 1.8
         case .wakeUp: length = FocusSession.wakeDuration
+        case .ironSnack: length = IronState.biteDuration
         case .snack: length = 6
         case .acknowledged: length = 2
         default: length = duration
@@ -670,6 +693,7 @@ final class CharacterView: NSView {
         if let held = gesture, held.target == .crown, held.phase == .pressed, ProcessInfo.processInfo.systemUptime - held.began >= 0.35 {
             updatePointer(at: held.last, screenPoint: mouseOrigin ?? .zero, time: ProcessInfo.processInfo.systemUptime)
         }
+        if let began = screwReturnBegan, ProcessInfo.processInfo.systemUptime - began > 0.24 { screwReturnBegan = nil; screwOffset = .zero }
         if let began = barReturnBegan, ProcessInfo.processInfo.systemUptime - began > 0.24 { barReturnBegan = nil; barOffset = .zero }
         if let began = latteReturnBegan, ProcessInfo.processInfo.systemUptime - began > 0.24 { latteReturnBegan = nil; latteOffset = .zero }
         if mood != .coffee || now.timeIntervalSince(moodBegan) > 0.3 { latteHandoffOrigin = nil }
@@ -682,7 +706,7 @@ final class CharacterView: NSView {
         }
 
         let visual = visualState
-        let effects = gesture != nil || latteReturnBegan != nil || barReturnBegan != nil ||
+        let effects = gesture != nil || latteReturnBegan != nil || barReturnBegan != nil || screwReturnBegan != nil || showsScrews || iron.eating ||
             (!paused && !reduceMotion && (showsApplause || mood.isHeadphones || mood.isPaper || [.coffee, .zoomies, .disco, .celebrate, .affection, .recover, .takeBow].contains(mood)))
         if visual == nil || visual != lastVisual || effects {
             needsDisplay = true; lastVisual = visual
@@ -690,6 +714,7 @@ final class CharacterView: NSView {
     }
     func interactiveArea(_ point: NSPoint) -> Bool {
         guard canInteract else { return false }
+        if showsScrews && screwHitbox.contains(point) { return true }
         if !snackButton.isHidden && snackButtonRect.contains(point) { return true }
         if showsApplause && applauseButtonRect.contains(point) { return true }
         if showsDanceChooser && applauseButtonRect.contains(point) { return true }
@@ -756,17 +781,23 @@ final class CharacterView: NSView {
         solitaryYoga.interact()
         if wakeForNightVisit() { return }
         guard acceptCharacterInteraction() else { return }
+        if !forceMove && showsScrews && screwHitbox.contains(point) {
+            screwPickupOffset = currentScrewOffset; screwOffset = screwPickupOffset; screwReturnBegan = nil
+            gesture = CompanionGesture(target: .screws, point: point, time: time)
+            mouseOrigin = screenPoint; dragOrigin = window?.frame.origin
+            updateAnimationClock(); NSCursor.closedHand.set(); return
+        }
         if !forceMove && !snackButton.isHidden && snackButtonRect.contains(point) {
             barPickupOffset = currentBarOffset; barOffset = barPickupOffset; barReturnBegan = nil
             gesture = CompanionGesture(target: .bar, point: point, time: time)
             mouseOrigin = screenPoint; dragOrigin = window?.frame.origin
             updateAnimationClock(); NSCursor.closedHand.set(); return
         }
-        if lifestyle.phase == .snack { return }
+        if lifestyle.phase == .snack || iron.eating { return }
         if acknowledgeAttention() { return }
         if lifestyle.phase == .nap || lifestyle.phase == .yawning {
             _ = lifestyle.wake(); lifestyleChanged(); mood = .wakeUp; moodBegan = Date(); moodUntil = Date().addingTimeInterval(4.2)
-            onClick?(); return
+            if !iron.needsScrews { onClick?() }; return
         }
         let target: CompanionGesture.Target = forceMove ? .body : (wantsCoffee && latteContains(point) ? .latte : (onCrown(point) ? .crown : .body))
         if target == .latte {
@@ -787,6 +818,8 @@ final class CharacterView: NSView {
         let phase = current.update(point: point, time: time, onCrown: onCrown(point))
         gesture = current
         switch phase {
+        case .carryingScrews:
+            screwOffset = NSPoint(x: screwPickupOffset.x + point.x - current.origin.x, y: screwPickupOffset.y + point.y - current.origin.y)
         case .carryingBar:
             barOffset = NSPoint(x: barPickupOffset.x + point.x - current.origin.x, y: barPickupOffset.y + point.y - current.origin.y)
         case .carryingLatte:
@@ -809,11 +842,17 @@ final class CharacterView: NSView {
             updatePointer(at: point, screenPoint: mouseOrigin ?? point, time: time)
         }
         guard let current = gesture else { return }
-        let completion = current.finish(overCup: latteContains(point), overHand: latteHandRect.insetBy(dx: -5, dy: -4).contains(point), overBarHand: barHandRect.insetBy(dx: -4, dy: -4).contains(point))
+        let completion = current.finish(overCup: latteContains(point), overHand: latteHandRect.insetBy(dx: -5, dy: -4).contains(point), overBarHand: barHandRect.insetBy(dx: -4, dy: -4).contains(point), overScrewHand: barHandRect.insetBy(dx: -5, dy: -5).contains(point))
         let handedCup = NSPoint(x: offeredLatteRect.midX, y: offeredLatteRect.midY)
         gesture = nil; mouseOrigin = nil; dragOrigin = nil
         NSCursor.arrow.set()
         switch completion {
+        case .giveScrews:
+            screwHandoffStart = NSPoint(x: offeredScrewRect.midX, y: offeredScrewRect.midY)
+            screwOffset = .zero; screwReturnBegan = nil; _ = giveScrews()
+        case .returnScrews:
+            screwReturnBegan = ProcessInfo.processInfo.systemUptime
+            if reduceMotion { screwOffset = .zero; screwReturnBegan = nil }
         case .giveBar:
             barOffset = .zero; barReturnBegan = nil; _ = giveProteinBar()
         case .returnBar:
@@ -921,6 +960,8 @@ final class CharacterView: NSView {
         return NSRect(x: min(bounds.maxX - 29, crown.maxX + 1), y: max(4, crown.minY + 8), width: 27, height: 27)
     }
     func syncCompanionButtons() {
+        screwButton.isHidden = !showsScrews
+        if showsScrews { screwButton.frame = screwHitbox }
         snackButton.isHidden = !(scheduledMood == nil && !isNightVisit && lifestyle.hungry && canInteract && !lifestyle.occupied && mood == .hungry && focusRest == nil)
         if !snackButton.isHidden {
             let rect = snackButtonRect
@@ -1004,6 +1045,7 @@ final class CharacterView: NSView {
         gesture = nil; mouseOrigin = nil; dragOrigin = nil
         latteOffset = .zero; latteReturnBegan = nil; latteHandoffOrigin = nil
         barOffset = .zero; barReturnBegan = nil
+        screwOffset = .zero; screwReturnBegan = nil
         pendingPaper = nil; NSCursor.arrow.set()
         mood = .overstimulated; moodBegan = Date(); moodUntil = .distantFuture
         updateAccessibilityHelp(); needsDisplay = true
@@ -1044,7 +1086,7 @@ final class CharacterView: NSView {
         onLifestyleChanged?(lifestyle); onPerformanceChanged?()
     }
     @discardableResult func acceptCharacterInteraction(lossRoll: Double = Double.random(in: 0..<1)) -> Bool {
-        guard canInteract else { return false }
+        guard canInteract, !iron.eating else { return false }
         if lifestyle.disturbPhone() {
             disappoint(.phoneInterrupted)
             if !tutorialActive {
@@ -1086,11 +1128,12 @@ final class CharacterView: NSView {
     }
     func advanceLifestyle(by seconds: Double) {
         advanceCoffeeOverload(by: seconds)
+        advanceIron(by: seconds)
         let oldPhase = lifestyle.phase, oldHunger = lifestyle.hungry
-        let available = dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused && !awaitingSong && gesture == nil && !stimulation.overstimulated && !coffeeOverload.occupied && (focusRest == nil || lifestyle.phase == .idle)
+        let available = dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused && !awaitingSong && gesture == nil && !stimulation.overstimulated && !coffeeOverload.occupied && !iron.eating && (focusRest == nil || lifestyle.phase == .idle)
         let free = canGiveNotes && focusRest == nil && !stimulation.overstimulated && !isBusy && !mood.isDance && !performance.awaitingApplause && !responses.isActive && !listeningState.isActive
         activity.advance(by: seconds, available: available && !tutorialActive && focusRest == nil)
-        lifestyle.advance(by: seconds, available: available && (!tutorialActive || lifestyle.occupied), awake: focusRest == nil && !tutorialActive && !mood.isDance && mood != .coffee, free: free && !tutorialActive, focusNap: focusRest == .focusNap)
+        lifestyle.advance(by: seconds, available: available && (!tutorialActive || lifestyle.occupied), awake: focusRest == nil && !tutorialActive && !mood.isDance && mood != .coffee, free: free && !tutorialActive, focusNap: focusRest == .focusNap, lowIron: iron.lowIron)
         if oldPhase != lifestyle.phase || oldHunger != lifestyle.hungry {
             if lifestyle.occupied || lifestyle.hungry { listeningState.reset(); responses.cancelZoomies() }
             mood = baseMood; moodBegan = Date(); moodUntil = lifestyle.occupied || lifestyle.hungry ? .distantFuture : Date()
@@ -1106,7 +1149,7 @@ final class CharacterView: NSView {
     var canStartSolitaryYoga: Bool {
         dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused && !reduceMotion &&
         canGiveNotes && !tutorialActive && !noteIsVisible && !hovering && gesture == nil &&
-        focusRest == nil && !lifestyle.occupied && !lifestyle.hungry && !lifestyle.sleepy &&
+        focusRest == nil && !lifestyle.occupied && !lifestyle.hungry && !lifestyle.sleepy && !iron.needsScrews && !iron.eating &&
         !responses.isActive && !performance.awaitingApplause && !listeningState.isActive &&
         [.idle, .sideEye, .reserved, .restless].contains(mood)
     }
@@ -1149,7 +1192,7 @@ final class CharacterView: NSView {
         drawGroundShadow()
         let visual = visualState
         if canReusePixels, let visual, visual == cachedVisual, let image = cachedPixelImage {
-            drawPixelImage(image); drawApplauseCountdown(); return
+            drawPixelImage(image); drawApplauseCountdown(); drawIronDeadline(); return
         }
         rasterizationCount += 1
         let width = Int(ceil(Double(bounds.width) / pixelSize)), height = Int(ceil(Double(bounds.height) / pixelSize))
@@ -1197,7 +1240,7 @@ final class CharacterView: NSView {
         if canReusePixels { cachedVisual = visual; cachedPixelImage = rendered }
         else { cachedVisual = nil; cachedPixelImage = nil }
         drawPixelImage(rendered)
-        drawApplauseCountdown()
+        drawApplauseCountdown(); drawIronDeadline()
     }
     private static let pixelChannelLevels: [UInt8] = (0...255).map { UInt8(min(255, (($0 + 7) / 14) * 14)) }
     private func drawPixelImage(_ image: NSImage) {
@@ -1237,6 +1280,8 @@ final class CharacterView: NSView {
         drawCharacter(time: animationTime, mood: mood)
         if scheduledMood == nil && canInteract && (wantsCoffee || mood == .grumpy) { drawLatteOffer() }
         if !snackButton.isHidden && hasDailyAnimation { drawBarOffer() }
+        if showsScrews { drawScrewOffer() }
+        if iron.eating { drawScrewBites() }
         if mood == .coffee { drawLatteHandoff() }
         if mood == .paperToss { drawPaperToss() }
         if mood == .affection || mood == .recover || mood == .takeBow { drawAffection() }
@@ -1256,6 +1301,9 @@ final class CharacterView: NSView {
         case .bellySleep: index = hasDailyAnimation ? (closingLaptop && elapsed < 1 ? 106 : 108 + (active ? Int(elapsed / 5) % 2 : 0)) : 97
         case .reserved: index = 13
         case .yoga: index = hasDailyAnimation ? [112, 113, 114, 115, 112][min(4, Int(elapsed / 3.6))] : 70
+        case .ironNeed: index = hasDailyAnimation ? 100 : 85
+        case .ironLow: index = hasLifestyleAnimation ? 96 : 1
+        case .ironSnack: index = hasDailyAnimation && (IronState.biteDuration - iron.eatingRemaining).truncatingRemainder(dividingBy: 1.55) < 0.7 ? 101 : 36
         case .hungry: index = hasDailyAnimation ? 100 : (hasLifestyleAnimation ? 85 : 2)
         case .snack: index = hasDailyAnimation && elapsed < 0.7 ? 102 : (hasLifestyleAnimation ? (elapsed < 1.7 ? 86 : (elapsed < 4.2 ? 87 : 88)) : 3)
         case .attention: index = hasLifestyleAnimation ? 99 : 3
@@ -1334,7 +1382,7 @@ final class CharacterView: NSView {
             else if zoom < 6.4 { index = hasInteractionAnimation ? (zoom < 5.6 ? 42 : 43) : 3 }
             else { index = 0 }
         }
-        if receiving && isCarryingBar && hasDailyAnimation { index = 101 }
+        if receiving && (isCarryingBar || isCarryingScrews) && hasDailyAnimation { index = 101 }
         if receiving && isCarryingLatte && hasInteractionAnimation { index = 40 + (latteHandRect.contains(gesture!.last) ? 1 : 0) }
         if let forcedIndex { index = forcedIndex }
         let frame = atlas.frames[index]

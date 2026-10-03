@@ -15,7 +15,7 @@ extension AppDelegate {
     @objc func sessionDidResign() { sessionInactive = true; updateScreenRest() }
     @objc func sessionDidBecomeActive() { sessionInactive = false; updateScreenRest() }
     func saveCompanionState() {
-        store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle)
+        store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setIron(character.iron)
         store.setSongRequest(songRequest); store.setActivity(character.activity)
         store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload); store.setDailyRoutine(dailyRoutine); store.flush()
     }
@@ -27,7 +27,7 @@ extension AppDelegate {
             screenRestBegan = date; notesVisibleBeforeScreenRest = notes.isVisible
             tutorialVisibleBeforeScreenRest = tutorialPanel?.isVisible == true
             character.setScreenLocked(true); character.displayIfNeeded()
-            notes.orderOut(nil); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); sleepyPanel?.orderOut(nil); consequencePanel?.orderOut(nil)
+            notes.orderOut(nil); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); sleepyPanel?.orderOut(nil); consequencePanel?.orderOut(nil); ironPanel?.orderOut(nil)
             systemAudio.stop(); coffeeTimer?.invalidate(); saveCompanionState()
         } else {
             let seconds = max(0, date.timeIntervalSince(screenRestBegan ?? date)); screenRestBegan = nil

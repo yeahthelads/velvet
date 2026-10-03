@@ -2,7 +2,7 @@ import Foundation
 
 /// Care builds a lasting good mood. Repeated taps and lattes do not stack rewards.
 struct HappinessState: Codable, Equatable {
-    enum Care: String, CaseIterable { case pet, coffee, food, attention }
+    enum Care: String, CaseIterable { case pet, coffee, food, attention, iron }
     static let minimumDanceRest = 120.0
     private(set) var level = 0.35
     private(set) var danceRestRemaining = 0.0
@@ -34,16 +34,17 @@ struct HappinessState: Codable, Equatable {
         case .coffee: reward = 0.24; cooldown = 8 * 60
         case .food: reward = 0.20; cooldown = 90
         case .attention: reward = 0.12; cooldown = 60
+        case .iron: reward = 0.12; cooldown = 180
         }
         level = min(1, level + reward); cooldowns[care.rawValue] = cooldown
         if careDanceDelay == nil { careDanceDelay = delay.isFinite ? min(20, max(8, delay)) : 12 }
         return true
     }
-    enum Disappointment { case missedAttention, missedApplause, poked, tumble, overwhelmed, phoneInterrupted, caffeineCrash }
+    enum Disappointment { case missedAttention, missedApplause, poked, tumble, overwhelmed, phoneInterrupted, caffeineCrash, missedIron }
     mutating func disappoint(_ reason: Disappointment) {
         let penalty: Double
         switch reason {
-        case .missedAttention, .tumble: penalty = 0.10
+        case .missedAttention, .tumble, .missedIron: penalty = 0.10
         case .missedApplause, .poked: penalty = 0.08
         case .overwhelmed: penalty = 0.20
         case .caffeineCrash: penalty = 0.25

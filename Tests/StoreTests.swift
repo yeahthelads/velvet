@@ -36,8 +36,11 @@ import Foundation
         precondition(lifestyle.disturbPhone())
         lifestyle.advance(by: 15, available: true, awake: true, free: true)
         store.setLifestyle(lifestyle)
+        var iron = IronState(timeUntilNeed: 0); iron.advance(by: 1, available: true); iron.advance(by: 120, available: true)
+        store.setIron(iron)
         precondition(store.flush(), "Saving should succeed")
         let reopened = NoteStore(directory: directory)
+        precondition(reopened.iron.lowIron, "Low iron survives restarting")
         precondition(reopened.tutorial == lesson && reopened.lifestyle == lifestyle, "Tutorial progress and cold shoulder survive restarting")
         precondition(reopened.preferences.listensToAudio == false, "Headphone preference survives restarting")
         precondition(reopened.archive.notes.count == 2, "Notes should survive a restart")
@@ -52,6 +55,7 @@ import Foundation
         let file = directory.appendingPathComponent("notes.json")
         // Older notes files have no coffee state. They must still open intact.
         var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+        legacy.removeValue(forKey: "iron")
         legacy.removeValue(forKey: "coffee")
         legacy.removeValue(forKey: "care")
         legacy.removeValue(forKey: "danceProgress")

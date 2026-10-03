@@ -31,7 +31,7 @@ extension AppDelegate {
         let claps = character.danceProgress.clapBalance
         character.advanceLifestyle(by: 20)
         checks["careStartsAnUnlockedSpontaneousDance"] = character.mood.isChoreography && Mood.automaticDances.contains(character.mood) && character.danceProgress.allows(character.mood.rawValue)
-        checks["careDanceCostsEnergyButNoClapsOrMusic"] = character.lifestyle.energy < 81 && character.danceProgress.clapBalance == claps && !character.audio.isAnyDancePlaying
+        checks["careDanceCostsEnergyButNoClapsOrMusic"] = character.lifestyle.energy < 100 - LifestyleState.danceEnergyCost && character.danceProgress.clapBalance == claps && !character.audio.isAnyDancePlaying
         checks["careDanceClearsItsPendingRewardAndRests"] = character.happiness.careDanceDelay == nil && character.happiness.danceRestRemaining == 120
         character.react(.idle); character.advanceLifestyle(by: 30)
         checks["careCannotCauseBackToBackAutomaticDances"] = !character.mood.isChoreography

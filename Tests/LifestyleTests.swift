@@ -58,9 +58,9 @@ import Foundation
         var spam = LifestyleState()
         for _ in 0..<4 { precondition(spam.startDance()) }
         let exhausted = spam
-        precondition(spam.energy == 20 && !spam.startDance() && spam == exhausted, "Starts alone exhaust her, even without finishing")
+        precondition(spam.energy == 100 - 4 * LifestyleState.danceEnergyCost && !spam.startDance() && spam == exhausted, "Starts alone exhaust her, even without finishing")
         let tiredSaved = try JSONDecoder().decode(LifestyleState.self, from: JSONEncoder().encode(spam))
-        precondition(!tiredSaved.readyToDance && tiredSaved.energy == 20, "Restart cannot erase fatigue")
+        precondition(!tiredSaved.readyToDance && tiredSaved.energy == 100 - 4 * LifestyleState.danceEnergyCost, "Restart cannot erase fatigue")
         spam.advance(by: 1, available: true, awake: true, free: true)
         precondition(spam.phase == .yawning)
         spam.advance(by: 4, available: true, awake: true, free: true)
