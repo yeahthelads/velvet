@@ -123,6 +123,45 @@ extension AppDelegate {
         character.lifestyle.danceRemaining = 1
         character.advanceLifestyle(by: 2)
         checks["eligibleCadenceStartsUnlockedSpontaneousDance"] = character.mood.isChoreography && Mood.automaticDances.contains(character.mood) && character.danceProgress.allows(character.mood.rawValue)
+        character.react(.idle); character.lifestyle = LifestyleState()
+        character.mood = .idle; character.moodUntil = .distantPast
+        character.chooseDance(.house)
+        let paidBalance = character.danceProgress.clapBalance
+        let finishTime = character.moodUntil
+        checks["menuDanceChargesEnergyAtStart"] = character.mood == .house && character.lifestyle.energy == 80
+        character.chooseDance(.house); character.chooseDance(.vogue); character.react(.ballet)
+        checks["activeDanceCannotRestartOrSwitch"] = character.mood == .house && character.moodUntil == finishTime && character.lifestyle.energy == 80 && character.danceProgress.clapBalance == paidBalance && !character.canChooseDance && character.makeDanceMenu().items.filter { $0.representedObject != nil }.allSatisfy { !$0.isEnabled }
+        openNotes()
+        checks["noteCancellationKeepsFatigueButRefundsClap"] = character.lifestyle.energy == 80 && character.danceProgress.clapBalance == paidBalance + 1 && !character.mood.isDance
+        closeNotes(); character.react(.idle)
+        for _ in 0..<3 { character.chooseDance(.house); character.react(.idle) }
+        let tiredBalance = character.danceProgress.clapBalance
+        character.chooseDance(.ballet); character.react(.house)
+        checks["interruptedDanceSpamStillExhaustsHer"] = character.lifestyle.energy == 20 && !character.mood.isDance && !character.canChooseDance && character.danceProgress.clapBalance == tiredBalance
+        store.setLifestyle(character.lifestyle); store.flush()
+        checks["danceFatigueSurvivesRestart"] = NoteStore(directory: store.directory).lifestyle.energy == 20
+        character.advanceLifestyle(by: 1)
+        checks["danceExhaustionStartsRest"] = character.mood == .yawn && !character.canChooseDance
+        character.advanceLifestyle(by: 4)
+        checks["danceExhaustionLeadsToNap"] = character.mood == .naturalNap
+        character.advanceLifestyle(by: character.lifestyle.remaining); character.advanceLifestyle(by: 4.2)
+        character.react(.idle); character.chooseDance(.house)
+        checks["completedNapAllowsNextDance"] = character.mood == .house
+        character.react(.idle)
+        character.lifestyle = LifestyleState(); character.activity = ActivityState()
+        character.solitaryYoga = SolitaryYoga()
+        character.lifestyle.danceRemaining = 600
+        character.lifestyle.attentionRemaining = 1200
+        character.mood = .idle; character.moodUntil = .distantPast
+        character.makeRestless()
+        var spontaneousWait = 0
+        while spontaneousWait < 600 && !character.mood.isChoreography {
+            character.advanceLifestyle(by: 1); spontaneousWait += 1
+        }
+        checks["ordinaryCompanyStillGetsSpontaneousDanceWithinTenEligibleMinutes"] = character.mood.isChoreography && (360...600).contains(spontaneousWait)
+        checks["restlessnessDoesNotPermanentlyBlockSpontaneousDance"] = character.performance.restless && character.mood.isChoreography
+        checks["spontaneousDanceAlsoCostsEnergy"] = character.lifestyle.energy < 80
+        character.react(.idle)
         checks["careSpritesAreBundled"] = character.hasLifestyleAnimation && character.spriteFrameCount == 116
         checks["contemporaryMusicIsBundled"] = character.audio.hasContemporary
         let menu = makeMenu()

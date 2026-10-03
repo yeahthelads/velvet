@@ -6,6 +6,7 @@ struct LifestyleState: Codable, Equatable {
     static let danceInterval = 6.0 * 60...10.0 * 60
     static let napInterval = 30.0 * 60...45.0 * 60
     static let ignoreDuration = 45.0
+    static let danceEnergyCost = 20.0
     var energy = 100.0
     var foodRemaining = Double.random(in: 15 * 60...22 * 60)
     var napRemaining = Double.random(in: Self.napInterval)
@@ -68,7 +69,13 @@ struct LifestyleState: Codable, Equatable {
         return true
     }
     mutating func restAfterNight() { energy = 100; napRemaining = Double.random(in: Self.napInterval) }
-    mutating func finishDance() { energy = max(0, energy - 10); danceRemaining = Double.random(in: Self.danceInterval) }
+    @discardableResult mutating func startDance() -> Bool {
+        guard readyToDance else { return false }
+        energy = max(0, energy - Self.danceEnergyCost)
+        danceRemaining = Double.random(in: Self.danceInterval)
+        return true
+    }
+    mutating func finishDance() { danceRemaining = Double.random(in: Self.danceInterval) }
     mutating func cancelDanceForNotes() { danceRemaining = Double.random(in: Self.danceInterval) }
     @discardableResult mutating func advanceDance(by seconds: Double, available: Bool) -> Bool {
         guard available, readyToDance, seconds.isFinite, seconds > 0 else { return false }

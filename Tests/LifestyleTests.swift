@@ -45,14 +45,28 @@ import Foundation
         precondition(state.phase == .waking && state.energy > sleepingEnergy)
         state.advance(by: 4.2, available: true, awake: true, free: true)
         precondition(state.phase == .idle && state.readyToDance)
-        let energy = state.energy; state.finishDance()
-        precondition(state.energy == energy - 10 && LifestyleState.danceInterval.contains(state.danceRemaining))
+        let energy = state.energy
+        precondition(state.startDance() && state.energy == energy - LifestyleState.danceEnergyCost)
+        state.finishDance()
+        precondition(state.energy == energy - LifestyleState.danceEnergyCost && LifestyleState.danceInterval.contains(state.danceRemaining), "Finishing must not charge twice")
         let food = state.foodRemaining, nap = state.napRemaining
         state.advance(by: 30, available: true, awake: false, free: false, focusNap: true)
-        precondition(state.energy > energy - 10 && state.foodRemaining == food && state.napRemaining == nap)
+        precondition(state.energy > energy - LifestyleState.danceEnergyCost && state.foodRemaining == food && state.napRemaining == nap)
         let dance = state.danceRemaining
         precondition(!state.advanceDance(by: 2000, available: false) && state.danceRemaining == dance)
         precondition(state.advanceDance(by: dance, available: true))
+        var spam = LifestyleState()
+        for _ in 0..<4 { precondition(spam.startDance()) }
+        let exhausted = spam
+        precondition(spam.energy == 20 && !spam.startDance() && spam == exhausted, "Starts alone exhaust her, even without finishing")
+        let tiredSaved = try JSONDecoder().decode(LifestyleState.self, from: JSONEncoder().encode(spam))
+        precondition(!tiredSaved.readyToDance && tiredSaved.energy == 20, "Restart cannot erase fatigue")
+        spam.advance(by: 1, available: true, awake: true, free: true)
+        precondition(spam.phase == .yawning)
+        spam.advance(by: 4, available: true, awake: true, free: true)
+        spam.advance(by: spam.remaining, available: true, awake: true, free: true)
+        spam.advance(by: 4.2, available: true, awake: true, free: true)
+        precondition(spam.readyToDance && spam.startDance(), "A completed nap permits dancing again")
 
         var lesson = TutorialState(), progress = DanceProgress()
         precondition(!progress.allows("ballet") && !lesson.petted())

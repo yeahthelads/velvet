@@ -116,6 +116,7 @@ final class CharacterView: NSView {
     var onAffection: (() -> Void)?
     var tutorialActive = false
     var activity = ActivityState()
+    var solitaryYoga = SolitaryYoga()
     var onActivityChanged: ((ActivityState) -> Void)?
     var dailyRoutine = DailyRoutine()
     var scheduledMood: Mood? {
@@ -127,6 +128,7 @@ final class CharacterView: NSView {
         }
     }
     func recordActivity(_ interaction: ActivityState.Interaction, at time: Double = ProcessInfo.processInfo.systemUptime) {
+        solitaryYoga.interact()
         guard scheduledMood == nil, !tutorialActive, !awaitingSong else { return }
         if activity.interact(interaction, at: time) { onActivityChanged?(activity) }
     }
@@ -335,6 +337,7 @@ final class CharacterView: NSView {
     var noteIsVisible = false {
         didSet {
             if noteIsVisible && !oldValue {
+                solitaryYoga.interact()
                 if danceInProgress && paidDanceInProgress { _ = danceProgress.refundReplay() }
                 if danceInProgress { lifestyle.cancelDanceForNotes(); onLifestyleChanged?(lifestyle) }
                 cancelDance(); responses.cancelZoomies(); performance.cancelApplause()
@@ -374,7 +377,7 @@ final class CharacterView: NSView {
         if !snackButton.isHidden && snackButtonRect.contains(point) { return self }
         return super.hitTest(point)
     }
-    var isBusy: Bool { mood.isInteraction && Date() < moodUntil }
+    var isBusy: Bool { (mood.isInteraction || mood == .yoga) && Date() < moodUntil }
     private var moodBegan = Date()
     private let sipDuration = 6.0
     private var born = Date()
@@ -462,7 +465,7 @@ final class CharacterView: NSView {
         snackButton.isHidden = true; addSubview(snackButton)
         updateAccessibilityHelp()
         if let url = Bundle.main.url(forResource: "velvet-sprites-v5", withExtension: "png") {
-            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"))
+            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"), yogaURL: Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png"))
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -517,6 +520,8 @@ final class CharacterView: NSView {
         if lifestyle.phase == .phone && !newMood.isLifestyle && !newMood.isPaper { _ = acceptCharacterInteraction(); return }
         if lifestyle.phase == .snack && newMood != .snack && !newMood.isPaper { return }
         if newMood.isDance && !danceRequirementsMet { return }
+        if newMood.isChoreography && danceInProgress { return }
+        if newMood == .yoga && !(solitaryYoga.ready && canStartSolitaryYoga) { return }
         if newMood.isChoreography && !danceProgress.allows(newMood.rawValue) { return }
         if newMood.isPaper && lifestyle.occupied { pendingPaper = nil; return }
         if hasLifestyleActivity && !newMood.isLifestyle && !newMood.isPaper && [.idle, .wave, .walk, .sleep, .celebrate, .sideEye, .reconcile, .shySmile, .restless].contains(newMood) { mood = baseMood; needsDisplay = true; return }
@@ -536,11 +541,14 @@ final class CharacterView: NSView {
         else { mood = !canGiveNotes && passive ? baseMood : newMood }
         if previousMood.isChoreography && mood != previousMood { cancelDance() }
         if mood == newMood && mood.isChoreography {
+            _ = lifestyle.startDance(); solitaryYoga.interact()
             performance.beginDance(); danceInProgress = true; danceChosen = false
+            onLifestyleChanged?(lifestyle)
             updateAccessibilityHelp()
             onPerformanceChanged?()
         }
         moodBegan = Date()
+        if mood == .yoga { solitaryYoga.performed() }
         let length: Double
         switch mood {
         case .coffee: length = sipDuration
@@ -612,9 +620,9 @@ final class CharacterView: NSView {
         if mood != .coffee || now.timeIntervalSince(moodBegan) > 0.3 { latteHandoffOrigin = nil }
         if !paused && !reduceMotion && canGiveNotes && !tutorialActive && scheduledMood == nil && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !isBusy && !mood.isDance && mouseOrigin == nil && !hovering && !listeningState.isActive && !hasLifestyleActivity && now > nextIdle {
             idleSequence += 1
-            let playlist: [Mood] = activity.withdrawn ? [.yoga, .stretch, .reserved, .sleep] : [.wave, .walk, .sideEye, .yoga, .stretch]
+            let playlist: [Mood] = activity.withdrawn ? [.stretch, .reserved, .sleep] : [.wave, .walk, .sideEye, .stretch]
             let next = playlist[idleSequence % playlist.count]
-            react(next, duration: next == .stretch ? FocusSession.stretchDuration : (next == .yoga ? 18 : (next == .reserved || next == .sleep ? 12 : 3)))
+            react(next, duration: next == .stretch ? FocusSession.stretchDuration : (next == .reserved || next == .sleep ? 12 : 3))
             nextIdle = now.addingTimeInterval(activity.idleInterval + Double(idleSequence % 7))
         }
 
@@ -690,6 +698,7 @@ final class CharacterView: NSView {
         return NSRect(x: rect.midX + rect.width * 0.29, y: rect.minY + rect.height * 0.53, width: rect.width * 0.25, height: rect.height * 0.20)
     }
     func beginPointer(at point: NSPoint, screenPoint: NSPoint, time: Double, forceMove: Bool = false) {
+        solitaryYoga.interact()
         guard acceptCharacterInteraction() else { return }
         if !forceMove && !snackButton.isHidden && snackButtonRect.contains(point) {
             barPickupOffset = currentBarOffset; barOffset = barPickupOffset; barReturnBegan = nil
@@ -796,7 +805,7 @@ final class CharacterView: NSView {
     private func cancelDance() { audio.stopDance(); danceInProgress = false; danceChosen = false; paidDanceInProgress = false }
     func chooseDance(_ dance: Mood, invited: Bool = false, newlyUnlocked: Bool = false) {
         guard acceptCharacterInteraction() else { return }
-        guard dance.isChoreography, danceProgress.allows(dance.rawValue), danceRequirementsMet, focusRest == nil, !stimulation.overstimulated, mood != .coffee else { return }
+        guard dance.isChoreography, danceProgress.allows(dance.rawValue), canChooseDance else { return }
         let freeInvitation = invited && performance.restless && dance == .ballet
         guard freeInvitation || newlyUnlocked || danceProgress.canReplay(dance.rawValue) else { return }
         recordStimulation()
@@ -841,7 +850,7 @@ final class CharacterView: NSView {
         return true
     }
     var showsApplause: Bool { performance.awaitingApplause && mood == .showOff && canGiveNotes && focusRest == nil && !stimulation.overstimulated }
-    var canChooseDance: Bool { danceRequirementsMet && canInteract && focusRest == nil && !stimulation.overstimulated && mood != .coffee }
+    var canChooseDance: Bool { danceRequirementsMet && canInteract && !paused && !danceInProgress && !mood.isChoreography && focusRest == nil && !stimulation.overstimulated && mood != .coffee }
     var showsDanceChooser: Bool { canChooseDance && !isBusy && !mood.isDance && !performance.awaitingApplause && ((performance.restless && mood == .restless) || danceProgress.availableUnlocks > 0) }
     var applauseButtonRect: NSRect {
         let crown = crownRect
@@ -1003,8 +1012,22 @@ final class CharacterView: NSView {
             if oldPhase == .attention && lifestyle.phase == .idle { activity.missedAttention(); onActivityChanged?(activity); mood = activity.withdrawn ? .reserved : .sideEye; moodUntil = Date().addingTimeInterval(2) }
             lifestyleChanged()
         }
-        let danceAvailable = available && danceRequirementsMet && !isBusy && !mood.isDance && !performance.isEngaged && !responses.isActive && !listeningState.isActive
+        let danceAvailable = available && danceRequirementsMet && !isBusy && !mood.isDance && !performance.awaitingApplause && !responses.isActive && !listeningState.isActive
         if lifestyle.advanceDance(by: seconds * activity.automaticDanceRate, available: danceAvailable), let dance = Mood.automaticDances.filter({ danceProgress.allows($0.rawValue) }).randomElement() { react(dance, duration: 7) }
+        advanceSolitaryYoga(by: seconds)
+    }
+    var canStartSolitaryYoga: Bool {
+        scheduledMood == nil && window?.isVisible == true && !paused && !reduceMotion &&
+        canGiveNotes && !tutorialActive && !noteIsVisible && !hovering && gesture == nil &&
+        focusRest == nil && !lifestyle.occupied && !lifestyle.hungry && !lifestyle.sleepy &&
+        !responses.isActive && !performance.awaitingApplause && !listeningState.isActive &&
+        [.idle, .sideEye, .reserved, .restless].contains(mood)
+    }
+    func advanceSolitaryYoga(by seconds: Double) {
+        let alone = !hovering && gesture == nil && !noteIsVisible && !tutorialActive && focusRest == nil && !awaitingSong
+        let available = scheduledMood == nil && window?.isVisible == true && !paused && !reduceMotion
+        solitaryYoga.advance(by: seconds, alone: alone, available: available)
+        if solitaryYoga.ready && canStartSolitaryYoga { react(.yoga, duration: 18) }
     }
     func stumble() { guard acceptCharacterInteraction(), !hasLifestyleActivity, !tutorialActive else { return }; care.tumble(); react(.tumble) }
     func advanceTumble(by seconds: Double) {

@@ -1,5 +1,23 @@
 import Foundation
 
+/// A rare quiet-time opportunity, independent of the regular idle playlist.
+struct SolitaryYoga {
+    static let interval = 15.0 * 60...25.0 * 60
+    static let minimumSolitude = 5.0 * 60
+    private(set) var aloneSeconds = 0.0
+    private(set) var remaining: Double
+    init(remaining: Double = Double.random(in: Self.interval)) { self.remaining = remaining }
+    var ready: Bool { aloneSeconds >= Self.minimumSolitude && remaining <= 0 }
+    mutating func interact() { aloneSeconds = 0 }
+    mutating func advance(by seconds: Double, alone: Bool, available: Bool) {
+        if !alone { interact(); return }
+        guard available, seconds.isFinite, seconds > 0 else { return }
+        aloneSeconds += seconds
+        remaining = max(0, remaining - seconds)
+    }
+    mutating func performed() { remaining = Double.random(in: Self.interval) }
+}
+
 /// Recent company changes her enthusiasm gradually, not by counting rapid taps.
 struct ActivityState: Codable, Equatable {
     enum Interaction { case hover, pet, move, attention }
@@ -17,7 +35,7 @@ struct ActivityState: Codable, Equatable {
         missedBids = min(4, max(0, try c.decodeIfPresent(Int.self, forKey: .missedBids) ?? 0))
     }
     var withdrawn: Bool { level < 0.25 || missedBids >= 2 }
-    var automaticDanceRate: Double { level < 0.35 || withdrawn ? 0 : 0.25 + level }
+    var automaticDanceRate: Double { withdrawn ? 0 : 0.9 + level * 0.35 }
     var idleInterval: Double { 65 - level * 43 + Double(missedBids) * 8 }
     mutating func advance(by seconds: Double, available: Bool) {
         guard available, seconds.isFinite, seconds > 0 else { return }

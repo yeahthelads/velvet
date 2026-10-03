@@ -24,7 +24,7 @@ final class SpriteAtlas {
     let scale: Double
     let cellWidth: Double
 
-    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil) {
+    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil) {
         guard let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let edges = rowFractions ?? (0...rows).map { Double($0) / Double(rows) }
         guard edges.count == rows + 1, edges.first == 0, edges.last == 1 else { return nil }
@@ -37,7 +37,7 @@ final class SpriteAtlas {
                 guard height > 0 else { return nil }
                 guard let cell = source.cropping(to: CGRect(x: x, y: y, width: width, height: height)) else { return nil }
                 let alpha = Self.alphaBytes(cell)
-                let box = Self.silhouetteBounds(alpha, width: width, height: height)
+                let box = Self.silhouetteBounds(alpha, width: width, height: height, primaryOnly: primarySilhouetteOnly)
                 guard let cropped = cell.cropping(to: box) else { return nil }
                 output.append(Frame(image: NSImage(cgImage: cropped, size: NSSize(width: cropped.width, height: cropped.height)), width: cropped.width, height: cropped.height, alpha: Self.alphaBytes(cropped), cropLeft: Int(box.minX), cropTop: Int(box.minY), cellWidth: width))
             }
@@ -128,6 +128,14 @@ final class SpriteAtlas {
                 var frame = $0; frame.unitScale *= sizeRatio; return frame
             })
         }
+        // Only the four yoga cells change; all food, laptop and sleep art stays original.
+        if let yogaURL, output.count >= 116, let extra = SpriteAtlas(url: yogaURL, rowFractions: [0, 350.0 / 1280, 675.0 / 1280, 945.0 / 1280, 1], primarySilhouetteOnly: true) {
+            let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
+            for index in 0..<4 {
+                var frame = extra.frames[12 + index]; frame.unitScale *= sizeRatio
+                output[112 + index] = frame
+            }
+        }
         frames = output
     }
 
@@ -142,7 +150,7 @@ final class SpriteAtlas {
         return (0..<(width * height)).map { pixels[$0 * 4 + 3] }
     }
 
-    private static func silhouetteBounds(_ alpha: [UInt8], width: Int, height: Int) -> CGRect {
+    private static func silhouetteBounds(_ alpha: [UInt8], width: Int, height: Int, primaryOnly: Bool) -> CGRect {
         struct Component { var count: Int; var left: Int; var top: Int; var right: Int; var bottom: Int }
         var seen = [Bool](repeating: false, count: alpha.count)
         var components: [Component] = []
@@ -167,7 +175,9 @@ final class SpriteAtlas {
             }
             components.append(component)
         }
-        let threshold = max(32, (components.map(\.count).max() ?? 0) / 100)
+        // Yoga cells contain a single connected robot; omit neighbouring-row fragments.
+        let largest = components.map(\.count).max() ?? 0
+        let threshold = primaryOnly ? largest : max(32, largest / 100)
         let main = components.filter { $0.count >= threshold }
         guard !main.isEmpty else { return CGRect(x: 0, y: 0, width: width, height: height) }
         let left = max(0, main.map(\.left).min()! - 2), top = max(0, main.map(\.top).min()! - 2)

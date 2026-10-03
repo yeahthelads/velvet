@@ -83,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         pet.orderFrontRegardless()
         if !diagnostics && store.preferences.hasMetVelvet != true { showTutorial() }
         if songRequest.waiting && !diagnostics { showSongRequest() }
+        if args.contains("--request-song") && !diagnostics { simulateSongRequest() }
         if args.contains("--show-notes") { openNotes() }
         if args.contains("--dance") { character.react(.ballet, duration: 12) }
         if args.contains("--grumpy") { makeGrumpy() }
@@ -562,7 +563,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let dances = NSMenuItem(title: character.showsDanceChooser ? "Choose a dance · she’s restless" : "Choose a dance", action: nil, keyEquivalent: "")
         dances.submenu = character.makeDanceMenu(); dances.isEnabled = character.canInteract; menu.addItem(dances)
         let moods = NSMenu(); moods.autoenablesItems = false
-        let previews: [Mood] = [.wave, .walk, .sleep, .sideEye, .celebrate, .stretch, .yoga, .annoyed, .tumble, .restless, .showOff, .overstimulated]
+        let previews: [Mood] = [.wave, .walk, .sleep, .sideEye, .celebrate, .stretch, .annoyed, .tumble, .restless, .showOff, .overstimulated]
         for mood in previews.sorted(by: { $0.label.localizedStandardCompare($1.label) == .orderedAscending }) {
             let entry = item(mood.label, #selector(previewMood(_:))); entry.representedObject = mood.rawValue
             entry.isEnabled = character.canInteract && character.scheduledMood == nil && !character.hasLifestyleActivity && !character.tutorialActive
@@ -970,6 +971,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             },
             { [self] in
                 checks["selectedHouseFinishesWithoutApplause"] = !character.performance.restless && !character.performance.awaitingApplause && character.mood != .showOff
+                character.lifestyle.energy = 100 // Separate artwork fixtures start rested.
                 character.chooseDance(.waacking)
                 checks["waackingRoutineLoadsAndStarts"] = character.mood == .waacking && (64...67).contains(character.displayedSpriteIndex ?? -1)
                 checks["houseAutomaticVogueAndWaackingChoiceOnly"] = Mood.automaticDances.contains(.house) && !Mood.automaticDances.contains(.vogue) && !Mood.automaticDances.contains(.waacking)
@@ -977,6 +979,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 character.previewTime = 1
                 checks["terminalVisorExpressionLoaded"] = character.displayedSpriteIndex == 56
                 character.previewTime = nil
+                character.lifestyle.energy = 100
                 let breakMenu = character.makeDanceMenu()
                 if let index = breakMenu.items.firstIndex(where: { $0.representedObject as? String == Mood.breakdance.rawValue }) { breakMenu.performActionForItem(at: index) }
                 checks["menuStartsBreakdanceWithLoadedArtwork"] = character.hasBreakdanceAnimation && character.mood == .breakdance
@@ -1312,7 +1315,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.react(.breakdance)
         checks["unchosenBreakdanceDoesNotPlayMusic"] = !audio.isBreakdancePlaying
         character.react(.idle); character.lifestyle.energy = 100; character.chooseDance(.vogue); character.lifestyle.energy = 100; character.chooseDance(.breakdance)
-        checks["switchingDancesDoesNotLayerTracks"] = audio.isBreakdancePlaying && !audio.isChantPlaying
+        checks["activeVogueRefusesSwitchWithoutLayeringTracks"] = audio.isChantPlaying && !audio.isBreakdancePlaying
+        character.react(.idle); character.chooseDance(.breakdance)
         audio.enabled = false
         checks["soundToggleMutesBreakdance"] = !audio.isBreakdancePlaying
         character.react(.idle); audio.enabled = true
@@ -1325,7 +1329,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             character.paused = false
             checks["resumingFloorworkContinuesExcerpt"] = audio.isFloorworkPlaying
         }
-        character.lifestyle.energy = 100; character.chooseDance(.disco)
+        character.react(.idle); character.lifestyle.energy = 100; character.chooseDance(.disco)
         checks["chosenDiscoPlaysItsOwnTrack"] = audio.isDiscoPlaying && !audio.isFloorworkPlaying && !audio.isHousePlaying
         character.paused = true
         checks["pausingDiscoPausesMusic"] = !audio.isDiscoPlaying
@@ -1341,14 +1345,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         checks["pausingBalletPausesPiano"] = !audio.isBalletPlaying
         character.paused = false
         checks["resumingBalletContinuesPiano"] = audio.isBalletPlaying
-        character.lifestyle.energy = 100; character.chooseDance(.house)
-        checks["switchingFromBalletStopsPiano"] = !audio.isBalletPlaying && audio.isHousePlaying
+        character.react(.idle); character.lifestyle.energy = 100; character.chooseDance(.house)
+        checks["houseAfterBalletStopsPiano"] = !audio.isBalletPlaying && audio.isHousePlaying
         checks["chosenHousePlaysOnlyHouseLoop"] = audio.isHousePlaying && !audio.isChantPlaying && !audio.isBreakdancePlaying && !audio.isWaackingPlaying
         character.paused = true
         checks["pausingHousePausesMusic"] = !audio.isHousePlaying
         character.paused = false
         checks["resumingHouseContinuesMusic"] = audio.isHousePlaying
-        character.lifestyle.energy = 100; character.chooseDance(.waacking)
+        character.react(.idle); character.lifestyle.energy = 100; character.chooseDance(.waacking)
         checks["chosenWaackingReplacesHouseLoop"] = audio.isWaackingPlaying && !audio.isHousePlaying && !audio.isChantPlaying
         character.rubCrown()
         checks["headPetInterruptsWaackingMusic"] = !audio.isWaackingPlaying && audio.isHeadPetPlaying
@@ -1358,6 +1362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         checks["soundToggleMutesWaackingMusic"] = !audio.isAnyDancePlaying
         character.react(.idle); audio.enabled = true
         for dance in [Mood.ballet, .floorwork, .house, .waacking, .vogue, .breakdance, .disco, .contemporary] {
+            character.lifestyle.energy = 100 // Independent audio fixtures start rested.
             character.react(dance)
             checks["unchosen\(dance.rawValue)StaysSilent"] = !audio.isAnyDancePlaying
             character.react(.idle)
@@ -1365,6 +1370,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.react(.zoomies)
         checks["latteZoomiesDoNotPlayHouseMusic"] = !audio.isHousePlaying && !audio.isAnyDancePlaying
         character.react(.idle); character.makeRestless()
+        character.lifestyle.energy = 100
         if let choice = character.makeDanceMenu().items.first(where: { $0.representedObject as? String == Mood.house.rawValue }), let action = choice.action {
             NSApp.sendAction(action, to: choice.target, from: choice)
             checks["restlessChooserStartsHouseMusic"] = character.mood == .house && audio.isHousePlaying
@@ -1443,6 +1449,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func checkDanceProgress(previewDirectory: URL, completion: @escaping ([String: Any]) -> Void) {
         closeNotes()
+        character.lifestyle = LifestyleState()
         var checks: [String: Any] = [:]
         character.danceProgress = DanceProgress(completedClaps: 22, unlockedDanceIDs: DanceProgress.danceIDs)
         character.mood = .idle; character.moodUntil = .distantPast

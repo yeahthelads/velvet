@@ -21,6 +21,7 @@ extension AppDelegate {
             character.previewTime = nil
         }
         checks["dailySpritesBundled"] = character.hasDailyAnimation && character.spriteFrameCount == 116
+        checks["cuteYogaSpritesBundled"] = Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png") != nil
         updateDailyRoutine(at: date(22), calendar: calendar)
         checks["tenPMWatchesSeriesAndBlocksDancing"] = character.mood == .windDown && character.displayedSpriteIndex == 104 && !character.canChooseDance
         checks["nightPreventsSongRequests"] = !canRequestSong(spotifySupported: true, metadataAvailable: true)
@@ -40,6 +41,28 @@ extension AppDelegate {
         checks["morningHasNewWakeStretch"] = character.displayedSpriteIndex == 111
         character.previewTime = nil
         capture("morning-preview.png", mood: .wakeUp, time: 2)
+        character.mood = .idle; character.moodUntil = .distantPast
+        character.solitaryYoga = SolitaryYoga(remaining: 0)
+        character.react(.yoga)
+        checks["yogaRequiresSolitudeEvenWhenDue"] = character.mood == .idle
+        character.advanceSolitaryYoga(by: 299)
+        checks["yogaWaitsFiveMinutesWithoutCompany"] = character.mood == .idle
+        character.advanceSolitaryYoga(by: 1)
+        checks["soloYogaStartsAndReschedulesRareOpportunity"] = character.mood == .yoga && SolitaryYoga.interval.contains(character.solitaryYoga.remaining)
+        character.mood = .idle; character.moodUntil = .distantPast
+        character.solitaryYoga = SolitaryYoga(remaining: 0)
+        character.solitaryYoga.advance(by: 300, alone: true, available: true)
+        character.recordActivity(.pet)
+        character.react(.yoga)
+        checks["affectionPostponesDueYoga"] = character.mood == .idle && !character.solitaryYoga.ready
+        openNotes(); character.advanceSolitaryYoga(by: 1000)
+        checks["openNotesPreventSoloYoga"] = character.mood != .yoga && !character.solitaryYoga.ready
+        closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
+        character.solitaryYoga.advance(by: 300, alone: true, available: true)
+        character.focusRest = .stretch; character.react(.yoga)
+        checks["focusStretchingCannotBecomeYoga"] = character.mood == .stretch
+        character.focusRest = nil; character.mood = .idle; character.moodUntil = .distantPast
+        checks["yogaIsAbsentFromActionMenu"] = makeMenu().items.first { $0.title == "Try a little attitude" }?.submenu?.items.contains { $0.representedObject as? String == Mood.yoga.rawValue } == false
         for (step, time) in [0.2, 3.8, 7.4, 11.0].enumerated() {
             character.mood = .yoga; character.previewTime = time
             checks["yogaPose\(step)"] = character.displayedSpriteIndex == 112 + step

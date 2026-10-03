@@ -20,6 +20,7 @@ cp Assets/stretch-sprites-v1.png "$APP/Contents/Resources/stretch-sprites-v1.png
 cp Assets/breakdance-sprites-v1.png "$APP/Contents/Resources/breakdance-sprites-v1.png"
 cp Assets/care-sprites-v2.png "$APP/Contents/Resources/care-sprites-v2.png"
 cp Assets/daily-sprites-v1.png "$APP/Contents/Resources/daily-sprites-v1.png"
+cp Assets/yoga-sprites-v2.png "$APP/Contents/Resources/yoga-sprites-v2.png"
 # Optional local audio: remove old bundled copies before selecting current files.
 for sample in vogue-chant head-pet tumble coffee crossed-arms breakdance overwhelmed-sleep clap house waacking ballet disco floorwork contemporary latte-riser latte-liquor latte-sip vogue-sound; do
   for extension in wav mp3 m4a aiff aif; do

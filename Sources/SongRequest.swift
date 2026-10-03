@@ -1,6 +1,16 @@
 import AppKit
 
 extension AppDelegate {
+    /// Explicitly requested one-off trial; regular requests retain their rare cadence.
+    func simulateSongRequest() {
+        if !diagnostics { systemAudio.start() }
+        guard !songRequest.waiting else { showSongRequest(); return }
+        closeNotes(); dismissTutorial()
+        songRequest.timeUntilRequest = 0
+        _ = songRequest.advance(by: 1, eligible: true, selection: RequestedSong.catalog[0], requestTone: .sweet)
+        store.setSongRequest(songRequest); store.flush()
+        showSongRequest()
+    }
     var eligibleForSongRequest: Bool {
         canRequestSong(spotifySupported: systemAudio.supported, metadataAvailable: systemAudio.hasTrackUpdates)
     }

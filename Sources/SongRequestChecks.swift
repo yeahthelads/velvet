@@ -12,9 +12,11 @@ extension AppDelegate {
         character.listensToAudio = true; character.paused = false
         dismissTutorial(); closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
         songRequest = SongRequestState(timeUntilRequest: 0)
-        _ = songRequest.advance(by: 1, eligible: true, selection: RequestedSong.catalog[0], requestTone: .demanding)
-        store.setSongRequest(songRequest); showSongRequest()
-        checks["songRequestUsesApprovedDialogue"] = songBubble?.dialogue == "I need ‘Take a Bow’ by Rihanna. On Spotify."
+        simulateSongRequest()
+        checks["songRequestUsesSweetTrialDialogue"] = songBubble?.dialogue == "Could you play ‘Take a Bow’ by Rihanna on Spotify for me? Please?"
+        let trial = songRequest
+        simulateSongRequest()
+        checks["explicitSongTrialDoesNotReplaceOrRepeatPendingRequest"] = songRequest == trial
         checks["songRequestIsSmallAndHasNoSkip"] = songPanel?.frame.width == 216 && (songPanel?.frame.height ?? 1000) < 130 && songBubble?.dismissButton.isHidden == true && songBubble?.primaryButton.title == "Open Spotify"
         checks["songBlocksInteractionsAndNotes"] = !character.canInteract && !character.canGiveNotes && !character.canChooseDance
         let balance = character.danceProgress.clapBalance, noteCount = store.activeCount
