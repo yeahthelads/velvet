@@ -11,6 +11,14 @@ import CoreAudio
         }
         let monitor = SystemAudioMonitor()
         guard monitor.supported else { print("SKIP: playback detection needs macOS 14.2 or later."); return }
+        monitor.start()
+        let scans = monitor.processScanCount
+        for _ in 0..<100 { monitor.poll() }
+        precondition(monitor.processScanCount == scans, "Frequent polling must reuse Spotify process identities")
+        monitor.stop()
+        precondition(!monitor.playing && monitor.playback == nil && !monitor.hasTrackUpdates)
+        monitor.start(); precondition(monitor.processScanCount == scans + 1, "Restart must rebuild the process cache")
+        monitor.stop()
         let helper = Process()
         helper.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
         helper.arguments = ["-v", "0", CommandLine.arguments[1]]

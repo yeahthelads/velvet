@@ -188,7 +188,7 @@ Completed spontaneous routines offer the six-second fading 👏 prompt. All sele
 
 “Listen to Spotify” is enabled by default on macOS 14.2 and later and can be turned off in her menu. After a second of sustained playback from the Spotify desktop app, Velvet puts in tiny white wired earbuds and gently sways with a sleepy, content visor. Three seconds of silence starts a short taking-off animation; brief gaps between tracks keep the headphones on. Pausing freezes the animation. Care, focus, chosen dances, applause, paper gestures and dragging take priority; she returns to listening when free and playback continues. Listening leaves notes available and pauses the restless-dance clock. Only Spotify’s exact desktop and helper bundle identifiers are accepted; browsers, other players and her own sounds are excluded.
 
-The detector reads public CoreAudio process playback flags every half-second; it does not tap, record, analyze or store sound, and does not need microphone or screen-recording access. The indication is active output streams, so an app that keeps a silent stream running may still trigger listening. Older macOS versions run Velvet normally with this option unavailable. The saved optional preference is backward-compatible with existing note archives.
+The detector caches Spotify’s audio-process identities, refreshes them on CoreAudio process-list changes, and reads only their playback flags every half-second. When no Spotify audio process exists, it uses a ten-second fallback instead; it does not tap, record, analyze or store sound, and does not need microphone or screen-recording access. The indication is active output streams, so an app that keeps a silent stream running may still trigger listening. Older macOS versions run Velvet normally with this option unavailable. The saved optional preference is backward-compatible with existing note archives.
 
 The detector tests verify Spotify identity filtering and exclusion of a real silent non-Spotify output stream:
 
@@ -218,3 +218,16 @@ build/song-tests
 Native `--routine-smoke`, `--song-smoke` and `--lifestyle-smoke` accept an absolute result JSON path alongside `--data-dir` pointing to a temporary profile. They do not control Spotify or access the personal notes archive. The latte riser/liquor/Nelly mix plays at 65% of the chosen master volume (35% quieter than previously), with its internal balance unchanged.
 
 The sixteen daily-routine frames are in `Assets/daily-sprites-v1.png`. Their layout and the downward-dog proportion correction are recorded in [Assets/ROUTINE-ART.md](Assets/ROUTINE-ART.md).
+
+
+## CPU usage
+
+Velvet now uses 12 updates per second for idle expressions, four for quiet poses, and 24 for dances, head gestures and prop dragging. Mouse-movement monitoring keeps the click-through hitbox responsive between quiet updates. Care clocks advance by elapsed time rather than frame count. Unchanged sleeping/paused poses stop repainting, and repeated static draws reuse their pixel image. The bitmap drawing context, shadow gradient and colour lookup are reused. Spotify detection caches matching processes and responds to process-list changes, avoiding a complete audio-process scan every half-second.
+
+A reproducible native measurement runs five-second idle, sleep, pause, dance and hidden scenarios, with silent samples, Spotify monitoring disabled, temporary notes and no global shortcut. It also checks static image reuse, changed-pose/resize invalidation and head-hold handling:
+
+```sh
+build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/path --cpu-profile /absolute/path/cpu.json
+```
+
+See [PERFORMANCE.md](PERFORMANCE.md) for before/after results and their limits.

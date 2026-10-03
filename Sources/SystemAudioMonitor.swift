@@ -7,6 +7,14 @@ final class SystemAudioMonitor {
     private(set) var playing = false
     private var timer: Timer?
     private var trackObserver: NSObjectProtocol?
+    private var processListListener: AudioObjectPropertyListenerBlock?
+    private var spotifyProcesses: [AudioObjectID] = []
+    private var lastProcessScan = -Double.infinity
+    private var monitoring = false
+    private(set) var processScanCount = 0
+    private static var processListAddress: AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+    }
     private(set) var playback: SpotifyPlayback?
     private(set) var hasTrackUpdates = false
     var supported: Bool { if #available(macOS 14.2, *) { return true }; return false }
@@ -21,19 +29,59 @@ final class SystemAudioMonitor {
             self.hasTrackUpdates = self.playback != nil
             self.poll()
         }
-        poll()
-        // Polling also handles audio processes appearing/disappearing and drivers
-        // that don't send running-output property notifications reliably.
-        timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in self?.poll() }
-        timer?.tolerance = 0.1
-        RunLoop.main.add(timer!, forMode: .common)
+        monitoring = true
+        let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self, self.monitoring else { return }
+            self.refreshSpotifyProcesses(); self.poll()
+        }
+        var address = Self.processListAddress
+        if AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener) == noErr {
+            processListListener = listener
+        }
+        refreshSpotifyProcesses(); poll()
     }
     func stop() {
+        monitoring = false
         timer?.invalidate(); timer = nil
+        if let listener = processListListener {
+            var address = Self.processListAddress
+            AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener)
+        }
+        processListListener = nil; spotifyProcesses = []; lastProcessScan = -.infinity
         if let observer = trackObserver { DistributedNotificationCenter.default().removeObserver(observer) }
         trackObserver = nil; playback = nil; hasTrackUpdates = false; setPlaying(false)
     }
-    func poll() { setPlaying(Self.spotifyPlaybackActive()) }
+    private func refreshSpotifyProcesses() {
+        guard monitoring else { return }
+        processScanCount += 1
+        lastProcessScan = ProcessInfo.processInfo.systemUptime
+        let ownPID = UInt32(ProcessInfo.processInfo.processIdentifier)
+        spotifyProcesses = Self.processes().filter {
+            guard let pid = Self.word($0, kAudioProcessPropertyPID), pid != ownPID,
+                  let identifier = Self.bundleID($0) else { return false }
+            return Self.isSpotifyBundle(identifier)
+        }
+        // New audio processes wake the listener immediately. The slow fallback
+        // handles drivers that omit process-list notifications.
+        let interval: TimeInterval = spotifyProcesses.isEmpty ? 10 : 0.5
+        if timer?.timeInterval != interval {
+            timer?.invalidate()
+            timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.poll() }
+            timer?.tolerance = interval * 0.2
+            RunLoop.main.add(timer!, forMode: .common)
+        }
+    }
+    func poll() {
+        guard monitoring else { return }
+        if ProcessInfo.processInfo.systemUptime - lastProcessScan >= 10 { refreshSpotifyProcesses() }
+        var stale = false
+        let active = spotifyProcesses.contains { id in
+            guard let running = Self.word(id, kAudioProcessPropertyIsRunningOutput) else { stale = true; return false }
+            return running == 1
+        }
+        if stale { refreshSpotifyProcesses() }
+        setPlaying(active)
+    }
     private func setPlaying(_ value: Bool) {
         guard value != playing else { return }
         playing = value; onChange?(value)

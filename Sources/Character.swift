@@ -97,6 +97,7 @@ final class PetPanel: NSPanel {
 final class CharacterView: NSView {
     var mood: Mood = .wave {
         didSet {
+            updateAnimationClock()
             if oldValue == .coffee && mood != .coffee { audio.stopCoffee() }
             // Idle sleep is entered directly by the clock, once per sleep.
             if (mood == .sleep || mood == .naturalNap || mood == .nightSleep || mood == .bellySleep) && oldValue != mood && previewTime == nil { audio.playQuiet() }
@@ -202,7 +203,8 @@ final class CharacterView: NSView {
                 }
                 pausedAt = nil
             }
-            updateCompanionAudio()
+            updateCompanionAudio(); updateAnimationClock()
+            needsDisplay = true
         }
     }
     var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
@@ -377,14 +379,57 @@ final class CharacterView: NSView {
     private let sipDuration = 6.0
     private var born = Date()
     private var clock: Timer?
+    private var clockActive = false
+    private var globalPointerMonitor: Any?
+    private var localPointerMonitor: Any?
+    private var lastVisual: VisualState?
+    private struct VisualState: Equatable {
+        let mood: Mood
+        let index: Int
+        let rect: NSRect
+        let angle: Double
+        let bounds: NSRect
+        let paused: Bool
+        let reduced: Bool
+    }
+    private var visualState: VisualState? {
+        guard let atlas else { return nil }
+        let pose = spritePose(time: animationTime, mood: mood, atlas: atlas)
+        return VisualState(mood: mood, index: pose.index, rect: pose.rect, angle: pose.angle, bounds: bounds, paused: paused, reduced: reduceMotion)
+    }
+    var animationInterval: TimeInterval {
+        if gesture != nil || latteReturnBegan != nil || barReturnBegan != nil { return 1.0 / 24 }
+        if paused || reduceMotion { return 0.25 }
+        if showsApplause { return 1.0 / 24 }
+        if mood == .phoneSulk && Date().timeIntervalSince(moodBegan) < 1.2 { return 1.0 / 24 }
+        if [.nightSleep, .bellySleep, .windDown, .naturalNap, .focusNap, .yoga, .reserved, .phone, .phoneSulk, .showOff, .sleep].contains(mood) { return 0.25 }
+        if [.idle, .sideEye, .grumpy, .hungry, .annoyed, .attention, .overstimulated].contains(mood) { return 1.0 / 12 }
+        return 1.0 / 24
+    }
+    private func updateAnimationClock() {
+        guard clockActive else { return }
+        let interval = animationInterval
+        guard clock?.timeInterval != interval else { return }
+        clock?.invalidate()
+        clock = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.tick() }
+        clock?.tolerance = interval * 0.1
+        RunLoop.main.add(clock!, forMode: .common)
+    }
     private var idleSince = Date()
-    private var lastFrame = Date.distantPast
     private var dragOrigin: NSPoint?
     private var mouseOrigin: NSPoint?
     private var hovering = false
     private var nextIdle = Date().addingTimeInterval(12)
     private var idleSequence = 0
     private var pixelCanvas: NSBitmapImageRep?
+    private var pixelContext: NSGraphicsContext?
+    private var pixelDrawingContext: NSGraphicsContext?
+    private var cachedPixelImage: NSImage?
+    private var cachedVisual: VisualState?
+    private var canReusePixels: Bool {
+        previewTime == nil && gesture == nil && latteReturnBegan == nil && barReturnBegan == nil && !wantsCoffee &&
+        (paused || reduceMotion || [.nightSleep, .bellySleep, .windDown, .naturalNap, .focusNap, .yoga, .reserved, .phone, .phoneSulk, .showOff, .wakeUp].contains(mood))
+    }
     private let pixelSize = 1.6
     static let cream = NSColor(calibratedRed: 0.98, green: 0.95, blue: 0.84, alpha: 1)
     static let ink = NSColor(calibratedRed: 0.16, green: 0.15, blue: 0.18, alpha: 1)
@@ -441,16 +486,21 @@ final class CharacterView: NSView {
     }
 
     func start() {
-        clock?.invalidate()
         lastResponseTick = ProcessInfo.processInfo.systemUptime
-        clock = Timer(timeInterval: 1.0 / 24.0, repeats: true) { [weak self] _ in self?.tick() }
-        clock?.tolerance = 0.008
-        RunLoop.main.add(clock!, forMode: .common)
+        clockActive = true; updateAnimationClock()
+        if globalPointerMonitor == nil {
+            globalPointerMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in self?.updatePointerPresence() }
+            localPointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in self?.updatePointerPresence(); return event }
+        }
+        updatePointerPresence()
     }
     func stop() {
         audio.stopAll(); listeningState.reset()
         if mood.isHeadphones { mood = baseMood }
-        clock?.invalidate(); clock = nil
+        clockActive = false; clock?.invalidate(); clock = nil
+        if let globalPointerMonitor { NSEvent.removeMonitor(globalPointerMonitor) }
+        if let localPointerMonitor { NSEvent.removeMonitor(localPointerMonitor) }
+        globalPointerMonitor = nil; localPointerMonitor = nil
         if gesture != nil { NSCursor.arrow.set() }
         gesture = nil; mouseOrigin = nil; dragOrigin = nil
         latteOffset = .zero; latteReturnBegan = nil
@@ -513,18 +563,28 @@ final class CharacterView: NSView {
         syncCompanionButtons()
         needsDisplay = true
     }
-    private func tick() {
+    private func updatePointerPresence() {
         guard let window, window.isVisible else { return }
-        let mouse = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
-        let over = interactiveArea(mouse)
+        let screenPoint = NSEvent.mouseLocation
+        let over = window.frame.contains(screenPoint) && interactiveArea(convert(window.convertPoint(fromScreen: screenPoint), from: nil))
         // NSView hit testing alone cannot forward a click to another application.
         // Switch the entire panel to pass-through whenever the pointer is off the character.
-        window.ignoresMouseEvents = !over && gesture == nil
+        let ignores = !over && gesture == nil
+        if window.ignoresMouseEvents != ignores { window.ignoresMouseEvents = ignores }
         if over != hovering {
             hoverBegan = over ? ProcessInfo.processInfo.systemUptime : nil; hoverRewarded = false
             hovering = over
             if over && gesture == nil && !mood.isDance && !isBusy && focusRest == nil && !responses.isActive && !performance.isEngaged && !stimulation.overstimulated && !hasLifestyleActivity { react(.sideEye, duration: 1.8) }
         }
+    }
+    private(set) var tickCount = 0
+    private(set) var drawCount = 0
+    private(set) var rasterizationCount = 0
+    private func tick() {
+        tickCount += 1
+        guard window?.isVisible == true else { return }
+        defer { updateAnimationClock() }
+        updatePointerPresence()
         if let began = hoverBegan, !hoverRewarded, ProcessInfo.processInfo.systemUptime - began >= 0.65, gesture == nil {
             recordActivity(.hover); hoverRewarded = true
         }
@@ -537,13 +597,12 @@ final class CharacterView: NSView {
             if let paper = pendingPaper { pendingPaper = nil; if canGiveNotes { react(paper) } }
         }
         let responseNow = ProcessInfo.processInfo.systemUptime
-        advanceResponses(by: min(0.25, max(0, responseNow - lastResponseTick)))
-        advanceLifestyle(by: min(0.25, max(0, responseNow - lastResponseTick)))
-        advancePerformance(by: min(0.25, max(0, responseNow - lastResponseTick)))
-        advanceStimulation(by: min(0.25, max(0, responseNow - lastResponseTick)))
-        syncCompanionButtons()
+        advanceResponses(by: min(1, max(0, responseNow - lastResponseTick)))
+        advanceLifestyle(by: min(1, max(0, responseNow - lastResponseTick)))
+        advancePerformance(by: min(1, max(0, responseNow - lastResponseTick)))
+        advanceStimulation(by: min(1, max(0, responseNow - lastResponseTick)))
         updateCompanionAudio()
-        advanceListening(by: min(0.25, max(0, responseNow - lastResponseTick)))
+        advanceListening(by: min(1, max(0, responseNow - lastResponseTick)))
         lastResponseTick = responseNow
         if let held = gesture, held.target == .crown, held.phase == .pressed, ProcessInfo.processInfo.systemUptime - held.began >= 0.35 {
             updatePointer(at: held.last, screenPoint: mouseOrigin ?? .zero, time: ProcessInfo.processInfo.systemUptime)
@@ -559,8 +618,12 @@ final class CharacterView: NSView {
             nextIdle = now.addingTimeInterval(activity.idleInterval + Double(idleSequence % 7))
         }
 
-        let interval = ((paused || reduceMotion || mood == .sleep) && latteReturnBegan == nil && barReturnBegan == nil) ? 0.8 : 1.0 / 24.0
-        if now.timeIntervalSince(lastFrame) >= interval { needsDisplay = true; lastFrame = now }
+        let visual = visualState
+        let effects = gesture != nil || latteReturnBegan != nil || barReturnBegan != nil ||
+            (!paused && !reduceMotion && (showsApplause || mood.isHeadphones || mood.isPaper || [.coffee, .zoomies, .disco, .celebrate, .affection, .recover, .takeBow].contains(mood)))
+        if visual == nil || visual != lastVisual || effects {
+            needsDisplay = true; lastVisual = visual
+        }
     }
     func interactiveArea(_ point: NSPoint) -> Bool {
         guard canInteract else { return false }
@@ -632,7 +695,7 @@ final class CharacterView: NSView {
             barPickupOffset = currentBarOffset; barOffset = barPickupOffset; barReturnBegan = nil
             gesture = CompanionGesture(target: .bar, point: point, time: time)
             mouseOrigin = screenPoint; dragOrigin = window?.frame.origin
-            NSCursor.closedHand.set(); return
+            updateAnimationClock(); NSCursor.closedHand.set(); return
         }
         if lifestyle.phase == .snack { return }
         if acknowledgeAttention() { return }
@@ -650,6 +713,7 @@ final class CharacterView: NSView {
         gesture = CompanionGesture(target: target, point: point, time: time)
         mouseOrigin = screenPoint
         dragOrigin = window?.frame.origin
+        updateAnimationClock()
     }
     func updatePointer(at point: NSPoint, screenPoint: NSPoint, time: Double) {
         guard canInteract else { return }
@@ -785,14 +849,20 @@ final class CharacterView: NSView {
     }
     func syncCompanionButtons() {
         snackButton.isHidden = !(scheduledMood == nil && lifestyle.hungry && canInteract && !lifestyle.occupied && mood == .hungry && focusRest == nil)
-        snackButton.frame = snackButtonRect
+        if !snackButton.isHidden {
+            let rect = snackButtonRect
+            if snackButton.frame != rect { snackButton.frame = rect }
+        }
         applauseButton.isHidden = !showsApplause
         if showsApplause {
-            applauseButton.frame = applauseButtonRect; applauseButton.alphaValue = CGFloat(performance.applauseFraction)
-            applauseButton.setAccessibilityHelp("Clap within \(Int(ceil(performance.applauseRemaining))) seconds")
+            let rect = applauseButtonRect
+            if applauseButton.frame != rect { applauseButton.frame = rect }
+            applauseButton.alphaValue = CGFloat(performance.applauseFraction)
+            let help = "Clap within \(Int(ceil(performance.applauseRemaining))) seconds"
+            if applauseButton.accessibilityHelp() != help { applauseButton.setAccessibilityHelp(help) }
         }
         danceButton.isHidden = !showsDanceChooser
-        if showsDanceChooser { danceButton.frame = applauseButtonRect }
+        if showsDanceChooser { let rect = applauseButtonRect; if danceButton.frame != rect { danceButton.frame = rect } }
     }
     func makeDanceMenu(invited: Bool = false) -> NSMenu {
         let menu = NSMenu()
@@ -964,20 +1034,28 @@ final class CharacterView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        drawCount += 1
         NSColor.clear.setFill(); dirtyRect.fill()
         drawGroundShadow()
+        let visual = visualState
+        if canReusePixels, let visual, visual == cachedVisual, let image = cachedPixelImage {
+            drawPixelImage(image); drawApplauseCountdown(); return
+        }
+        rasterizationCount += 1
         let width = Int(ceil(Double(bounds.width) / pixelSize)), height = Int(ceil(Double(bounds.height) / pixelSize))
         if pixelCanvas?.pixelsWide != width || pixelCanvas?.pixelsHigh != height {
             pixelCanvas = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: width * 4, bitsPerPixel: 32)
+            pixelContext = pixelCanvas.flatMap { NSGraphicsContext(bitmapImageRep: $0) }
+            pixelDrawingContext = pixelContext.map { NSGraphicsContext(cgContext: $0.cgContext, flipped: true) }
         }
-        guard let canvas = pixelCanvas, let offscreen = NSGraphicsContext(bitmapImageRep: canvas), let screen = NSGraphicsContext.current else { drawCompanion(); return }
+        guard let canvas = pixelCanvas, let offscreen = pixelContext else { drawCompanion(); return }
         NSGraphicsContext.saveGraphicsState()
         let context = offscreen.cgContext
         context.saveGState()
         context.clear(CGRect(x: 0, y: 0, width: width, height: height))
         context.translateBy(x: 0, y: Double(height))
         context.scaleBy(x: CGFloat(Double(width) / Double(bounds.width)), y: CGFloat(-Double(height) / Double(bounds.height)))
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.current = pixelDrawingContext
         drawCompanion()
         context.restoreGState()
         NSGraphicsContext.restoreGraphicsState()
@@ -996,8 +1074,8 @@ final class CharacterView: NSView {
                         for channel in 0..<4 { bytes[offset + channel] = 0 }
                     } else {
                         for channel in colors {
-                            let value = premultiplied ? min(255, Int(bytes[offset + channel]) * 255 / alpha) : Int(bytes[offset + channel])
-                            bytes[offset + channel] = UInt8(min(255, ((value + 7) / 14) * 14))
+                            let value = premultiplied && alpha != 255 ? min(255, Int(bytes[offset + channel]) * 255 / alpha) : Int(bytes[offset + channel])
+                            bytes[offset + channel] = Self.pixelChannelLevels[value]
                         }
                         bytes[offset + alphaIndex] = 255
                     }
@@ -1005,11 +1083,18 @@ final class CharacterView: NSView {
             }
         }
         guard let image = canvas.cgImage else { return }
-        screen.cgContext.saveGState()
-        screen.cgContext.interpolationQuality = .none
-        NSImage(cgImage: image, size: bounds.size).draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-        screen.cgContext.restoreGState()
+        let rendered = NSImage(cgImage: image, size: bounds.size)
+        if canReusePixels { cachedVisual = visual; cachedPixelImage = rendered }
+        else { cachedVisual = nil; cachedPixelImage = nil }
+        drawPixelImage(rendered)
         drawApplauseCountdown()
+    }
+    private static let pixelChannelLevels: [UInt8] = (0...255).map { UInt8(min(255, (($0 + 7) / 14) * 14)) }
+    private func drawPixelImage(_ image: NSImage) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState(); context.interpolationQuality = .none
+        image.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        context.restoreGState()
     }
     private func drawApplauseCountdown() {
         guard showsApplause else { return }
@@ -1026,14 +1111,14 @@ final class CharacterView: NSView {
         let width = ([Mood.focusNap, .crying, .tumble, .floorwork, .stretch, .breakdance].contains(mood) ? 82.0 : 65.0) * Self.presentationRatio
         return NSRect(x: center - width / 2, y: 184.5, width: width, height: 8 * Self.presentationRatio)
     }
+    private static let shadowGradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [NSColor.black.withAlphaComponent(0.26).cgColor, NSColor.black.withAlphaComponent(0.12).cgColor, NSColor.black.withAlphaComponent(0).cgColor] as CFArray, locations: [0, 0.45, 1])
     private func drawGroundShadow() {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let rect = groundShadowRect
         context.saveGState()
         context.translateBy(x: rect.midX, y: rect.midY)
         context.scaleBy(x: rect.width / 2, y: rect.height / 2)
-        let colors = [NSColor.black.withAlphaComponent(0.26).cgColor, NSColor.black.withAlphaComponent(0.12).cgColor, NSColor.black.withAlphaComponent(0).cgColor] as CFArray
-        if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.45, 1]) {
+        if let gradient = Self.shadowGradient {
             context.drawRadialGradient(gradient, startCenter: .zero, startRadius: 0, endCenter: .zero, endRadius: 1, options: [])
         }
         context.restoreGState()

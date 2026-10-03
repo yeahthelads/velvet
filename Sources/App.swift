@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var tutorialBubble: TutorialView?
     var songRequest = SongRequestState()
     var dailyRoutine = DailyRoutine()
-    var diagnostics: Bool { ["--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke"].contains(where: CommandLine.arguments.contains) }
+    var diagnostics: Bool { ["--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke", "--cpu-profile"].contains(where: CommandLine.arguments.contains) }
     var songPanel: NotesPanel?
     var songBubble: TutorialView?
     enum PendingNote { case open, new }
@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         status.button?.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: "Velvet")
         status.button?.toolTip = "Velvet · your thoughts, with attitude"
         rebuildMenu()
-        if !args.contains("--render-preview") && !args.contains("--smoke-test") && !args.contains("--lifestyle-smoke") && !args.contains("--song-smoke") && !args.contains("--routine-smoke") {
+        if !diagnostics {
             installHotKeyHandler()
             registerShortcut(store.preferences.shortcut)
         }
@@ -75,14 +75,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(willSleep), name: NSWorkspace.willSleepNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
         character.start()
-        if !args.contains("--smoke-test") && !args.contains("--render-preview") && !args.contains("--lifestyle-smoke") && !args.contains("--song-smoke") && !args.contains("--routine-smoke") {
+        if !diagnostics {
             systemAudio.onChange = { [weak self] playing in self?.character.externalAudioPlaying = playing }
             if character.listensToAudio { systemAudio.start() }
         }
         startCoffeeClock()
         pet.orderFrontRegardless()
-        if !args.contains("--smoke-test") && !args.contains("--render-preview") && !args.contains("--lifestyle-smoke") && !args.contains("--song-smoke") && !args.contains("--routine-smoke") && store.preferences.hasMetVelvet != true { showTutorial() }
-        if songRequest.waiting && !args.contains("--smoke-test") && !args.contains("--render-preview") && !args.contains("--lifestyle-smoke") && !args.contains("--song-smoke") && !args.contains("--routine-smoke") { showSongRequest() }
+        if !diagnostics && store.preferences.hasMetVelvet != true { showTutorial() }
+        if songRequest.waiting && !diagnostics { showSongRequest() }
         if args.contains("--show-notes") { openNotes() }
         if args.contains("--dance") { character.react(.ballet, duration: 12) }
         if args.contains("--grumpy") { makeGrumpy() }
@@ -92,6 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         if let i = args.firstIndex(of: "--smoke-test"), args.count > i + 1 {
             runSmokeTest(to: URL(fileURLWithPath: args[i + 1]))
+        }
+        if let i = args.firstIndex(of: "--cpu-profile"), args.count > i + 1 {
+            profileCPU(to: URL(fileURLWithPath: args[i + 1]))
         }
         if let i = args.firstIndex(of: "--routine-smoke"), args.count > i + 1 {
             let result = checkRoutine(previewDirectory: URL(fileURLWithPath: args[i + 1]).deletingLastPathComponent())
@@ -1131,7 +1134,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 guard let timer else { return }
                 let remaining = store.focus.remaining, elapsed = store.focus.elapsed
                 timer.beginInteraction(y: 100); timer.updateInteraction(y: 112)
-                checks["timerDragAdjustsRunningTimeWithoutResettingStretch"] = store.focus.remaining == remaining + 120 && store.focus.elapsed == elapsed && character.displayedSpriteIndex == 74
+                checks["timerDragAdjustsRunningTimeWithoutResettingStretch"] = abs(store.focus.remaining - remaining - 120) < 0.001 && abs(store.focus.elapsed - elapsed) < 0.001 && character.displayedSpriteIndex == 74
+                checks["timerDragRunningDiagnostic"] = "remainingDelta=\(store.focus.remaining - remaining), elapsedDelta=\(store.focus.elapsed - elapsed), frame=\(String(describing: character.displayedSpriteIndex))"
                 let whileDragging = store.focus.remaining
                 advanceActivity(by: 100)
                 checks["countdownDoesNotFightActiveDrag"] = store.focus.remaining == whileDragging && adjustingFocusTime
