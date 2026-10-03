@@ -81,16 +81,25 @@ import Foundation
         precondition(!progress.allows("ballet") && !lesson.petted())
         lesson.closedNote(); lesson.fed(); lesson.finishedSnack()
         precondition(lesson.step == .welcome, "Tutorial steps cannot be skipped with unrelated actions")
-        lesson.begin(); lesson.openedNote(); lesson.closedNote(); lesson.fed()
+        lesson.continueDialogue(); lesson.continueDialogue(); precondition(lesson.step == .openNote, "Continue cannot skip a requested action")
+        lesson.openedNote(); lesson.closedNote(); lesson.fed()
         let resumed = try JSONDecoder().decode(TutorialState.self, from: JSONEncoder().encode(lesson))
         precondition(resumed.step == .snacking && !resumed.complete)
         lesson.finishedSnack(); precondition(lesson.petted() && !lesson.petted())
+        precondition(lesson.step == .balletUnlocked && !lesson.complete)
+        lesson.continueDialogue(); precondition(lesson.complete)
         progress.earnTutorialBallet(); progress.earnTutorialBallet()
         precondition(progress.unlockedDanceIDs == ["ballet"] && progress.clapBalance == 0)
         for _ in 0..<3 { progress.recordClap() }
         precondition(progress.unlock("contemporary") && progress.clapBalance == 0)
         progress.recordClap(); precondition(progress.payForReplay("contemporary") && progress.refundReplay())
         precondition(progress.clapBalance == 1 && !progress.refundReplay())
+        var lost = DanceProgress(completedClaps: 3, unlockedDanceIDs: ["ballet", "house"])
+        precondition(lost.revokeDance("house") && !lost.revokeDance("ballet") && !lost.allows("house") && lost.clapBalance == 0)
+        let lostAgain = try JSONDecoder().decode(DanceProgress.self, from: JSONEncoder().encode(lost))
+        precondition(lostAgain == lost && lostAgain.clapBalance == 0)
+        for _ in 0..<3 { lost.recordClap() }
+        precondition(lost.unlock("house") && lost.clapBalance == 0)
         print("PASS: eligible clocks, food, phone privacy, persistent sulk, attention, naps/waking, energy, dance cadence, focus rest, resumable tutorial, Ballet reward, Contemporary economy and refund")
     }
 }

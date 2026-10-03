@@ -3,8 +3,9 @@ import AppKit
 extension AppDelegate {
     func checkRoutine(previewDirectory: URL) -> [String: Bool] {
         var checks: [String: Bool] = [:]
+        character.coffeeOverload = CoffeeOverload()
         character.audio.enabled = false
-        dismissTutorial(); closeNotes()
+        tutorialPanel?.orderOut(nil); character.tutorialActive = false; closeNotes()
         character.tutorialActive = false; character.awaitingSong = false
         character.care = CompanionCare(); character.lifestyle = LifestyleState()
         character.stimulation = StimulationState(cooldown: 60); character.wantsCoffee = false

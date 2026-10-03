@@ -39,7 +39,19 @@ struct HappinessState: Codable, Equatable {
         if careDanceDelay == nil { careDanceDelay = delay.isFinite ? min(20, max(8, delay)) : 12 }
         return true
     }
-    mutating func missedAttention() { level = max(0.15, level - 0.10); careDanceDelay = nil }
+    enum Disappointment { case missedAttention, missedApplause, poked, tumble, overwhelmed, phoneInterrupted, caffeineCrash }
+    mutating func disappoint(_ reason: Disappointment) {
+        let penalty: Double
+        switch reason {
+        case .missedAttention, .tumble: penalty = 0.10
+        case .missedApplause, .poked: penalty = 0.08
+        case .overwhelmed: penalty = 0.20
+        case .caffeineCrash: penalty = 0.25
+        case .phoneInterrupted: penalty = 0.45
+        }
+        level = max(0, level - penalty); careDanceDelay = nil
+    }
+    mutating func missedAttention() { disappoint(.missedAttention) }
     mutating func performedDance() { danceRestRemaining = Self.minimumDanceRest; careDanceDelay = nil }
     mutating func advance(by seconds: Double, available: Bool, canDance: Bool) {
         guard available, seconds.isFinite, seconds > 0 else { return }

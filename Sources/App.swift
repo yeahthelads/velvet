@@ -35,6 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var tutorialVisibleBeforeScreenRest = false
     var sleepyPanel: NotesPanel?
     var sleepyBubble: TutorialView?
+    var consequencePanel: NotesPanel?
+    var consequenceBubble: TutorialView?
     var diagnostics: Bool { ["--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke", "--care-smoke", "--cpu-profile"].contains(where: CommandLine.arguments.contains) }
     var songPanel: NotesPanel?
     var songBubble: TutorialView?
@@ -93,8 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         startCoffeeClock()
         pet.orderFrontRegardless()
-        if !diagnostics && store.preferences.hasMetVelvet != true { showTutorial() }
-        if songRequest.waiting && !diagnostics { showSongRequest() }
+        if !diagnostics && tutorialRequired { showTutorial() }
+        if songRequest.waiting && !diagnostics && !character.tutorialActive { showSongRequest() }
         if args.contains("--request-song") && !diagnostics { simulateSongRequest() }
         if args.contains("--show-notes") { openNotes() }
         if args.contains("--dance") { character.react(.ballet, duration: 12) }
@@ -144,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let item = NSMenuItem(title: "Edit", action: nil, keyEquivalent: ""); item.submenu = edit; main.addItem(item)
         NSApp.mainMenu = main
     }
+    var tutorialRequired: Bool { !store.tutorial.complete || store.preferences.hasMetVelvet != true }
     func createPet() {
         pet = PetPanel(contentRect: NSRect(x: 0, y: 0, width: 190, height: 200), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         pet.title = "Velvet companion"
@@ -153,12 +156,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         pet.level = store.preferences.alwaysOnTop ? .floating : .normal
         pet.becomesKeyOnlyIfNeeded = true
         character = CharacterView(frame: NSRect(x: 0, y: 0, width: 190, height: 200))
+        character.tutorialActive = !diagnostics && tutorialRequired
         character.paused = store.preferences.paused
         character.danceProgress = store.danceProgress
         character.listensToAudio = store.preferences.listensToAudio ?? true
         character.onDanceProgressChanged = { [weak self] progress in self?.store.setDanceProgress(progress) }
         character.care = store.care
         character.activity = store.activity
+        character.coffeeOverload = store.coffeeOverload
+        character.onCoffeeOverloadChanged = { [weak self] value in self?.store.setCoffeeOverload(value) }
+        character.onDanceLost = { [weak self] dance in self?.showConsequence("You interrupted my phone time. I’m taking back ‘\(dance.label)’. Earn it again.") }
         character.happiness = store.happiness
         character.onActivityChanged = { [weak self] value in self?.store.setActivity(value) }
         character.onHappinessChanged = { [weak self] value in self?.store.setHappiness(value) }
@@ -178,22 +185,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             guard let self else { return }
             var lesson = self.store.tutorial
             if lesson.petted() {
-                let firstBallet = !self.character.danceProgress.allows("ballet")
                 self.character.danceProgress.earnTutorialBallet()
                 self.store.setTutorial(lesson); self.syncTutorial()
-                if firstBallet {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                        guard let self, self.character.canChooseDance else { return }
-                        self.character.chooseDance(.ballet, newlyUnlocked: true)
-                    }
-                }
             }
         }
         store.setCare(character.care)
         character.wantsCoffee = coffee.needsCoffee
-        character.awaitingSong = songRequest.waiting
+        character.awaitingSong = songRequest.waiting && !character.tutorialActive
         if !diagnostics { character.applyDailyRoutine(dailyRoutine) }
-        if character.hasLifestyleActivity { character.mood = character.baseMood; character.moodUntil = .distantFuture }
+        if character.hasLifestyleActivity || character.coffeeOverload.occupied { character.mood = character.baseMood; character.moodUntil = .distantFuture }
         character.onNeedsChanged = { [weak self] in self?.careStateChanged() }
         character.onPerformanceChanged = { [weak self] in self?.rebuildMenu() }
         character.onCoffee = { [weak self] in self?.giveCoffee() }
@@ -204,7 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.constrainPet()
             self.store.setPreferences { $0.x = Double(self.pet.frame.minX); $0.y = Double(self.pet.frame.minY) }
             if self.notes.isVisible { self.anchorNotes() }
-            self.anchorTutorial(); self.anchorSongBubble(); self.anchorNightVisit()
+            self.anchorTutorial(); self.anchorSongBubble(); self.anchorNightVisit(); self.anchorConsequence()
         }
         character.contextMenu = { [weak self] in self?.makeMenu() ?? NSMenu() }
         pet.contentView = character
@@ -238,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func petMoved() {
         if !characterIsDragging { constrainPet() }
         if notes.isVisible { anchorNotes() }
-        anchorTutorial(); anchorSongBubble(); anchorNightVisit()
+        anchorTutorial(); anchorSongBubble(); anchorNightVisit(); anchorConsequence()
         if Date().timeIntervalSince(lastPositionSave) > 0.25 {
             store.setPreferences { $0.x = Double(pet.frame.minX); $0.y = Double(pet.frame.minY) }
             lastPositionSave = Date()
@@ -355,8 +355,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.react(.paperToss)
     }
     @objc func togglePet() {
-        if pet.isVisible { closeNotes(); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); sleepyPanel?.orderOut(nil); character.tutorialActive = false; pet.orderOut(nil); character.stop() }
-        else { pet.orderFrontRegardless(); character.start(); if character.isNightVisit { syncNightVisit() } else if songRequest.waiting { showSongRequest() } else { character.react(.wave) } }
+        if pet.isVisible { closeNotes(); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); sleepyPanel?.orderOut(nil); consequencePanel?.orderOut(nil); character.tutorialActive = tutorialRequired; pet.orderOut(nil); character.stop() }
+        else { pet.orderFrontRegardless(); character.start(); if tutorialRequired { showTutorial() } else if character.isNightVisit { syncNightVisit() } else if songRequest.waiting { showSongRequest() } else { character.react(.wave) } }
         rebuildMenu()
     }
     @objc func togglePaused() {
@@ -386,12 +386,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         petMoved(); rebuildMenu()
     }
     @objc func showTutorial() {
-        guard character.canInteract, !character.lifestyle.occupied || character.lifestyle.phase == .snack else { return }
+        guard !character.screenLocked else { return }
         if store.archive.tutorial == nil { store.setTutorial(TutorialState()) }
         if tutorialPanel == nil {
             let bubble = TutorialView(frame: NSRect(x: 0, y: 0, width: TutorialView.bubbleWidth, height: 96))
             bubble.begin = { [weak self] in self?.beginTutorial() }
-            bubble.dismiss = { [weak self] in self?.dismissTutorial() }
+            bubble.dismiss = nil
             let panel = NotesPanel(contentRect: bubble.bounds, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true
             panel.isReleasedWhenClosed = false; panel.hidesOnDeactivate = false; panel.level = .floating
@@ -401,24 +401,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.contentView = bubble
             tutorialBubble = bubble; tutorialPanel = panel
         }
+        character.tutorialActive = tutorialRequired
+        if character.tutorialActive { character.awaitingSong = false; songPanel?.orderOut(nil); character.prepareForTutorial() }
         pet.orderFrontRegardless(); character.start(); tutorialPanel?.orderFrontRegardless()
         syncTutorial()
     }
     func dismissTutorial() {
+        guard store.tutorial.complete else { syncTutorial(); return }
         if store.tutorial.complete { store.setPreferences { $0.hasMetVelvet = true } }
         tutorialPanel?.orderOut(nil); character.tutorialActive = false
+        character.awaitingSong = songRequest.waiting
+        if songRequest.waiting && !diagnostics && !character.tutorialActive { showSongRequest() }
         if notes.isVisible { anchorNotes() }
         rebuildMenu()
     }
     func syncTutorial() {
-        guard tutorialPanel?.isVisible == true else { return }
+        guard !character.screenLocked, pet.isVisible, character.tutorialActive || tutorialPanel?.isVisible == true else { return }
+        tutorialPanel?.orderFrontRegardless()
         // Reconcile saved steps with actual windows/activity when resuming.
         var lesson = store.tutorial
         if notes.isVisible { lesson.openedNote() } else { lesson.closedNote() }
         if character.lifestyle.phase == .snack { lesson.fed() }
         else if character.lifestyle.phase == .idle { lesson.finishedSnack() }
         if lesson != store.tutorial { store.setTutorial(lesson) }
-        character.tutorialActive = !lesson.complete
+        character.tutorialActive = tutorialRequired
         if character.tutorialActive && character.mood.isScheduled { character.mood = character.baseMood; character.moodUntil = .distantPast }
         if lesson.step == .snack && character.lifestyle.phase == .idle {
             character.lifestyle.foodRemaining = 0
@@ -426,14 +432,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             character.mood = character.baseMood; character.syncCompanionButtons(); character.needsDisplay = true
         }
         var text = lesson.text
-        var primary: String? = lesson.step == .welcome ? "Show me" : nil
+        var primary: String? = lesson.hasDialogue ? "Continue" : nil
         if !lesson.complete && lesson.step != .welcome {
             if store.focus.isActive {
                 text = "Let’s finish focus first. Then we’ll pick up where we left off."
-                primary = "Stop focus"
+                primary = "Continue"
             } else if character.paused {
                 text = "I’m paused. Resume me so we can keep going."
-                primary = "Resume"
+                primary = "Continue"
+            } else if character.coffeeOverload.crashed {
+                text = "Too much latte. One quiet moment first."
+                primary = nil
             } else if character.needsAffection && lesson.step != .affection {
                 text = "A little head rub first, please. Hold my head gently for a moment."
             } else if character.wantsCoffee {
@@ -441,13 +450,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         tutorialBubble?.update(text: text, primaryTitle: primary, complete: lesson.complete)
+        tutorialBubble?.dismissButton.isHidden = true
         if notes.isVisible { anchorNotes() }
         anchorTutorial(); rebuildMenu()
     }
     func beginTutorial() {
         if store.focus.isActive { endFocus() }
         if character.paused { togglePaused() }
-        var lesson = store.tutorial; lesson.begin(); store.setTutorial(lesson); syncTutorial()
+        var lesson = store.tutorial
+        let firstPerformance = lesson.step == .balletUnlocked
+        lesson.continueDialogue(); store.setTutorial(lesson)
+        if lesson.complete {
+            dismissTutorial()
+            if firstPerformance {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { [weak self] in
+                    guard let self, !self.tutorialRequired, self.character.canChooseDance else { return }
+                    self.character.chooseDance(.ballet, newlyUnlocked: true)
+                }
+            }
+        } else { syncTutorial() }
     }
     func anchorTutorial() {
         guard let panel = tutorialPanel, panel.isVisible, let bubble = tutorialBubble,
@@ -492,7 +513,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         lastCoffeeTick = now
         advanceActivity(by: elapsed)
         if now - lastCoffeeCheckpoint >= 30 {
-            store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setHappiness(character.happiness); store.setDailyRoutine(dailyRoutine); lastCoffeeCheckpoint = now
+            store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload); store.setDailyRoutine(dailyRoutine); lastCoffeeCheckpoint = now
         }
     }
     func advanceActivity(by elapsed: Double) {
@@ -519,10 +540,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func giveCoffee() {
         guard character.acceptCharacterInteraction(), !character.lifestyle.occupied else { return }
-        guard character.mood != .coffee else { return }
+        guard character.mood != .coffee, !character.coffeeOverload.occupied, !character.isNightVisit, character.scheduledMood == nil else { return }
+        let needed = coffee.needsCoffee || character.wantsCoffee
         coffee.giveCoffee()
         store.setCoffee(coffee)
         character.wantsCoffee = false
+        if !character.tutorialActive {
+            if character.coffeeOverload.accepted(needed: needed) { character.cancelLatteResponse() }
+            store.setCoffeeOverload(character.coffeeOverload)
+        }
         character.react(.coffee)
         if character.mood == .coffee { character.receiveCare(.coffee) }
         rebuildMenu()
@@ -581,8 +607,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         let focus = NSMenuItem(title: store.focus.isActive ? "Focus · \(store.focus.label)" : "Focus mode", action: nil, keyEquivalent: "")
         focus.submenu = focusMenu; focus.isEnabled = character.canInteract && (!character.isNightVisit || store.focus.isActive); menu.addItem(focus)
-        let latte = item("Give her an iced latte", #selector(giveCoffee)); latte.isEnabled = character.canInteract && !character.lifestyle.occupied; menu.addItem(latte)
-        let bar = item("Give her a chocolate bar", #selector(feedVelvet)); bar.isEnabled = character.canInteract && character.scheduledMood == nil && !character.isNightVisit && character.lifestyle.hungry && !character.lifestyle.occupied && character.focusRest == nil; menu.addItem(bar)
+        let latte = item("Give her an iced latte", #selector(giveCoffee)); latte.isEnabled = character.canInteract && !character.lifestyle.occupied && !character.coffeeOverload.occupied && !character.isNightVisit && character.scheduledMood == nil; menu.addItem(latte)
         let dances = NSMenuItem(title: character.showsDanceChooser ? "Choose a dance · she’s restless" : "Choose a dance", action: nil, keyEquivalent: "")
         dances.submenu = character.makeDanceMenu(); dances.isEnabled = character.canInteract; menu.addItem(dances)
         let moods = NSMenu(); moods.autoenablesItems = false
@@ -624,6 +649,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         status?.menu = makeMenu()
         if character.screenLocked { status?.button?.toolTip = "Resting while your screen is locked." }
         else if character.isNightVisit { status?.button?.toolTip = "Sleepy · A little cuddle, then back to bed." }
+        else if character.coffeeOverload.crashed { status?.button?.toolTip = "Too much latte · Let her crash quietly for three minutes." }
         else if character.stimulation.overstimulated { status?.button?.toolTip = "A little quiet, please · Give her thirty seconds of quiet; interaction is paused." }
         else if character.needsAffection { status?.button?.toolTip = "She needs affection · Stroke or hold her head to get your notes back." }
         else if coffee.needsCoffee { status?.button?.toolTip = "Iced latte. Now. · Drag the drink into her hand for your notes." }
@@ -676,7 +702,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         store.setLifestyle(character.lifestyle)
         store.setSongRequest(songRequest)
         store.setActivity(character.activity); store.setDailyRoutine(dailyRoutine)
-        store.setHappiness(character.happiness)
+        store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload)
         store.setPreferences { $0.x = Double(pet.frame.minX); $0.y = Double(pet.frame.minY) }
         if !store.flush() {
             let alert = NSAlert()
@@ -1088,7 +1114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["overwhelmBlocksCoffeeAndMenuMovement"] = coffee == coffeeState && pet.frame.origin == origin
                 startFocus(minutes: 25)
                 checks["overwhelmBlocksStartingFocus"] = !store.focus.isActive && character.mood == .overstimulated
-                let blocked = [#selector(openNotes), #selector(quickCapture), #selector(giveCoffee), #selector(petHead), #selector(feedVelvet), #selector(centerPet)]
+                let blocked = [#selector(openNotes), #selector(quickCapture), #selector(giveCoffee), #selector(petHead), #selector(centerPet)]
                 let menu = makeMenu()
                 checks["overwhelmedInteractionMenuItemsDisabled"] = blocked.allSatisfy { action in menu.items.first(where: { $0.action == action })?.isEnabled == false } && menu.items.filter { $0.submenu != nil && ["Focus mode", "Choose a dance", "Try a little attitude"].contains($0.title) }.allSatisfy { !$0.isEnabled }
                 checks["ignoredInteractionDoesNotRestartQuietTimer"] = character.stimulation.quietRemaining == remaining

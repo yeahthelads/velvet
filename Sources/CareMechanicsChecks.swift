@@ -5,12 +5,14 @@ extension AppDelegate {
     func checkCareMechanics() -> [String: Bool] {
         var checks: [String: Bool] = [:]
         func rested() {
-            character.audio.enabled = false; character.returnToBed()
+            character.coffeeOverload = CoffeeOverload()
+        character.audio.enabled = false; character.returnToBed()
             screenLockActive = false; sessionInactive = false; updateScreenRest()
-            dismissTutorial(); closeNotes(); store.focus.end(); updateFocusRest()
+            tutorialPanel?.orderOut(nil); character.tutorialActive = false; closeNotes(); store.focus.end(); updateFocusRest()
             dailyRoutine = DailyRoutine(); character.applyDailyRoutine(dailyRoutine)
             character.awaitingSong = false; character.paused = false; character.listensToAudio = false
             character.care = CompanionCare(); character.lifestyle = LifestyleState()
+            character.coffeeOverload = CoffeeOverload()
             character.activity = ActivityState(); character.happiness = HappinessState()
             character.stimulation = StimulationState(cooldown: 60); character.wantsCoffee = false
             character.danceProgress = DanceProgress(completedClaps: 1000, unlockedDanceIDs: DanceProgress.danceIDs)
@@ -112,6 +114,61 @@ extension AppDelegate {
         checks["nightUnlockKeepsHerInBed"] = character.mood == .bellySleep && !character.isNightVisit
         updateDailyRoutine(at: date(8), calendar: calendar)
         checks["morningStillRestoresEnergyAndProperWakeUp"] = character.lifestyle.energy == 100 && character.mood == .wakeUp && !character.isNightVisit
+
+        rested()
+        character.rubCrown(); let happyBeforePhone = character.happiness.level
+        character.moodUntil = .distantPast; character.react(.idle)
+        character.danceProgress = DanceProgress(completedClaps: 3, unlockedDanceIDs: ["ballet", "house"])
+        character.lifestyle.phoneRemaining = 0; character.advanceLifestyle(by: 1)
+        let balanceBeforeLoss = character.danceProgress.clapBalance
+        _ = character.acceptCharacterInteraction(lossRoll: 0)
+        checks["interruptingPhoneHasLargestHappinessPenalty"] = happyBeforePhone - character.happiness.level >= 0.45 && character.happiness.careDanceDelay == nil && character.lifestyle.ignoring
+        checks["phoneCanRevokeExtraDanceWithoutRefundOrLosingBallet"] = !character.danceProgress.allows("house") && character.danceProgress.allows("ballet") && character.danceProgress.clapBalance == balanceBeforeLoss
+        checks["lostDanceExplainedInSmallBubble"] = consequencePanel?.isVisible == true && consequenceBubble?.dialogue.contains("taking back") == true
+        store.setDanceProgress(character.danceProgress); store.flush()
+        checks["danceLossPersistsWithoutRefund"] = NoteStore(directory: store.directory).danceProgress == character.danceProgress
+        for _ in 0..<3 { character.danceProgress.recordClap() }
+        checks["lostDanceCanBeEarnedBack"] = character.danceProgress.unlock("house") && character.danceProgress.clapBalance == 0
+        consequencePanel?.orderOut(nil)
+        rested()
+        let beforeUpset = character.happiness.level
+        character.makeAnnoyed()
+        checks["crossedArmsLowerHappiness"] = character.happiness.level < beforeUpset
+        rested(); let beforeQuiet = character.happiness.level; character.makeOverstimulated()
+        checks["overwhelmLowersHappiness"] = character.happiness.level < beforeQuiet
+        rested(); giveCoffee(); character.moodUntil = .distantPast; character.react(.idle)
+        giveCoffee(); character.moodUntil = .distantPast; character.react(.idle)
+        giveCoffee()
+        checks["thirdExtraLatteStartsSippingOverload"] = character.coffeeOverload.phase == .sipping && character.mood == .coffee
+        character.advanceCoffeeOverload(by: 6)
+        checks["tooMuchLatteProducesBriefRushWithoutClapReward"] = character.coffeeOverload.phase == .hyped && character.mood == .zoomies && !character.performance.awaitingApplause && !character.canChooseDance
+        character.beginPointer(at: head, screenPoint: head, time: now + 100, forceMove: true)
+        character.advanceCoffeeOverload(by: 8)
+        checks["caffeineCrashCancelsInFlightGesture"] = !character.pointerIsActive
+        checks["caffeineCrashBlocksAllCharacterInteractionAndNotes"] = character.coffeeOverload.crashed && character.mood == .overstimulated && !character.canInteract && !character.canGiveNotes
+        let crashTime = character.coffeeOverload.remaining, crashHappy = character.happiness
+        openNotes(); giveCoffee(); character.rubCrown(); character.chooseDance(.ballet)
+        checks["careCannotInterruptOrShortenCaffeineCrash"] = !notes.isVisible && character.coffeeOverload.remaining == crashTime && character.happiness == crashHappy
+        character.paused = true; character.advanceCoffeeOverload(by: 1000)
+        checks["pausedCaffeineCrashFreezes"] = character.coffeeOverload.remaining == crashTime
+        character.paused = false
+        store.setCoffeeOverload(character.coffeeOverload); store.flush()
+        checks["caffeineCrashSurvivesRestart"] = NoteStore(directory: store.directory).coffeeOverload == character.coffeeOverload
+        character.advanceCoffeeOverload(by: 179)
+        checks["caffeineCrashLastsLongerThanRush"] = character.coffeeOverload.crashed && !character.canInteract
+        character.advanceCoffeeOverload(by: 1)
+        checks["caffeineCrashEndsWithLowEnergy"] = character.canInteract && character.lifestyle.energy <= 45
+        checks["proteinBarAbsentFromActionMenu"] = makeMenu().items.allSatisfy { !($0.title.localizedCaseInsensitiveContains("chocolate") || $0.title.localizedCaseInsensitiveContains("protein")) }
+        rested(); let audio = character.audio; audio.enabled = true; audio.volume = 0
+        var quietCount = audio.quietPlayCount
+        for sleeping in [Mood.sleep, .naturalNap, .nightSleep, .bellySleep, .overstimulated] {
+            character.mood = .idle; character.mood = sleeping
+            quietCount += 1
+            checks["shutdownSoundOn-" + sleeping.rawValue] = audio.quietPlayCount == quietCount
+            character.mood = sleeping
+            checks["shutdownSoundDoesNotLoop-" + sleeping.rawValue] = audio.quietPlayCount == quietCount
+        }
+        audio.enabled = false; audio.stopAll()
 
         rested(); let noteID = store.create(); store.update(noteID, title: "Reset fixture", body: "Preserve this note")
         store.setDanceProgress(character.danceProgress); store.setHappiness(character.happiness); store.flush()

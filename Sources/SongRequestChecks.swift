@@ -10,7 +10,7 @@ extension AppDelegate {
         character.stimulation = StimulationState(cooldown: 60)
         character.danceProgress = DanceProgress(unlockedDanceIDs: ["ballet"])
         character.listensToAudio = true; character.paused = false
-        dismissTutorial(); closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
+        tutorialPanel?.orderOut(nil); character.tutorialActive = false; closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
         songRequest = SongRequestState(timeUntilRequest: 0)
         simulateSongRequest()
         checks["songRequestUsesSweetTrialDialogue"] = songBubble?.dialogue == "Could you play ‘Take a Bow’ by Rihanna on Spotify for me? Please?"

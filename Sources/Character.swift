@@ -100,7 +100,7 @@ final class CharacterView: NSView {
             updateAnimationClock()
             if oldValue == .coffee && mood != .coffee { audio.stopCoffee() }
             // Idle sleep is entered directly by the clock, once per sleep.
-            if (mood == .sleep || mood == .naturalNap || mood == .nightSleep || mood == .bellySleep) && oldValue != mood && previewTime == nil && !screenLocked { audio.playQuiet() }
+            if (mood == .sleep || mood == .naturalNap || mood == .nightSleep || mood == .bellySleep || mood == .overstimulated) && oldValue != mood && previewTime == nil && !screenLocked { audio.playQuiet() }
             if mood == .focusNap && oldValue != .focusNap && previewTime == nil && (focusRest != .focusNap || !focusNapSoundPlayed) {
                 focusNapSoundPlayed = true
                 audio.playQuiet()
@@ -116,6 +116,9 @@ final class CharacterView: NSView {
     var onAffection: (() -> Void)?
     var tutorialActive = false
     var activity = ActivityState()
+    var coffeeOverload = CoffeeOverload()
+    var onCoffeeOverloadChanged: ((CoffeeOverload) -> Void)?
+    var onDanceLost: ((Mood) -> Void)?
     var happiness = HappinessState()
     var onHappinessChanged: ((HappinessState) -> Void)?
     private(set) var screenLocked = false
@@ -163,7 +166,7 @@ final class CharacterView: NSView {
         screenLocked = locked; nightVisit.end(); onNightVisitChanged?()
         if locked {
             applyDailyRoutine(dailyRoutine)
-            audio.stopAll(); stop(); syncCompanionButtons()
+            audio.stopAll(); stop(); syncCompanionButtons(); audio.playQuiet()
         } else {
             lifestyle.restWhileLocked(by: restedSeconds); onLifestyleChanged?(lifestyle)
             mood = baseMood; moodBegan = Date(); moodUntil = .distantFuture
@@ -185,6 +188,10 @@ final class CharacterView: NSView {
         if nightVisit.advance(by: seconds, available: !screenLocked && !paused && window?.isVisible == true) {
             applyDailyRoutine(dailyRoutine); onNightVisitChanged?()
         }
+    }
+    func disappoint(_ reason: HappinessState.Disappointment) {
+        guard !tutorialActive else { return }
+        happiness.disappoint(reason); onHappinessChanged?(happiness)
     }
     func receiveCare(_ care: HappinessState.Care) {
         guard !screenLocked, dailyRoutine.period == .awake, !tutorialActive, !awaitingSong else { return }
@@ -230,7 +237,7 @@ final class CharacterView: NSView {
     }
     private var paidDanceInProgress = false
     var hasLifestyleActivity: Bool { lifestyle.occupied || lifestyle.hungry || lifestyle.needsAttention }
-    var danceRequirementsMet: Bool { dailyRoutine.period == .awake && scheduledMood == nil && canGiveNotes && lifestyle.readyToDance && !tutorialActive && !noteIsVisible && focusRest == nil && !reduceMotion }
+    var danceRequirementsMet: Bool { dailyRoutine.period == .awake && scheduledMood == nil && canGiveNotes && lifestyle.readyToDance && !tutorialActive && !coffeeOverload.occupied && !noteIsVisible && focusRest == nil && !reduceMotion }
     var hasHeadphones: Bool { mood.isHeadphones }
 
     private var pausedAt: Date?
@@ -294,12 +301,14 @@ final class CharacterView: NSView {
         }
     }
     var needsAffection: Bool { care.needsAffection }
-    var canInteract: Bool { !screenLocked && !awaitingSong && !stimulation.overstimulated && !lifestyle.ignoring }
-    var canGiveNotes: Bool { !screenLocked && !awaitingSong && !stimulation.overstimulated && care.canGiveNotes(needsCoffee: wantsCoffee) }
+    var canInteract: Bool { !screenLocked && !awaitingSong && !stimulation.overstimulated && !coffeeOverload.crashed && !lifestyle.ignoring }
+    var canGiveNotes: Bool { !screenLocked && !awaitingSong && !stimulation.overstimulated && !coffeeOverload.crashed && care.canGiveNotes(needsCoffee: wantsCoffee) }
     var baseMood: Mood {
         if let scheduledMood { return scheduledMood }
         if awaitingSong { return .sideEye }
-        if stimulation.overstimulated { return .overstimulated }
+        if stimulation.overstimulated || coffeeOverload.crashed { return .overstimulated }
+        if coffeeOverload.phase == .sipping { return .coffee }
+        if coffeeOverload.phase == .hyped { return noteIsVisible || focusRest != nil || reduceMotion ? .celebrate : .zoomies }
         if lifestyle.ignoring { return .phoneSulk }
         if care.upset == .crying { return .crying }
         if care.upset == .annoyed { return .annoyed }
@@ -324,7 +333,7 @@ final class CharacterView: NSView {
         case .reconciliation: return .reconcile
         case .shySmile: return .shySmile
         case .idle:
-            if performance.restless { return .restless }
+            if performance.restless && danceProgress.allows("ballet") { return .restless }
             switch listeningState.phase {
             case .puttingOn: return .plugIn
             case .listening: return .listening
@@ -360,7 +369,7 @@ final class CharacterView: NSView {
     var stimulation = StimulationState() {
         didSet {
             guard stimulation.overstimulated != oldValue.overstimulated else { return }
-            if stimulation.overstimulated { enterQuietMood() }
+            if stimulation.overstimulated { disappoint(.overwhelmed); enterQuietMood() }
             else {
                 mood = baseMood; moodUntil = Date(); idleSince = Date()
                 updateAccessibilityHelp(); needsDisplay = true
@@ -516,7 +525,7 @@ final class CharacterView: NSView {
     override func accessibilityPerformPress() -> Bool { guard acceptCharacterInteraction() else { return false }; if acknowledgeAttention() { return true }; onClick?(); return true }
     private func updateAccessibilityHelp() {
         var help = "Click her face or body for notes. Stroke or hold her head briefly for affection. Drag her body or Option-drag to move."
-        if lifestyle.hungry { help += " She wants a robot protein bar before dancing. Drag the chocolate bar into her open hand or give it from her menu." }
+        if lifestyle.hungry { help += " She wants a robot protein bar before dancing. Drag the chocolate bar into her open hand." }
         if lifestyle.phase == .attention { help += " She wants you to notice her. Click her to acknowledge." }
         if lifestyle.ignoring { help += " Her phone time was interrupted. Give her forty-five seconds to cool off. Notes remain available from the menu or shortcut." }
         if lifestyle.phase == .nap { help += " She is resting. Notes remain available." }
@@ -562,7 +571,7 @@ final class CharacterView: NSView {
         guard canInteract else { mood = baseMood; pendingPaper = nil; needsDisplay = true; return }
         if lifestyle.phase == .phone && !newMood.isLifestyle && !newMood.isPaper { _ = acceptCharacterInteraction(); return }
         if lifestyle.phase == .snack && newMood != .snack && !newMood.isPaper { return }
-        if newMood.isDance && !danceRequirementsMet { return }
+        if newMood.isDance && !(newMood == .zoomies && coffeeOverload.phase == .hyped) && !danceRequirementsMet { return }
         if newMood.isChoreography && danceInProgress { return }
         if newMood == .yoga && !(solitaryYoga.ready && canStartSolitaryYoga) { return }
         if newMood.isChoreography && !danceProgress.allows(newMood.rawValue) { return }
@@ -570,7 +579,7 @@ final class CharacterView: NSView {
         if newMood.isPaper && lifestyle.occupied { pendingPaper = nil; return }
         if hasLifestyleActivity && !newMood.isLifestyle && !newMood.isPaper && [.idle, .wave, .walk, .sleep, .celebrate, .sideEye, .reconcile, .shySmile, .restless].contains(newMood) { mood = baseMood; needsDisplay = true; return }
         if newMood == .zoomies && reduceMotion { responses.cancelZoomies(); mood = baseMood; needsDisplay = true; return }
-        if newMood == .coffee { responses.acceptLatte(allowed: danceRequirementsMet) }
+        if newMood == .coffee && !coffeeOverload.occupied { responses.acceptLatte(allowed: danceRequirementsMet) }
         if newMood == .zoomies && canGiveNotes && focusRest == nil && !reduceMotion && responses.phase != .zoomies { responses.startZoomies() }
         if [.reconcile, .shySmile].contains(newMood) && canGiveNotes && focusRest == nil { responses.comfort() }
         if newMood == .paperOpen && !canGiveNotes { mood = baseMood; needsDisplay = true; return }
@@ -845,12 +854,13 @@ final class CharacterView: NSView {
         recordStimulation()
         onAffection?()
     }
-    func makeAnnoyed() { guard canInteract else { return }; care.annoy(); react(baseMood) }
+    func makeAnnoyed() { guard canInteract else { return }; disappoint(.poked); care.annoy(); react(baseMood) }
     private func updateCompanionAudio() {
         let chosen = danceChosen && !reduceMotion
         audio.updateDance(vogue: chosen && mood == .vogue, breaking: chosen && mood == .breakdance, house: chosen && mood == .house, waacking: chosen && mood == .waacking, ballet: chosen && mood == .ballet, floorwork: chosen && mood == .floorwork, disco: chosen && mood == .disco, contemporary: chosen && mood == .contemporary, paused: paused)
         audio.updateCoffee(playing: mood == .coffee, paused: paused)
     }
+    func cancelLatteResponse() { responses.cancelZoomies() }
     private func cancelDance() { audio.stopDance(); danceInProgress = false; danceChosen = false; paidDanceInProgress = false }
     func chooseDance(_ dance: Mood, invited: Bool = false, newlyUnlocked: Bool = false) {
         guard acceptCharacterInteraction() else { return }
@@ -878,8 +888,13 @@ final class CharacterView: NSView {
         cancelDance(); updateAccessibilityHelp()
         onPerformanceChanged?()
     }
+    func prepareForTutorial() {
+        cancelDance(); performance.cancelApplause(); performance.settleRestless()
+        responses.cancelZoomies(); listeningState.reset()
+        mood = baseMood; moodUntil = Date(); needsDisplay = true
+    }
     func makeRestless() {
-        guard acceptCharacterInteraction(), !tutorialActive else { return }
+        guard acceptCharacterInteraction(), !tutorialActive, danceProgress.allows("ballet") else { return }
         performance.makeRestless(); updateAccessibilityHelp()
         if canGiveNotes && focusRest == nil && !isBusy && !mood.isDance { react(baseMood) }
         onPerformanceChanged?()
@@ -991,7 +1006,6 @@ final class CharacterView: NSView {
         barOffset = .zero; barReturnBegan = nil
         pendingPaper = nil; NSCursor.arrow.set()
         mood = .overstimulated; moodBegan = Date(); moodUntil = .distantFuture
-        audio.playQuiet()
         updateAccessibilityHelp(); needsDisplay = true
         onNeedsChanged?(); onPerformanceChanged?()
     }
@@ -1014,11 +1028,12 @@ final class CharacterView: NSView {
     func advancePerformance(by seconds: Double) {
         let applauseAvailable = window?.isVisible == true && showsApplause && !paused && gesture == nil
         if performance.advanceApplause(by: seconds, available: applauseAvailable) {
+            disappoint(.missedApplause)
             react(.disappointed, duration: 3)
             updateAccessibilityHelp(); onPerformanceChanged?()
         }
         syncCompanionButtons()
-        let available = window?.isVisible == true && danceRequirementsMet && !paused && gesture == nil && !isBusy && !mood.isDance && !responses.isActive && !performance.awaitingApplause && !listeningState.isActive
+        let available = danceProgress.allows("ballet") && window?.isVisible == true && danceRequirementsMet && !paused && gesture == nil && !isBusy && !mood.isDance && !responses.isActive && !performance.awaitingApplause && !listeningState.isActive
         if performance.advance(by: seconds * activity.automaticDanceRate, available: available) {
             mood = baseMood; moodUntil = .distantFuture; updateAccessibilityHelp(); needsDisplay = true
             onPerformanceChanged?()
@@ -1028,9 +1043,16 @@ final class CharacterView: NSView {
         updateAccessibilityHelp(); needsDisplay = true
         onLifestyleChanged?(lifestyle); onPerformanceChanged?()
     }
-    @discardableResult func acceptCharacterInteraction() -> Bool {
+    @discardableResult func acceptCharacterInteraction(lossRoll: Double = Double.random(in: 0..<1)) -> Bool {
         guard canInteract else { return false }
         if lifestyle.disturbPhone() {
+            disappoint(.phoneInterrupted)
+            if !tutorialActive {
+                activity.missedAttention(); onActivityChanged?(activity)
+                if lossRoll < 0.25, let id = danceProgress.unlockedDanceIDs.filter({ $0 != "ballet" }).randomElement(), danceProgress.revokeDance(id), let lost = Mood(rawValue: id) {
+                    onDanceProgressChanged?(danceProgress); onDanceLost?(lost)
+                }
+            }
             cancelDance(); performance.cancelApplause(); responses.upset(); audio.playCrossedArms()
             gesture = nil; mouseOrigin = nil; dragOrigin = nil; NSCursor.arrow.set()
             mood = .phoneSulk; moodBegan = Date(); moodUntil = .distantFuture
@@ -1051,12 +1073,24 @@ final class CharacterView: NSView {
         recordActivity(.attention)
         react(.acknowledged, duration: 2); lifestyleChanged(); return true
     }
+    func advanceCoffeeOverload(by seconds: Double) {
+        let before = coffeeOverload.phase
+        coffeeOverload.advance(by: seconds, available: !screenLocked && !paused && window?.isVisible == true && scheduledMood == nil && (!tutorialActive || coffeeOverload.occupied))
+        guard before != coffeeOverload.phase else { return }
+        responses.cancelZoomies(); cancelDance(); performance.cancelApplause(); listeningState.reset()
+        if coffeeOverload.crashed { disappoint(.caffeineCrash); enterQuietMood() }
+        mood = baseMood; moodBegan = Date(); moodUntil = coffeeOverload.occupied ? .distantFuture : Date()
+        if coffeeOverload.phase == .hyped { responses.startZoomies() }
+        if before == .crashed { lifestyle.energy = min(lifestyle.energy, 45); onLifestyleChanged?(lifestyle) }
+        onCoffeeOverloadChanged?(coffeeOverload); onNeedsChanged?(); onPerformanceChanged?(); needsDisplay = true
+    }
     func advanceLifestyle(by seconds: Double) {
+        advanceCoffeeOverload(by: seconds)
         let oldPhase = lifestyle.phase, oldHunger = lifestyle.hungry
-        let available = dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused && !awaitingSong && gesture == nil && !stimulation.overstimulated && (focusRest == nil || lifestyle.phase == .idle)
+        let available = dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused && !awaitingSong && gesture == nil && !stimulation.overstimulated && !coffeeOverload.occupied && (focusRest == nil || lifestyle.phase == .idle)
         let free = canGiveNotes && focusRest == nil && !stimulation.overstimulated && !isBusy && !mood.isDance && !performance.awaitingApplause && !responses.isActive && !listeningState.isActive
         activity.advance(by: seconds, available: available && !tutorialActive && focusRest == nil)
-        lifestyle.advance(by: seconds, available: available && (!tutorialActive || lifestyle.phase == .snack), awake: focusRest == nil && !tutorialActive && !mood.isDance && mood != .coffee, free: free && !tutorialActive, focusNap: focusRest == .focusNap)
+        lifestyle.advance(by: seconds, available: available && (!tutorialActive || lifestyle.occupied), awake: focusRest == nil && !tutorialActive && !mood.isDance && mood != .coffee, free: free && !tutorialActive, focusNap: focusRest == .focusNap)
         if oldPhase != lifestyle.phase || oldHunger != lifestyle.hungry {
             if lifestyle.occupied || lifestyle.hungry { listeningState.reset(); responses.cancelZoomies() }
             mood = baseMood; moodBegan = Date(); moodUntil = lifestyle.occupied || lifestyle.hungry ? .distantFuture : Date()
@@ -1082,15 +1116,15 @@ final class CharacterView: NSView {
         solitaryYoga.advance(by: seconds, alone: alone, available: available)
         if solitaryYoga.ready && canStartSolitaryYoga { react(.yoga, duration: 18) }
     }
-    func stumble() { guard acceptCharacterInteraction(), !hasLifestyleActivity, !tutorialActive else { return }; care.tumble(); react(.tumble) }
+    func stumble() { guard acceptCharacterInteraction(), !hasLifestyleActivity, !tutorialActive else { return }; disappoint(.tumble); care.tumble(); react(.tumble) }
     func advanceTumble(by seconds: Double) {
         guard dailyRoutine.period == .awake, scheduledMood == nil, canGiveNotes, !hasLifestyleActivity, !tutorialActive, focusRest == nil, !stimulation.overstimulated, !paused, !reduceMotion, gesture == nil, !isBusy, !mood.isDance, mood != .sleep else { return }
-        if care.advanceEligible(by: seconds) { react(.tumble) }
+        if care.advanceEligible(by: seconds) { disappoint(.tumble); react(.tumble) }
     }
     func advanceResponses(by seconds: Double) {
         let previous = responses.phase
         if noteIsVisible { responses.cancelZoomies() }
-        let available = window?.isVisible == true && !paused && gesture == nil && !isBusy && !performance.awaitingApplause && !mood.isPaper && (!mood.isDance || mood == .zoomies) && mood != .sleep
+        let available = !coffeeOverload.occupied && window?.isVisible == true && !paused && gesture == nil && !isBusy && !performance.awaitingApplause && !mood.isPaper && (!mood.isDance || mood == .zoomies) && mood != .sleep
         responses.advance(by: seconds, healthy: canGiveNotes, quiet: scheduledMood != nil || isNightVisit || focusRest != nil || stimulation.overstimulated || reduceMotion || hasLifestyleActivity || tutorialActive, available: available)
         guard previous != responses.phase, canGiveNotes, focusRest == nil, !isBusy, gesture == nil, !stimulation.overstimulated else { return }
         if [.idle, .sideEye, .zoomies, .reconcile, .shySmile].contains(mood) {
@@ -1214,7 +1248,7 @@ final class CharacterView: NSView {
         if mood == .showOff, let heldFinish, forcedIndex == nil { return heldFinish }
         let active = previewTime != nil || (!paused && !reduceMotion)
         let elapsed = max(0, previewTime ?? (mood.isLifestyle && lifestyle.occupied ? lifestyle.elapsed : Date().timeIntervalSince(moodBegan)))
-        let zoom = max(0, responseElapsed ?? previewTime ?? responses.zoomiesElapsed)
+        let zoom = max(0, responseElapsed ?? previewTime ?? (coffeeOverload.phase == .hyped ? 8 - coffeeOverload.remaining : responses.zoomiesElapsed))
         var index: Int
         switch mood {
         case .windDown: index = hasDailyAnimation ? 104 + (active ? Int(elapsed / 4) % 2 : 0) : 89
@@ -1374,7 +1408,7 @@ final class CharacterView: NSView {
             }
         }
         if mood == .zoomies && (previewTime != nil || (!paused && !reduceMotion)) {
-            let zoom = max(0, previewTime ?? responses.zoomiesElapsed)
+            let zoom = max(0, previewTime ?? (coffeeOverload.phase == .hyped ? 8 - coffeeOverload.remaining : responses.zoomiesElapsed))
             if let boundary = [0.0, 2.0, 2.9, 3.8, 4.8, 5.6, 6.4].last(where: { $0 <= zoom }), zoom - boundary < 0.12 {
                 let progress = (zoom - boundary) / 0.12
                 fraction = progress * progress * (3 - 2 * progress)

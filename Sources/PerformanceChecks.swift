@@ -39,7 +39,7 @@ extension AppDelegate {
     }
     /// Real window drawing and CPU time, using temporary notes and silent audio.
     func profileCPU(to url: URL) {
-        coffeeTimer?.invalidate(); systemAudio.stop(); dismissTutorial(); closeNotes()
+        coffeeTimer?.invalidate(); systemAudio.stop(); tutorialPanel?.orderOut(nil); character.tutorialActive = false; closeNotes()
         character.audio.enabled = false; character.tutorialActive = false
         let checks = checkRenderingWork()
         var results: [[String: Any]] = []

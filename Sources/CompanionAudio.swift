@@ -134,7 +134,8 @@ final class CompanionAudio {
     func stopCoffee() { coffee.stop(); coffeeActive = false }
     func playClap() { playOnce(clap) }
     func playCrossedArms() { playOnce(crossedArms) }
-    func playQuiet() { playOnce(quiet) }
+    private(set) var quietPlayCount = 0
+    func playQuiet() { if enabled && quiet != nil { quietPlayCount += 1 }; playOnce(quiet) }
     func stopDance() { chant.stop(); breakdance.stop(); house.stop(); waacking.stop(); ballet.stop(); floorwork.stop(); disco.stop(); contemporary.stop() }
     func stopAll() {
         stopDance(); stopCoffee()

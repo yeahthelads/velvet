@@ -29,6 +29,7 @@ struct PerformanceState: Equatable {
     var timeUntilRestless: Double = Double.random(in: 12 * 60...18 * 60)
     var isEngaged: Bool { restless || awaitingApplause }
     mutating func makeRestless() { restless = true }
+    mutating func settleRestless() { restless = false; timeUntilRestless = Double.random(in: 12 * 60...18 * 60) }
     mutating func beginDance() { cancelApplause() }
     mutating func finishDance(chosen: Bool, earnsUnlock: Bool = true) {
         if chosen {
@@ -62,11 +63,12 @@ struct PerformanceState: Equatable {
 }
 
 
-/// Every three timely claps pays for one permanent dance of the user's choice.
+/// Every three timely claps pays for one dance of the user's choice.
 struct DanceProgress: Codable, Equatable {
     static let clapCost = 3
     static let replayCost = 1
     static let danceIDs = ["ballet", "breakdance", "contemporary", "floorwork", "house", "disco", "vogue", "waacking"]
+    private(set) var forfeitedUnlocks: Int = 0
     private(set) var replayClapsSpent: Int
     private(set) var completedClaps: Int
     private(set) var unlockedDanceIDs: [String]
@@ -75,12 +77,18 @@ struct DanceProgress: Codable, Equatable {
         self.replayClapsSpent = min(max(0, replayClapsSpent), self.completedClaps)
         self.unlockedDanceIDs = Array(Set(unlockedDanceIDs.filter { Self.danceIDs.contains($0) })).sorted()
     }
-    private enum CodingKeys: String, CodingKey { case completedClaps, unlockedDanceIDs, replayClapsSpent }
+    private enum CodingKeys: String, CodingKey { case completedClaps, unlockedDanceIDs, replayClapsSpent, forfeitedUnlocks }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         self.init(completedClaps: try values.decodeIfPresent(Int.self, forKey: .completedClaps) ?? 0, unlockedDanceIDs: try values.decodeIfPresent([String].self, forKey: .unlockedDanceIDs) ?? ["ballet"], replayClapsSpent: try values.decodeIfPresent(Int.self, forKey: .replayClapsSpent) ?? 0)
+        forfeitedUnlocks = min(completedClaps / Self.clapCost, max(0, try values.decodeIfPresent(Int.self, forKey: .forfeitedUnlocks) ?? 0))
     }
-    var spentUnlocks: Int { unlockedDanceIDs.filter { $0 != "ballet" }.count }
+    @discardableResult mutating func revokeDance(_ id: String) -> Bool {
+        guard id != "ballet", unlockedDanceIDs.contains(id) else { return false }
+        unlockedDanceIDs.removeAll { $0 == id }; forfeitedUnlocks += 1
+        return true
+    }
+    var spentUnlocks: Int { forfeitedUnlocks + unlockedDanceIDs.filter { $0 != "ballet" }.count }
     var clapBalance: Int { max(0, completedClaps - spentUnlocks * Self.clapCost - replayClapsSpent) }
     var availableUnlocks: Int { allows("ballet") ? min(Self.danceIDs.count - unlockedDanceIDs.count, clapBalance / Self.clapCost) : 0 }
     var clapsToNextUnlock: Int { max(0, Self.clapCost - clapBalance) }

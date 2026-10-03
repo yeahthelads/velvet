@@ -19,7 +19,7 @@ She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That 
 
 Open `build/Velvet.app`. Velvet appears near the lower-right corner of your desktop; click her face or body to open notes, stroke or briefly hold her head for affection, and drag her body to move. Option-drag moves her from anywhere. The sparkle in the menu bar contains hide/show, pause, always-on-top, position reset and animation previews.
 
-Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 3–5 minutes of eligible time, shortened by happiness and recent company. Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps permanently unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
+Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 3–5 minutes of eligible time, shortened by happiness and recent company. Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
 
 “Vogue Fem” adds hand performance, a cross-step, a low step and a supported dip. The character first rendered 20% smaller and now renders another 30% smaller, at 56% of the original size. Her latte, paper effects, shadow, motion, and rotation pivot scale with her; notes retain their existing size and stay beside her. Notes have unbranded, textured ruled paper and handwriting-style text; the text and rules scroll together.
 
@@ -28,7 +28,7 @@ Choose an earned routine from “Choose a dance” in the menu-bar sparkle or he
 On first launch a 216-point speech bubble points to her head and teaches one real interaction at a time: open and close a note,
 drag her chocolate protein bar into her hand, then stroke or briefly hold her head. Only then does
 Ballet unlock, without spending claps. No locked dance is performed, including in
-latte zoomies. “Later” dismisses the tutorial; “Meet Velvet” resumes the saved step.
+latte zoomies. The tutorial is mandatory. “Continue” advances the greeting and final Ballet dialogue; opening/closing the note, dropping the bar, eating and petting advance automatically. Action steps cannot be skipped, and the saved step resumes after hiding or restarting her.
 Ordinary needs pause while learning. The bubble follows her when moved, flips below her near the top of the screen, and leaves the note editor and her head uncovered. Paused animations and existing care gates get a short, actionable instruction; already-open notes and a completed snack resume correctly. Existing earned dances survive an upgrade.
 
 Rarely, after **2–4 hours of eligible awake time**, she asks for a random Spotify song: Take a Bow (Rihanna), Ache or Sticky (FKA twigs), Superstar (LSDXOXO), Panic Attack (Pussy Riot), Noblest Strive (Bladee), What U Wanna Do? (Erika de Casier), Without You (Spooky Black/Corbin), or A thousand lies (Smerz). Her small speech bubble alternates sweet, pleading, demanding and bratty lines. Requests avoid consecutive repeats. The clock runs only with valid Spotify metadata and listening enabled, while she is healthy and free. Notes, focus, the tutorial, evening/bedtime, phone time, naps and performances prevent a new request. She waits for the requested title and artist to play in Spotify for two continuous seconds. Completing it earns exactly one clap and she puts in her white wired earbuds. The request, chosen song and reward persist; repeated playback cannot earn more claps. “Open Spotify” opens the track or its search, without issuing playback commands.
@@ -37,7 +37,7 @@ Detection combines Spotify’s local `com.spotify.client.PlaybackStateChanged` n
 
 She asks for food after about 15–22 minutes, attention after 8–14 minutes, and takes
 25–45 seconds of phone time after 12–20 minutes. A hungry robot reaches for a foil
-chocolate protein bar beside her; **drag it into her open hand** or give it from her menu. She reaches, catches, unwraps and
+chocolate protein bar beside her; **drag it into her open hand**. She reaches, catches, unwraps and
 bites it. A click answers her attention request without opening notes. Ignoring
 that request earns a side-eye and leaves the attention need unresolved. She may scroll her lavender phone with a little
 screen light on her visor.
@@ -59,7 +59,7 @@ then uncurls and wakes. Focus naps also recover energy. Hunger, tiredness,
 attention, phone time, care needs and open notes all prevent dancing. Need clocks
 freeze while hidden, paused or closed, and care state persists across restarts.
 Automatic performances start after 3–5 eligible minutes, faster when happy and only use unlocked
-routines, so applause cannot be farmed from the menu. Ordinary recent company lets that countdown complete; long solitude or repeatedly ignored attention bids stop it. A pending restless invitation does not permanently block her spontaneous performances.
+routines, so applause cannot be farmed from the menu. Ordinary recent company lets that countdown complete; long solitude or repeatedly ignored attention bids stop it. A pending restless invitation does not permanently block her spontaneous performances. Restlessness cannot start until Ballet has been earned; resuming a mandatory tutorial clears stale dance invitations.
 
 Contemporary is a twelve-second phrase with breath, reach, contraction, spiral,
 floor reach, roll and recovery. Its selected performance plays a licensed excerpt
@@ -67,6 +67,11 @@ of “Dreams Become Real” by Kevin MacLeod. Credits and license details are bu
 and available at the bottom of the app menu.
 
 ## Happiness, screen rest and a fresh start
+
+Ignoring attention or applause, poking her, tumbling and overstimulation lower happiness. Interrupting phone time has the largest penalty (45 percentage points), and a 25% chance of removing an additional unlocked dance. Ballet remains available. A small bubble explains the loss, and three new claps earn the dance back; the original unlock cost is not refunded. Food is offered as a drag-and-drop bar beside her, without a menu shortcut.
+
+Three extra, unneeded lattes within five visible, unpaused minutes produce an eight-second rush after sipping, then a three-minute crash. During the crash, care, notes and animation requests are blocked. Needed coffees do not count. The cycle survives restarts and ends with reduced energy. The shutdown sample plays on every new overwhelm or sleep entry, including screen-lock rest, with normal volume/mute settings.
+
 
 Spaced-out head rubs, accepted lattes, feeding a real hunger need and answering an attention bid increase happiness. Once she is cared for and free, a care reward can lead to a spontaneous unlocked dance after 8–20 eligible seconds. Happiness also speeds her regular dance countdown and settles gradually without care. Repeated rubs and extra coffees have cooldowns; automatic dances have a minimum two-minute rest between performances. Notes, focus, tiredness and unmet needs still prevent dancing. These dances offer normal applause and do not spend claps or play menu-only music.
 
@@ -183,7 +188,7 @@ Included sounds: `Assets/vogue-chant.wav` (or `vogue-sound.wav`) plays the longe
 
 ## Dance unlocks
 
-Ballet is earned free through the first-launch tutorial. Three timely claps buy one permanent dance of your choice, including its first performance. Replaying any unlocked routine from the menu costs one clap; the menu shows the spendable balance and disables unaffordable choices. Menu dances never offer applause afterward. Only spontaneous dances offer the six-second fading 👏 prompt. Missing the prompt earns no credit and briefly disappoints her. Lifetime claps, unlocks and replay spending persist together; existing profiles keep their progress. Actions and dances remain in separate, alphabetically sorted menus. The first profile can earn its initial claps from spontaneous Ballet without spending anything. When restless at zero balance, she offers a free Ballet to settle that need; this selected performance grants no applause reward.
+Ballet is earned free through the first-launch tutorial. Three timely claps buy one dance of your choice, including its first performance. Replaying any unlocked routine from the menu costs one clap; the menu shows the spendable balance and disables unaffordable choices. Menu dances never offer applause afterward. Only spontaneous dances offer the six-second fading 👏 prompt. Missing the prompt earns no credit and briefly disappoints her. Lifetime claps, unlocks and replay spending persist together; existing profiles keep their progress. Actions and dances remain in separate, alphabetically sorted menus. The first profile can earn its initial claps from spontaneous Ballet without spending anything. When restless at zero balance, she offers a free Ballet to settle that need; this selected performance grants no applause reward.
 
 
 The native suites cover regression behavior, care/tutorial interactions, song requests and daily routines. The suite covers menu-replay spending and no applause farming, zero-balance restless Ballet, spontaneous clap rewards, unlocks and persistence, the white-earbud animation, focus priority, preserved notes, and every chosen dance track including Contemporary, Robot disco and licensed Floorwork. The care checks exercise the real bar drag and head hold, resumable Ballet tutorial, whole-body phone sulk, naps/waking, hunger/attention gates, and refund when notes interrupt a paid replay. Interaction, persistence, seventeen bundled audio assets and the live non-Spotify playback exclusion check also pass. Native checks can be launched with `open -n build/Velvet.app --args --data-dir /absolute/temporary/path --smoke-test /absolute/path/result.json`. Spotify filtering is checked against its exact installed bundle identifiers; a live Spotify playback session was not started for the tests.

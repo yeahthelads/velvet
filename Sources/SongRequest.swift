@@ -3,6 +3,7 @@ import AppKit
 extension AppDelegate {
     /// Explicitly requested one-off trial; regular requests retain their rare cadence.
     func simulateSongRequest() {
+        guard !character.tutorialActive else { return }
         if !diagnostics { systemAudio.start() }
         guard !songRequest.waiting else { showSongRequest(); return }
         closeNotes(); dismissTutorial()
