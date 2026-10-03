@@ -101,6 +101,11 @@ import Foundation
         bar.update(point: CGPoint(x: 20, y: 10), time: 0.2, onCrown: false)
         precondition(bar.phase == .carryingBar && bar.finish(overBarHand: false) == .returnBar)
         precondition(bar.finish(overBarHand: true) == .giveBar)
+        var screws = CompanionGesture(target: .screws, point: CGPoint(x: 0, y: 0), time: 0)
+        precondition(screws.finish(overScrewHand: true) == .returnScrews, "Screw taps cannot feed")
+        screws.update(point: CGPoint(x: 20, y: 10), time: 0.2, onCrown: false)
+        precondition(screws.phase == .carryingScrews && screws.finish(overScrewHand: false) == .returnScrews)
+        precondition(screws.finish(overScrewHand: true) == .giveScrews)
         print("PASS: local-time boundaries, midnight/DST/restart, stable sleep choice, activity decay/throttling/reconciliation, bar tap/miss/handoff")
     }
 }

@@ -74,9 +74,51 @@ extension AppDelegate {
         c["modestEnergyAndHappinessWithoutFoodReset"] = character.lifestyle.energy == 78 && character.happiness.level > happy && character.lifestyle.foodRemaining == food
         c["noRepeatedFeeding"] = !character.giveScrews()
         c["eatingBlocksCareInterruptions"] = !character.acceptCharacterInteraction()
-        character.advanceIron(by: 0.6); capture("iron-bite")
-        character.advanceIron(by: 2.9)
+        character.advanceIron(by: 0.3); capture("iron-grab")
+        c["grabHoldsReachingPose"] = character.displayedSpriteIndex == 101
+        character.advanceIron(by: 0.5); capture("iron-lift")
+        c["raisesHandForEating"] = character.displayedSpriteIndex == 96
+        character.advanceIron(by: 0.5); capture("iron-bite")
+        character.advanceIron(by: 2.2)
         c["biteFinishesAndNotesStayClosed"] = !character.iron.eating && !notes.isVisible
+        func requestAgain() {
+            character.iron = IronState(timeUntilNeed: 0); character.lifestyle = LifestyleState()
+            character.care = CompanionCare(); character.wantsCoffee = false; character.noteIsVisible = false
+            character.mood = .idle; character.moodUntil = .distantPast
+            character.screwOffset = .zero; character.screwReturnBegan = nil
+            character.advanceIron(by: 1)
+        }
+        requestAgain()
+        let pickup = NSPoint(x: character.offeredScrewRect.minX + 2, y: character.offeredScrewRect.midY)
+        c["offCenterPickupRoutesToCharacter"] = character.hitTest(pickup) === character && character.interactiveArea(pickup)
+        let body = NSPoint(x: character.screwDropRect.midX, y: character.screwDropRect.midY)
+        // Exercise the real AppKit mouse handlers, including their coordinate conversion.
+        func mouse(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: character.convert(point, to: nil), modifierFlags: [],
+                               timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: pet.windowNumber,
+                               context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+        }
+        character.mouseDown(with: mouse(.leftMouseDown, pickup))
+        character.mouseDragged(with: mouse(.leftMouseDragged, body))
+        character.mouseUp(with: mouse(.leftMouseUp, body))
+        c["realMouseHandlersAcceptBodyDrop"] = character.iron.eating && !character.iron.needsScrews && pet.frame.origin == origin
+        requestAgain()
+        character.beginPointer(at: pickup, screenPoint: pickup, time: 10)
+        // No intermediate drag callback: mouse-up contains the final movement.
+        character.endPointer(at: body, time: 10.2)
+        c["fastDragWithCoalescedMovementIsAccepted"] = character.iron.eating && !notes.isVisible
+        requestAgain()
+        let offsetPickup = NSPoint(x: character.offeredScrewRect.minX - 4, y: character.offeredScrewRect.midY)
+        let besideHand = NSPoint(x: character.screwDropRect.minX - 7, y: character.screwDropRect.midY)
+        character.beginPointer(at: offsetPickup, screenPoint: offsetPickup, time: 11)
+        character.updatePointer(at: besideHand, screenPoint: besideHand, time: 11.2)
+        c["objectTouchCountsWithCursorOutsideTarget"] = !character.screwDropRect.contains(besideHand) && character.acceptsScrewDrop(at: besideHand)
+        character.endPointer(at: besideHand, time: 11.3)
+        c["offsetPickupCanStillBeHandedOver"] = character.iron.eating && pet.frame.origin == origin
+        requestAgain()
+        character.beginPointer(at: pickup, screenPoint: pickup, time: 12)
+        character.endPointer(at: .zero, time: 12.2)
+        c["releaseOutsideReturnsScrewsAndKeepsNeed"] = character.iron.needsScrews && !character.iron.eating && character.screwReturnBegan != nil && !notes.isVisible
         return c
     }
 }

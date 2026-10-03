@@ -233,6 +233,13 @@ final class CharacterView: NSView {
         return NSRect(x: pose.rect.midX + pose.rect.width * 0.18, y: pose.rect.minY + pose.rect.height * 0.58,
                       width: pose.rect.width * 0.31, height: pose.rect.height * 0.24)
     }
+    /// The whole receiving area, rather than a tiny cursor-only palm hitbox.
+    var screwDropRect: NSRect {
+        guard let atlas, hasDailyAnimation else { return NSRect(x: 72, y: 124, width: 69, height: 58) }
+        let rect = spritePose(time: animationTime, mood: .ironNeed, atlas: atlas, receiving: false, forcedIndex: 101).rect
+        return NSRect(x: rect.minX + rect.width * 0.20, y: rect.minY + rect.height * 0.30,
+                      width: rect.width * 0.80 + 7, height: rect.height * 0.66)
+    }
     var awaitingSong = false {
         didSet {
             guard awaitingSong != oldValue else { return }
@@ -841,15 +848,22 @@ final class CharacterView: NSView {
         if let held = gesture, held.target == .crown, held.phase == .pressed {
             updatePointer(at: point, screenPoint: mouseOrigin ?? point, time: time)
         }
+        // Mouse-up can contain movement that AppKit coalesced out of drag events.
+        // Apply it before testing where the carried screws actually ended up.
+        if let held = gesture, held.target == .screws {
+            updatePointer(at: point, screenPoint: mouseOrigin ?? point, time: time)
+        }
         guard let current = gesture else { return }
-        let completion = current.finish(overCup: latteContains(point), overHand: latteHandRect.insetBy(dx: -5, dy: -4).contains(point), overBarHand: barHandRect.insetBy(dx: -4, dy: -4).contains(point), overScrewHand: barHandRect.insetBy(dx: -5, dy: -5).contains(point))
+        let handedScrews = NSPoint(x: offeredScrewRect.midX, y: offeredScrewRect.midY)
+        let completion = current.finish(overCup: latteContains(point), overHand: latteHandRect.insetBy(dx: -5, dy: -4).contains(point), overBarHand: barHandRect.insetBy(dx: -4, dy: -4).contains(point), overScrewHand: acceptsScrewDrop(at: point))
         let handedCup = NSPoint(x: offeredLatteRect.midX, y: offeredLatteRect.midY)
         gesture = nil; mouseOrigin = nil; dragOrigin = nil
         NSCursor.arrow.set()
         switch completion {
         case .giveScrews:
-            screwHandoffStart = NSPoint(x: offeredScrewRect.midX, y: offeredScrewRect.midY)
-            screwOffset = .zero; screwReturnBegan = nil; _ = giveScrews()
+            screwHandoffStart = handedScrews
+            if giveScrews() { screwOffset = .zero; screwReturnBegan = nil }
+            else { screwReturnBegan = ProcessInfo.processInfo.systemUptime }
         case .returnScrews:
             screwReturnBegan = ProcessInfo.processInfo.systemUptime
             if reduceMotion { screwOffset = .zero; screwReturnBegan = nil }
@@ -1303,7 +1317,9 @@ final class CharacterView: NSView {
         case .yoga: index = hasDailyAnimation ? [112, 113, 114, 115, 112][min(4, Int(elapsed / 3.6))] : 70
         case .ironNeed: index = hasDailyAnimation ? 100 : 85
         case .ironLow: index = hasLifestyleAnimation ? 96 : 1
-        case .ironSnack: index = hasDailyAnimation && (IronState.biteDuration - iron.eatingRemaining).truncatingRemainder(dividingBy: 1.55) < 0.7 ? 101 : 36
+        case .ironSnack:
+            let eating = IronState.biteDuration - iron.eatingRemaining
+            index = hasDailyAnimation && eating < 0.72 ? 101 : (hasLifestyleAnimation && eating < 3.0 ? 96 : 36)
         case .hungry: index = hasDailyAnimation ? 100 : (hasLifestyleAnimation ? 85 : 2)
         case .snack: index = hasDailyAnimation && elapsed < 0.7 ? 102 : (hasLifestyleAnimation ? (elapsed < 1.7 ? 86 : (elapsed < 4.2 ? 87 : 88)) : 3)
         case .attention: index = hasLifestyleAnimation ? 99 : 3

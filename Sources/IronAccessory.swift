@@ -16,6 +16,12 @@ extension CharacterView {
     }
     var offeredScrewRect: NSRect { NSRect(x: 41, y: 164, width: 30, height: 20).offsetBy(dx: currentScrewOffset.x, dy: currentScrewOffset.y) }
     var screwHitbox: NSRect { offeredScrewRect.insetBy(dx: -5, dy: -5) }
+    func acceptsScrewDrop(at point: NSPoint) -> Bool {
+        // Pick-up position can be anywhere on the screws. The object touching her
+        // counts too, even when the pointer remains beside her open hand.
+        let overlap = screwDropRect.intersection(offeredScrewRect)
+        return screwDropRect.contains(point) || (!overlap.isNull && overlap.width >= 5 && overlap.height >= 5)
+    }
     func advanceIron(by seconds: Double) {
         let phase = iron.phase, eating = iron.eating
         let eatingAvailable = !screenLocked && !paused && window?.isVisible == true && scheduledMood == nil && canInteract && focusRest == nil && !tutorialActive
@@ -53,21 +59,46 @@ extension CharacterView {
     }
     func drawScrewOffer() {
         let r = offeredScrewRect
-        NSColor(calibratedWhite: 0, alpha: 0.15).setFill()
-        NSBezierPath(ovalIn: NSRect(x: r.minX + 2, y: r.maxY - 1, width: 25, height: 3)).fill()
+        if !isCarryingScrews {
+            NSColor(calibratedWhite: 0, alpha: 0.15).setFill()
+            NSBezierPath(ovalIn: NSRect(x: r.minX + 2, y: r.maxY - 1, width: 25, height: 3)).fill()
+        }
         drawScrew(at: NSPoint(x: r.minX + 8, y: r.minY + 6), angle: -0.42)
         drawScrew(at: NSPoint(x: r.minX + 22, y: r.minY + 8), angle: 0.48)
     }
     func drawScrewBites() {
         let elapsed = IronState.biteDuration - iron.eatingRemaining
-        let hand = screwHandoffStart ?? NSPoint(x: barHandRect.midX, y: barHandRect.midY)
-        let mouth = NSPoint(x: crownRect.midX + 4, y: crownRect.minY + crownRect.height * 0.70)
+        let palm = NSPoint(x: barHandRect.midX, y: barHandRect.midY)
+        let start = screwHandoffStart ?? palm
+        let mouth = NSPoint(x: crownRect.midX, y: crownRect.minY + crownRect.height * 0.70)
+        func smooth(_ value: Double) -> CGFloat {
+            let u = CGFloat(min(1, max(0, value))); return u * u * (3 - 2 * u)
+        }
+        let catchProgress = smooth(elapsed / 0.35)
+        let liftProgress = smooth((elapsed - 0.45) / 0.55)
+        let caught = NSPoint(x: start.x + (palm.x - start.x) * catchProgress,
+                             y: start.y + (palm.y - start.y) * catchProgress)
+        let position = NSPoint(x: caught.x + (mouth.x - caught.x) * liftProgress,
+                               y: caught.y + (mouth.y - caught.y) * liftProgress)
         for index in 0..<2 {
-            let t = elapsed - Double(index) * 1.55
-            guard t >= 0 && t < 1.45 else { continue }
-            let u = CGFloat(min(1, t / 0.8)), smooth = u * u * (3 - 2 * u)
-            let point = NSPoint(x: hand.x + (mouth.x - hand.x) * smooth, y: hand.y + (mouth.y - hand.y) * smooth)
-            drawScrew(at: point, angle: -0.8 + u * 0.5, scale: 0.65 * CGFloat(t < 0.8 ? 1 : max(0, (1.45 - t) / 0.65)))
+            let bite = elapsed - (index == 0 ? 1.0 : 2.0)
+            let size = CGFloat(bite <= 0 ? 1 : max(0, 1 - bite / 0.65))
+            guard size > 0 else { continue }
+            drawScrew(at: NSPoint(x: position.x + CGFloat(index == 0 ? -3 : 3), y: position.y),
+                      angle: index == 0 ? -0.35 : 0.4, scale: 0.65 * size)
+        }
+        // Close matching blue fingers over the shafts after she catches them.
+        // This is drawn with the screws, so the grip stays attached to the prop.
+        if elapsed >= 0.12 && elapsed < 0.72 {
+            let close = smooth((elapsed - 0.12) / 0.22)
+            for finger in 0..<3 {
+                let rect = NSRect(x: position.x - 5 - (1 - close) * 3,
+                                  y: position.y + 2 + CGFloat(finger) * 2.4,
+                                  width: 8 * close + 2, height: 2.6)
+                let path = NSBezierPath(roundedRect: rect, xRadius: 1.2, yRadius: 1.2)
+                NSGradient(starting: NSColor(calibratedRed: 0.40, green: 0.61, blue: 1, alpha: 1),
+                           ending: NSColor(calibratedRed: 0.18, green: 0.35, blue: 0.81, alpha: 1))?.draw(in: path, angle: 90)
+            }
         }
     }
     func drawIronDeadline() {
@@ -93,7 +124,7 @@ extension AppDelegate {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]; panel.contentView = bubble
             ironPanel = panel; ironBubble = bubble
         }
-        let text = character.iron.lowIron ? "Low iron… I’m getting sleepy. Hand me my screws, please." : "A few screws, please. Hand them to me within two minutes. My iron is running low."
+        let text = character.iron.lowIron ? "Low iron… I’m getting sleepy. Drag my screws onto me, please." : "A few screws, please. Drag them onto me within two minutes. My iron is running low."
         if ironBubble?.dialogue != text { ironBubble?.update(text: text, primaryTitle: "Continue", complete: true); ironBubble?.dismissButton.isHidden = true }
         if ironPanel?.isVisible != true { ironPanel?.orderFrontRegardless() }; anchorIronRequest()
     }
