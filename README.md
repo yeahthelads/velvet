@@ -25,7 +25,7 @@ Choose an earned routine from “Choose a dance” in the menu-bar sparkle or he
 
 ## Meet Velvet, care and privacy
 
-On first launch a 216-point speech bubble points to her head and teaches one real interaction at a time: open and close a note,
+Dialogue describes Velvet in third person. On first launch a 216-point speech bubble points to her head and teaches one real interaction at a time: open and close a note,
 drag her chocolate protein bar into her hand, then stroke or briefly hold her head. Only then does
 Ballet unlock, without spending claps. No locked dance is performed, including in
 latte zoomies. The tutorial is mandatory. “Continue” advances the greeting and final Ballet dialogue; opening/closing the note, dropping the bar, eating and petting advance automatically. Action steps cannot be skipped, and the saved step resumes after hiding or restarting her.
@@ -77,7 +77,7 @@ Spaced-out head rubs, accepted lattes, feeding a real hunger need and answering 
 
 Locking the screen or switching away from the active user session leaves her in a still sleeping pose, silences her and stops animation and activity timers. Time spent resting restores energy while hunger, care, focus and reward clocks remain frozen. Previously open notes return on unlock. Screen rest uses macOS lock notifications and the public [workspace session notifications](https://developer.apple.com/documentation/appkit/nsworkspace/sessiondidresignactivenotification), following the notification combination used by [Electron](https://github.com/electron/electron/blob/main/shell/browser/api/electron_api_power_monitor_mac.mm).
 
-At bedtime, tap her to wake her for a sleepy 30-second cuddle. A small bubble offers “Back to bed”; otherwise she returns automatically to her original sleeping pose. Petting does not extend the visit, restore morning energy or start dances. Her normal 08:00 wake-up remains unchanged.
+At bedtime, tap her to wake her for a sleepy 30-second cuddle. She wakes without a dialogue bubble and returns automatically to her original sleeping pose. Petting does not extend the visit, restore morning energy or start dances. Her normal 08:00 wake-up remains unchanged.
 
 Launch with `--reset-companion` to test the beginner journey again: it resets the tutorial, dance unlocks, claps, care, happiness and song requests, preserving all notes and app preferences such as position and shortcut. Before resetting, she saves a recoverable `before-companion-reset-UUID.json` beside her normal archive. A failed backup or unreadable archive prevents the reset. Native `--care-smoke /absolute/result.json` checks these mechanics with `--data-dir /absolute/temporary/profile`, including actual protein-bar drags and simulated lock notifications without locking the computer.
 

@@ -90,10 +90,11 @@ extension AppDelegate {
         updateDailyRoutine(at: date(23), calendar: calendar, bellyChoice: true)
         let sleepyEnergy = character.lifestyle.energy
         let nightHead = NSPoint(x: character.crownRect.midX, y: character.crownRect.midY)
+        let visibleBeforeWake = Set(NSApp.windows.filter { $0.isVisible }.map { $0.windowNumber })
         character.beginPointer(at: nightHead, screenPoint: nightHead, time: now + 10)
         character.endPointer(at: nightHead, time: now + 10.1)
         checks["bedtimeTapWakesForBriefCuddleWithoutOpeningNotes"] = character.isNightVisit && character.mood == .wakeUp && !notes.isVisible && character.lifestyle.energy == sleepyEnergy
-        checks["nightVisitExplainsReturningToBedInSmallBubble"] = sleepyPanel?.isVisible == true && sleepyPanel?.frame.width == 216 && (sleepyPanel?.frame.height ?? 1000) < 150 && sleepyBubble?.primaryButton.title == "Back to bed"
+        checks["nightVisitWakesWithoutDisplayingDialogue"] = Set(NSApp.windows.filter { $0.isVisible }.map { $0.windowNumber }) == visibleBeforeWake
         let nightHappy = character.happiness
         character.rubCrown()
         checks["sleepyCuddleIsAffectionWithoutMorningEnergyOrDanceBoost"] = character.mood == .affection && character.happiness == nightHappy && character.lifestyle.energy == sleepyEnergy
@@ -105,9 +106,10 @@ extension AppDelegate {
         character.advanceNightVisit(by: 29); character.rubCrown()
         checks["morePettingDoesNotExtendNightVisit"] = character.nightVisit.remaining == 1
         character.advanceNightVisit(by: 1)
-        checks["nightVisitReturnsToOriginalBellySleep"] = !character.isNightVisit && character.mood == .bellySleep && sleepyPanel?.isVisible == false && character.lifestyle.energy == sleepyEnergy
-        _ = character.wakeForNightVisit(); sleepyBubble?.primaryButton.performClick(nil)
-        checks["backToBedButtonEndsVisit"] = !character.isNightVisit && character.mood == .bellySleep
+        checks["nightVisitReturnsToOriginalBellySleep"] = !character.isNightVisit && character.mood == .bellySleep && character.lifestyle.energy == sleepyEnergy
+        _ = character.wakeForNightVisit()
+        checks["repeatedNightWakeStillShowsNoDialogue"] = Set(NSApp.windows.filter { $0.isVisible }.map { $0.windowNumber }) == visibleBeforeWake
+        character.returnToBed()
         screenDidLock()
         checks["lockedScreenCannotWakeNightVisitor"] = !character.wakeForNightVisit()
         screenDidUnlock()

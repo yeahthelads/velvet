@@ -57,7 +57,7 @@ struct SongRequestState: Codable, Equatable {
     enum Tone: String, Codable, CaseIterable { case sweet, pleading, demanding, bratty }
     static let interval = 2.0 * 60 * 60...4.0 * 60 * 60
     static let confirmationDuration = 2.0
-    static let fulfilledText = "Finally. Taste. You’ve earned a clap. We may continue."
+    static let fulfilledText = "Velvet approves of your taste. You’ve earned a clap. She’s ready to continue."
     var timeUntilRequest: Double
     private(set) var waiting = false
     private(set) var songID = "take-a-bow"
@@ -67,10 +67,10 @@ struct SongRequestState: Codable, Equatable {
     var song: RequestedSong { RequestedSong.catalog.first { $0.id == songID } ?? RequestedSong.catalog[0] }
     var requestText: String {
         switch tone {
-        case .sweet: return "Could you play ‘\(song.title)’ by \(song.artist) on Spotify for me? Please?"
-        case .pleading: return "‘\(song.title)’ by \(song.artist), on Spotify? I really want to listen with you."
-        case .demanding: return "I need ‘\(song.title)’ by \(song.artist). On Spotify."
-        case .bratty: return "‘\(song.title)’ by \(song.artist). Spotify. I’ll wait."
+        case .sweet: return "Velvet would love ‘\(song.title)’ by \(song.artist) on Spotify. Pretty please?"
+        case .pleading: return "Velvet really wants to listen to ‘\(song.title)’ by \(song.artist) with you. On Spotify, please."
+        case .demanding: return "Velvet needs ‘\(song.title)’ by \(song.artist) on Spotify. Right now."
+        case .bratty: return "Velvet has chosen ‘\(song.title)’ by \(song.artist). Spotify. She’ll wait."
         }
     }
     init(timeUntilRequest: Double = Double.random(in: Self.interval)) { self.timeUntilRequest = max(0, timeUntilRequest) }

@@ -13,7 +13,7 @@ extension AppDelegate {
         tutorialPanel?.orderOut(nil); character.tutorialActive = false; closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
         songRequest = SongRequestState(timeUntilRequest: 0)
         simulateSongRequest()
-        checks["songRequestUsesSweetTrialDialogue"] = songBubble?.dialogue == "Could you play ‘Take a Bow’ by Rihanna on Spotify for me? Please?"
+        checks["songRequestUsesSweetTrialDialogue"] = songBubble?.dialogue == "Velvet would love ‘Take a Bow’ by Rihanna on Spotify. Pretty please?"
         let trial = songRequest
         simulateSongRequest()
         checks["explicitSongTrialDoesNotReplaceOrRepeatPendingRequest"] = songRequest == trial
@@ -42,7 +42,7 @@ extension AppDelegate {
         checks["matchingSongResumesAndEarnsOneClap"] = !songRequest.waiting && character.canInteract && character.canGiveNotes && character.danceProgress.clapBalance == balance + 1
         checks["songCompletionKeepsNotesClosed"] = !notes.isVisible && pendingNote == nil && store.activeCount == noteCount
         checks["songCompletionPutsInEarbuds"] = character.mood == .plugIn && character.hasHeadphones
-        checks["songUsesApprovedThankYou"] = songBubble?.dialogue == "Finally. Taste. You’ve earned a clap. We may continue."
+        checks["songUsesApprovedThankYou"] = songBubble?.dialogue == "Velvet approves of your taste. You’ve earned a clap. She’s ready to continue."
         observeRequestedSong(by: 300, playback: track, spotifyOutput: true)
         checks["repeatPlaybackCannotFarmClaps"] = character.danceProgress.clapBalance == balance + 1
         let saved = NoteStore(directory: store.directory)

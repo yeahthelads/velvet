@@ -84,7 +84,7 @@ extension AppDelegate {
         checks["pausedTutorialExplainsHowToContinue"] = tutorialBubble?.primaryButton.title == "Continue" && tutorialBubble?.primaryButton.isHidden == false
         tutorialBubble?.primaryButton.performClick(nil)
         character.wantsCoffee = true
-        checks["tutorialExplainsExistingCoffeeGate"] = tutorialBubble?.dialogue.contains("Latte first") == true && !character.canGiveNotes
+        checks["tutorialExplainsExistingCoffeeGate"] = tutorialBubble?.dialogue.contains("give her coffee") == true && !character.canGiveNotes
         character.wantsCoffee = false; character.rubCrown(); tutorialBubble?.primaryButton.performClick(nil)
         character.mood = .idle; character.moodUntil = .distantPast
         character.lifestyle.phoneRemaining = 0; character.lifestyle.attentionRemaining = 600

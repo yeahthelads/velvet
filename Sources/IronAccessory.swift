@@ -124,7 +124,7 @@ extension AppDelegate {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]; panel.contentView = bubble
             ironPanel = panel; ironBubble = bubble
         }
-        let text = character.iron.lowIron ? "Low iron… I’m getting sleepy. Drag my screws onto me, please." : "A few screws, please. Drag them onto me within two minutes. My iron is running low."
+        let text = character.iron.lowIron ? "Velvet’s iron is low and she’s getting sleepy. Drag the screws onto her." : "Velvet needs a few screws. Drag them onto her within two minutes to keep her iron up."
         if ironBubble?.dialogue != text { ironBubble?.update(text: text, primaryTitle: "Continue", complete: true); ironBubble?.dismissButton.isHidden = true }
         if ironPanel?.isVisible != true { ironPanel?.orderFrontRegardless() }; anchorIronRequest()
     }

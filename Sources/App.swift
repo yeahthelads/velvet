@@ -33,8 +33,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var screenRestBegan: Date?
     var notesVisibleBeforeScreenRest = false
     var tutorialVisibleBeforeScreenRest = false
-    var sleepyPanel: NotesPanel?
-    var sleepyBubble: TutorialView?
     var consequencePanel: NotesPanel?
     var consequenceBubble: TutorialView?
     var ironPanel: NotesPanel?
@@ -173,11 +171,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.activity = store.activity
         character.coffeeOverload = store.coffeeOverload
         character.onCoffeeOverloadChanged = { [weak self] value in self?.store.setCoffeeOverload(value) }
-        character.onDanceLost = { [weak self] dance in self?.showConsequence("You interrupted my phone time. I’m taking back ‘\(dance.label)’. Earn it again.") }
+        character.onDanceLost = { [weak self] dance in self?.showConsequence("Velvet is upset you interrupted her phone time. She’s taking back ‘\(dance.label)’. Earn it again.") }
         character.happiness = store.happiness
         character.onActivityChanged = { [weak self] value in self?.store.setActivity(value) }
         character.onHappinessChanged = { [weak self] value in self?.store.setHappiness(value) }
-        character.onNightVisitChanged = { [weak self] in self?.syncNightVisit() }
+        character.onNightVisitChanged = { [weak self] in self?.rebuildMenu() }
         character.iron = store.iron
         character.onIronChanged = { [weak self] state in
             guard let self else { return }; self.store.setIron(state); self.syncIronRequest(announce: true)
@@ -216,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.constrainPet()
             self.store.setPreferences { $0.x = Double(self.pet.frame.minX); $0.y = Double(self.pet.frame.minY) }
             if self.notes.isVisible { self.anchorNotes() }
-            self.anchorTutorial(); self.anchorSongBubble(); self.anchorNightVisit(); self.anchorConsequence(); self.anchorIronRequest()
+            self.anchorTutorial(); self.anchorSongBubble(); self.anchorConsequence(); self.anchorIronRequest()
         }
         character.contextMenu = { [weak self] in self?.makeMenu() ?? NSMenu() }
         pet.contentView = character
@@ -250,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func petMoved() {
         if !characterIsDragging { constrainPet() }
         if notes.isVisible { anchorNotes() }
-        anchorTutorial(); anchorSongBubble(); anchorNightVisit(); anchorConsequence(); anchorIronRequest()
+        anchorTutorial(); anchorSongBubble(); anchorConsequence(); anchorIronRequest()
         if Date().timeIntervalSince(lastPositionSave) > 0.25 {
             store.setPreferences { $0.x = Double(pet.frame.minX); $0.y = Double(pet.frame.minY) }
             lastPositionSave = Date()
@@ -367,8 +365,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.react(.paperToss)
     }
     @objc func togglePet() {
-        if pet.isVisible { closeNotes(); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); sleepyPanel?.orderOut(nil); consequencePanel?.orderOut(nil); ironPanel?.orderOut(nil); character.tutorialActive = tutorialRequired; pet.orderOut(nil); character.stop() }
-        else { pet.orderFrontRegardless(); character.start(); if tutorialRequired { showTutorial() } else if character.isNightVisit { syncNightVisit() } else if songRequest.waiting { showSongRequest() } else { character.react(.wave) } }
+        if pet.isVisible { closeNotes(); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); consequencePanel?.orderOut(nil); ironPanel?.orderOut(nil); character.tutorialActive = tutorialRequired; pet.orderOut(nil); character.stop() }
+        else { pet.orderFrontRegardless(); character.start(); if tutorialRequired { showTutorial() } else if !character.isNightVisit { if songRequest.waiting { showSongRequest() } else { character.react(.wave) } } }
         rebuildMenu()
     }
     @objc func togglePaused() {
@@ -447,18 +445,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var primary: String? = lesson.hasDialogue ? "Continue" : nil
         if !lesson.complete && lesson.step != .welcome {
             if store.focus.isActive {
-                text = "Let’s finish focus first. Then we’ll pick up where we left off."
+                text = "Velvet is focusing. Stop focus to continue."
                 primary = "Continue"
             } else if character.paused {
-                text = "I’m paused. Resume me so we can keep going."
+                text = "Velvet is paused. Resume her to continue."
                 primary = "Continue"
             } else if character.coffeeOverload.crashed {
-                text = "Too much latte. One quiet moment first."
+                text = "Velvet had too much latte. She needs a quiet moment."
                 primary = nil
             } else if character.needsAffection && lesson.step != .affection {
-                text = "A little head rub first, please. Hold my head gently for a moment."
+                text = "Velvet needs a little head rub first. Hold her head gently for a moment."
             } else if character.wantsCoffee {
-                text = "Latte first. Click my iced latte, then we’ll carry on."
+                text = "Velvet likes it when you give her coffee. Click her iced latte to continue."
             }
         }
         tutorialBubble?.update(text: text, primaryTitle: primary, complete: lesson.complete)
