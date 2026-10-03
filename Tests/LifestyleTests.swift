@@ -67,6 +67,15 @@ import Foundation
         spam.advance(by: spam.remaining, available: true, awake: true, free: true)
         spam.advance(by: 4.2, available: true, awake: true, free: true)
         precondition(spam.readyToDance && spam.startDance(), "A completed nap permits dancing again")
+        var lockRest = LifestyleState(); lockRest.energy = 20
+        let foodBeforeLock = lockRest.foodRemaining, attentionBeforeLock = lockRest.attentionRemaining
+        lockRest.restWhileLocked(by: 120)
+        precondition(lockRest.energy == 50 && lockRest.foodRemaining == foodBeforeLock && lockRest.attentionRemaining == attentionBeforeLock)
+        lockRest.restWhileLocked(by: 600)
+        precondition(lockRest.energy == 100)
+        lockRest.danceRemaining = 1
+        precondition(!lockRest.advanceDance(by: 2, available: true, canStart: false) && lockRest.danceRemaining == 0)
+        precondition(lockRest.advanceDance(by: 1, available: true), "A due spontaneous dance is retained until its rest ends")
 
         var lesson = TutorialState(), progress = DanceProgress()
         precondition(!progress.allows("ballet") && !lesson.petted())

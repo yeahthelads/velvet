@@ -15,7 +15,7 @@ extension AppDelegate {
         canRequestSong(spotifySupported: systemAudio.supported, metadataAvailable: systemAudio.hasTrackUpdates)
     }
     func canRequestSong(spotifySupported: Bool, metadataAvailable: Bool) -> Bool {
-        character.scheduledMood == nil && spotifySupported && metadataAvailable && character.listensToAudio &&
+        character.dailyRoutine.period == .awake && character.scheduledMood == nil && spotifySupported && metadataAvailable && character.listensToAudio &&
         pet.isVisible && !character.paused && character.canInteract && character.canGiveNotes &&
         character.lifestyle.readyToDance && !character.tutorialActive &&
         tutorialPanel?.isVisible != true && !notes.isVisible && !store.focus.isActive &&

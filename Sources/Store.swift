@@ -41,6 +41,7 @@ struct Archive: Codable {
     var tutorial: TutorialState?
     var songRequest: SongRequestState?
     var activity: ActivityState?
+    var happiness: HappinessState?
     var dailyRoutine: DailyRoutine?
 }
 
@@ -79,6 +80,26 @@ final class NoteStore: ObservableObject {
     var preferences: Preferences { archive.preferences }
     var activity: ActivityState { archive.activity ?? ActivityState() }
     func setActivity(_ value: ActivityState) { archive.activity = value; scheduleSave(celebrate: false) }
+    var happiness: HappinessState { archive.happiness ?? HappinessState() }
+    func setHappiness(_ value: HappinessState) { archive.happiness = value; scheduleSave(celebrate: false) }
+    /// A fresh companion journey with a recoverable backup and all notes retained.
+    @discardableResult func resetCompanion() -> Bool {
+        guard !loadFailed else { return false }
+        do {
+            if FileManager.default.fileExists(atPath: file.path) {
+                try FileManager.default.copyItem(at: file, to: directory.appendingPathComponent("before-companion-reset-\(UUID().uuidString).json"))
+            }
+        } catch { saveError = "Could not back up your notes: \(error.localizedDescription)"; return false }
+        let previous = archive
+        archive.coffee = CoffeeState(); archive.care = CompanionCare()
+        archive.danceProgress = DanceProgress(); archive.lifestyle = LifestyleState()
+        archive.tutorial = TutorialState(); archive.songRequest = SongRequestState()
+        archive.activity = ActivityState(); archive.happiness = HappinessState(); archive.dailyRoutine = DailyRoutine()
+        archive.preferences.hasMetVelvet = false; archive.preferences.paused = false
+        focus.end()
+        if flush() { return true }
+        archive = previous; return false
+    }
     var dailyRoutine: DailyRoutine { archive.dailyRoutine ?? DailyRoutine() }
     func setDailyRoutine(_ value: DailyRoutine) { archive.dailyRoutine = value; scheduleSave(celebrate: false) }
     var songRequest: SongRequestState { archive.songRequest ?? SongRequestState() }

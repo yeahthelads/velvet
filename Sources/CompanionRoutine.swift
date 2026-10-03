@@ -1,5 +1,72 @@
 import Foundation
 
+/// Care builds a lasting good mood. Repeated taps and lattes do not stack rewards.
+struct HappinessState: Codable, Equatable {
+    enum Care: String, CaseIterable { case pet, coffee, food, attention }
+    static let minimumDanceRest = 120.0
+    private(set) var level = 0.35
+    private(set) var danceRestRemaining = 0.0
+    private(set) var careDanceDelay: Double?
+    private var cooldowns: [String: Double] = [:]
+    private enum CodingKeys: String, CodingKey { case level, danceRestRemaining, careDanceDelay, cooldowns }
+    init() {}
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func number(_ key: CodingKeys, fallback: Double, maximum: Double) throws -> Double {
+            let value = try c.decodeIfPresent(Double.self, forKey: key) ?? fallback
+            return value.isFinite ? min(maximum, max(0, value)) : fallback
+        }
+        level = try number(.level, fallback: 0.35, maximum: 1)
+        danceRestRemaining = try number(.danceRestRemaining, fallback: 0, maximum: Self.minimumDanceRest)
+        if let value = try c.decodeIfPresent(Double.self, forKey: .careDanceDelay), value.isFinite { careDanceDelay = min(20, max(0, value)) }
+        for (key, value) in try c.decodeIfPresent([String: Double].self, forKey: .cooldowns) ?? [:] where Care(rawValue: key) != nil && value.isFinite {
+            cooldowns[key] = min(8 * 60, max(0, value))
+        }
+    }
+    var danceRate: Double { 1 + level }
+    var allowsDance: Bool { danceRestRemaining == 0 }
+    var careDanceReady: Bool { level >= 0.35 && careDanceDelay == 0 && allowsDance }
+    @discardableResult mutating func receive(_ care: Care, delay: Double = Double.random(in: 8...20)) -> Bool {
+        guard cooldowns[care.rawValue, default: 0] == 0 else { return false }
+        let reward: Double, cooldown: Double
+        switch care {
+        case .pet: reward = 0.20; cooldown = 90
+        case .coffee: reward = 0.24; cooldown = 8 * 60
+        case .food: reward = 0.20; cooldown = 90
+        case .attention: reward = 0.12; cooldown = 60
+        }
+        level = min(1, level + reward); cooldowns[care.rawValue] = cooldown
+        if careDanceDelay == nil { careDanceDelay = delay.isFinite ? min(20, max(8, delay)) : 12 }
+        return true
+    }
+    mutating func missedAttention() { level = max(0.15, level - 0.10); careDanceDelay = nil }
+    mutating func performedDance() { danceRestRemaining = Self.minimumDanceRest; careDanceDelay = nil }
+    mutating func advance(by seconds: Double, available: Bool, canDance: Bool) {
+        guard available, seconds.isFinite, seconds > 0 else { return }
+        level = 0.15 + (level - 0.15) * pow(0.5, seconds / (18 * 60))
+        let waiting = danceRestRemaining
+        danceRestRemaining = max(0, waiting - seconds)
+        for key in Array(cooldowns.keys) { cooldowns[key] = max(0, cooldowns[key]! - seconds) }
+        if level < 0.35 { careDanceDelay = nil }
+        if canDance, let delay = careDanceDelay { careDanceDelay = max(0, delay - max(0, seconds - waiting)) }
+    }
+}
+
+/// A cuddle after bedtime is a short visit, never a full-energy morning wake-up.
+struct NightVisit {
+    static let duration = 30.0
+    private(set) var remaining = 0.0
+    var active: Bool { remaining > 0 }
+    @discardableResult mutating func wake() -> Bool {
+        guard !active else { return false }; remaining = Self.duration; return true
+    }
+    mutating func end() { remaining = 0 }
+    @discardableResult mutating func advance(by seconds: Double, available: Bool) -> Bool {
+        guard active, available, seconds.isFinite, seconds > 0 else { return false }
+        remaining = max(0, remaining - seconds); return !active
+    }
+}
+
 /// A rare quiet-time opportunity, independent of the regular idle playlist.
 struct SolitaryYoga {
     static let interval = 15.0 * 60...25.0 * 60

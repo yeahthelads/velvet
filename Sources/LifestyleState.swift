@@ -3,7 +3,7 @@ import Foundation
 /// Time advances only while Velvet is visible and unpaused, never while the app is closed.
 struct LifestyleState: Codable, Equatable {
     enum Phase: String, Codable { case idle, snack, attention, phone, ignoring, yawning, nap, waking }
-    static let danceInterval = 6.0 * 60...10.0 * 60
+    static let danceInterval = 3.0 * 60...5.0 * 60
     static let napInterval = 30.0 * 60...45.0 * 60
     static let ignoreDuration = 45.0
     static let danceEnergyCost = 20.0
@@ -35,7 +35,7 @@ struct LifestyleState: Codable, Equatable {
         napRemaining = try number(.napRemaining, 35 * 60, 0...45 * 60)
         attentionRemaining = try number(.attentionRemaining, 10 * 60, 0...14 * 60)
         phoneRemaining = try number(.phoneRemaining, 16 * 60, 0...20 * 60)
-        danceRemaining = try number(.danceRemaining, 8 * 60, 0...10 * 60)
+        danceRemaining = try number(.danceRemaining, 4 * 60, 0...Self.danceInterval.upperBound)
         needsAttention = try c.decodeIfPresent(Bool.self, forKey: .needsAttention) ?? false
         phase = try c.decodeIfPresent(Phase.self, forKey: .phase) ?? .idle
         elapsed = try number(.elapsed, 0, 0...240)
@@ -69,6 +69,13 @@ struct LifestyleState: Codable, Equatable {
         return true
     }
     mutating func restAfterNight() { energy = 100; napRemaining = Double.random(in: Self.napInterval) }
+    mutating func restWhileLocked(by seconds: Double) {
+        guard seconds.isFinite, seconds > 0 else { return }
+        energy = min(100, energy + seconds * 0.25)
+        if (phase == .nap || phase == .yawning) && seconds >= remaining + (phase == .yawning ? 240 : 0) {
+            napRemaining = Double.random(in: Self.napInterval); enter(.waking, duration: 4.2)
+        }
+    }
     @discardableResult mutating func startDance() -> Bool {
         guard readyToDance else { return false }
         energy = max(0, energy - Self.danceEnergyCost)
@@ -77,10 +84,10 @@ struct LifestyleState: Codable, Equatable {
     }
     mutating func finishDance() { danceRemaining = Double.random(in: Self.danceInterval) }
     mutating func cancelDanceForNotes() { danceRemaining = Double.random(in: Self.danceInterval) }
-    @discardableResult mutating func advanceDance(by seconds: Double, available: Bool) -> Bool {
+    @discardableResult mutating func advanceDance(by seconds: Double, available: Bool, canStart: Bool = true) -> Bool {
         guard available, readyToDance, seconds.isFinite, seconds > 0 else { return false }
         danceRemaining = max(0, danceRemaining - seconds)
-        guard danceRemaining == 0 else { return false }
+        guard danceRemaining == 0, canStart else { return false }
         danceRemaining = Double.random(in: Self.danceInterval)
         return true
     }

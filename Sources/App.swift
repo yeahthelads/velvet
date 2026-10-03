@@ -28,7 +28,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var tutorialBubble: TutorialView?
     var songRequest = SongRequestState()
     var dailyRoutine = DailyRoutine()
-    var diagnostics: Bool { ["--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke", "--cpu-profile"].contains(where: CommandLine.arguments.contains) }
+    var screenLockActive = false
+    var sessionInactive = false
+    var screenRestBegan: Date?
+    var notesVisibleBeforeScreenRest = false
+    var tutorialVisibleBeforeScreenRest = false
+    var sleepyPanel: NotesPanel?
+    var sleepyBubble: TutorialView?
+    var diagnostics: Bool { ["--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke", "--care-smoke", "--cpu-profile"].contains(where: CommandLine.arguments.contains) }
     var songPanel: NotesPanel?
     var songBubble: TutorialView?
     enum PendingNote { case open, new }
@@ -47,6 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Velvet", isDirectory: true)
         }
         store = NoteStore(directory: directory)
+        if args.contains("--reset-companion") && !store.resetCompanion() {
+            let alert = NSAlert(); alert.messageText = "Could not reset Velvet safely."
+            alert.informativeText = store.saveError ?? "Your existing notes and progress have been kept."
+            alert.runModal(); NSApp.terminate(nil); return
+        }
         coffee = store.coffee
         dailyRoutine = store.dailyRoutine
         if !diagnostics { dailyRoutine.update(at: Date()) }
@@ -87,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if args.contains("--show-notes") { openNotes() }
         if args.contains("--dance") { character.react(.ballet, duration: 12) }
         if args.contains("--grumpy") { makeGrumpy() }
+        if !diagnostics { updateScreenRest() }
         if let i = args.firstIndex(of: "--render-preview"), args.count > i + 1 {
             renderPreview(to: URL(fileURLWithPath: args[i + 1]))
             NSApp.terminate(nil)
@@ -109,6 +122,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         if let i = args.firstIndex(of: "--lifestyle-smoke"), args.count > i + 1 {
             let result = checkLifestyle(previewDirectory: URL(fileURLWithPath: args[i + 1]).deletingLastPathComponent())
+            try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: args[i + 1]))
+            NSApp.terminate(nil)
+        }
+        if let i = args.firstIndex(of: "--care-smoke"), args.count > i + 1 {
+            let result = checkCareMechanics()
             try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: args[i + 1]))
             NSApp.terminate(nil)
         }
@@ -141,7 +159,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.onDanceProgressChanged = { [weak self] progress in self?.store.setDanceProgress(progress) }
         character.care = store.care
         character.activity = store.activity
+        character.happiness = store.happiness
         character.onActivityChanged = { [weak self] value in self?.store.setActivity(value) }
+        character.onHappinessChanged = { [weak self] value in self?.store.setHappiness(value) }
+        character.onNightVisitChanged = { [weak self] in self?.syncNightVisit() }
         character.lifestyle = store.lifestyle
         store.setLifestyle(character.lifestyle)
         character.onLifestyleChanged = { [weak self] state in
@@ -183,7 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.constrainPet()
             self.store.setPreferences { $0.x = Double(self.pet.frame.minX); $0.y = Double(self.pet.frame.minY) }
             if self.notes.isVisible { self.anchorNotes() }
-            self.anchorTutorial(); self.anchorSongBubble()
+            self.anchorTutorial(); self.anchorSongBubble(); self.anchorNightVisit()
         }
         character.contextMenu = { [weak self] in self?.makeMenu() ?? NSMenu() }
         pet.contentView = character
@@ -217,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func petMoved() {
         if !characterIsDragging { constrainPet() }
         if notes.isVisible { anchorNotes() }
-        anchorTutorial(); anchorSongBubble()
+        anchorTutorial(); anchorSongBubble(); anchorNightVisit()
         if Date().timeIntervalSince(lastPositionSave) > 0.25 {
             store.setPreferences { $0.x = Double(pet.frame.minX); $0.y = Double(pet.frame.minY) }
             lastPositionSave = Date()
@@ -306,7 +327,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         startFocus(seconds: Double(minutes) * 60)
     }
     func startFocus(seconds: TimeInterval) {
-        guard character.acceptCharacterInteraction(), !character.hasLifestyleActivity, !character.tutorialActive else { return }
+        guard character.acceptCharacterInteraction(), !character.isNightVisit, !character.hasLifestyleActivity, !character.tutorialActive else { return }
         guard character.canGiveNotes else { character.react(character.baseMood); return }
         store.focusDuration = seconds
         store.focus.start(seconds: seconds)
@@ -334,8 +355,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.react(.paperToss)
     }
     @objc func togglePet() {
-        if pet.isVisible { closeNotes(); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); character.tutorialActive = false; pet.orderOut(nil); character.stop() }
-        else { pet.orderFrontRegardless(); character.start(); if songRequest.waiting { showSongRequest() } else { character.react(.wave) } }
+        if pet.isVisible { closeNotes(); tutorialPanel?.orderOut(nil); songPanel?.orderOut(nil); sleepyPanel?.orderOut(nil); character.tutorialActive = false; pet.orderOut(nil); character.stop() }
+        else { pet.orderFrontRegardless(); character.start(); if character.isNightVisit { syncNightVisit() } else if songRequest.waiting { showSongRequest() } else { character.react(.wave) } }
         rebuildMenu()
     }
     @objc func togglePaused() {
@@ -456,8 +477,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func showStorage() { NSWorkspace.shared.open(store.directory) }
     @objc func screenChanged() { constrainPet(); petMoved() }
-    @objc func willSleep() { store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setDailyRoutine(dailyRoutine); store.flush(); character.stop(); systemAudio.stop(); coffeeTimer?.invalidate() }
-    @objc func didWake() { if pet.isVisible { character.start() }; if character.listensToAudio { systemAudio.start() }; startCoffeeClock() }
+    @objc func willSleep() { saveCompanionState(); character.stop(); systemAudio.stop(); coffeeTimer?.invalidate() }
+    @objc func didWake() { guard !screenLockActive && !sessionInactive else { return }; updateDailyRoutine(at: Date()); if pet.isVisible { character.start() }; if character.listensToAudio || songRequest.waiting { systemAudio.start() }; startCoffeeClock() }
     func startCoffeeClock() {
         coffeeTimer?.invalidate()
         lastCoffeeTick = ProcessInfo.processInfo.systemUptime
@@ -471,10 +492,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         lastCoffeeTick = now
         advanceActivity(by: elapsed)
         if now - lastCoffeeCheckpoint >= 30 {
-            store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setDailyRoutine(dailyRoutine); lastCoffeeCheckpoint = now
+            store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setHappiness(character.happiness); store.setDailyRoutine(dailyRoutine); lastCoffeeCheckpoint = now
         }
     }
     func advanceActivity(by elapsed: Double) {
+        guard !character.screenLocked else { return }
         if !diagnostics { updateDailyRoutine(at: Date()) }
         advanceSongRequest(by: elapsed)
         if store.focus.isActive {
@@ -485,7 +507,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             rebuildMenu()
             return
         }
-        guard pet.isVisible && !character.paused && character.scheduledMood == nil && character.canInteract && !character.tutorialActive && !character.lifestyle.occupied else { return }
+        guard pet.isVisible && !character.paused && character.dailyRoutine.period == .awake && character.scheduledMood == nil && character.canInteract && !character.tutorialActive && !character.lifestyle.occupied else { return }
         character.advanceTumble(by: elapsed)
         let wasGrumpy = coffee.needsCoffee
         coffee.advance(by: elapsed)
@@ -502,6 +524,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         store.setCoffee(coffee)
         character.wantsCoffee = false
         character.react(.coffee)
+        if character.mood == .coffee { character.receiveCare(.coffee) }
         rebuildMenu()
     }
     @objc func makeGrumpy() {
@@ -557,20 +580,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             focusMenu.addItem(item("Stop focus", #selector(endFocus)))
         }
         let focus = NSMenuItem(title: store.focus.isActive ? "Focus · \(store.focus.label)" : "Focus mode", action: nil, keyEquivalent: "")
-        focus.submenu = focusMenu; focus.isEnabled = character.canInteract; menu.addItem(focus)
+        focus.submenu = focusMenu; focus.isEnabled = character.canInteract && (!character.isNightVisit || store.focus.isActive); menu.addItem(focus)
         let latte = item("Give her an iced latte", #selector(giveCoffee)); latte.isEnabled = character.canInteract && !character.lifestyle.occupied; menu.addItem(latte)
-        let bar = item("Give her a chocolate bar", #selector(feedVelvet)); bar.isEnabled = character.canInteract && character.scheduledMood == nil && character.lifestyle.hungry && !character.lifestyle.occupied && character.focusRest == nil; menu.addItem(bar)
+        let bar = item("Give her a chocolate bar", #selector(feedVelvet)); bar.isEnabled = character.canInteract && character.scheduledMood == nil && !character.isNightVisit && character.lifestyle.hungry && !character.lifestyle.occupied && character.focusRest == nil; menu.addItem(bar)
         let dances = NSMenuItem(title: character.showsDanceChooser ? "Choose a dance · she’s restless" : "Choose a dance", action: nil, keyEquivalent: "")
         dances.submenu = character.makeDanceMenu(); dances.isEnabled = character.canInteract; menu.addItem(dances)
         let moods = NSMenu(); moods.autoenablesItems = false
         let previews: [Mood] = [.wave, .walk, .sleep, .sideEye, .celebrate, .stretch, .annoyed, .tumble, .restless, .showOff, .overstimulated]
         for mood in previews.sorted(by: { $0.label.localizedStandardCompare($1.label) == .orderedAscending }) {
             let entry = item(mood.label, #selector(previewMood(_:))); entry.representedObject = mood.rawValue
-            entry.isEnabled = character.canInteract && character.scheduledMood == nil && !character.hasLifestyleActivity && !character.tutorialActive
+            entry.isEnabled = character.canInteract && character.scheduledMood == nil && !character.isNightVisit && !character.hasLifestyleActivity && !character.tutorialActive
             moods.addItem(entry)
         }
         let animations = NSMenuItem(title: "Try a little attitude", action: nil, keyEquivalent: "")
-        animations.submenu = moods; animations.isEnabled = character.canInteract && character.scheduledMood == nil && !character.hasLifestyleActivity && !character.tutorialActive; menu.addItem(animations)
+        animations.submenu = moods; animations.isEnabled = character.canInteract && character.scheduledMood == nil && !character.isNightVisit && !character.hasLifestyleActivity && !character.tutorialActive; menu.addItem(animations)
         menu.addItem(.separator())
         let top = item("Always on top", #selector(toggleOnTop)); top.state = store.preferences.alwaysOnTop ? .on : .off; menu.addItem(top)
         let home = item("Bring Velvet home", #selector(centerPet)); home.isEnabled = character.canInteract; menu.addItem(home)
@@ -599,7 +622,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func rebuildMenu() {
         status?.menu = makeMenu()
-        if character.stimulation.overstimulated { status?.button?.toolTip = "A little quiet, please · Give her thirty seconds of quiet; interaction is paused." }
+        if character.screenLocked { status?.button?.toolTip = "Resting while your screen is locked." }
+        else if character.isNightVisit { status?.button?.toolTip = "Sleepy · A little cuddle, then back to bed." }
+        else if character.stimulation.overstimulated { status?.button?.toolTip = "A little quiet, please · Give her thirty seconds of quiet; interaction is paused." }
         else if character.needsAffection { status?.button?.toolTip = "She needs affection · Stroke or hold her head to get your notes back." }
         else if coffee.needsCoffee { status?.button?.toolTip = "Iced latte. Now. · Drag the drink into her hand for your notes." }
         else if store.focus.isActive { status?.button?.toolTip = "Focus · \(store.focus.label) · \(store.focus.phase == .paused ? "paused" : (store.focus.isStretching ? "stretching" : "napping"))" }
@@ -645,11 +670,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard store != nil, character != nil, pet != nil else { return .terminateNow }
         store.setCoffee(coffee)
         store.setCare(character.care)
         store.setLifestyle(character.lifestyle)
         store.setSongRequest(songRequest)
         store.setActivity(character.activity); store.setDailyRoutine(dailyRoutine)
+        store.setHappiness(character.happiness)
         store.setPreferences { $0.x = Double(pet.frame.minX); $0.y = Double(pet.frame.minY) }
         if !store.flush() {
             let alert = NSAlert()
@@ -1206,6 +1233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { runStep(0) }
     }
     func checkListening() -> [String: Any] {
+        character.happiness = HappinessState() // Listening fixture has no outstanding care dance.
         character.lifestyle = LifestyleState() // Independent checks start with a rested, fed companion.
         var checks: [String: Any] = [:]
         let visible = notes.isVisible, noteID = store.selectedID

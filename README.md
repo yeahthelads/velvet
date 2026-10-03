@@ -19,7 +19,7 @@ She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That 
 
 Open `build/Velvet.app`. Velvet appears near the lower-right corner of your desktop; click her face or body to open notes, stroke or briefly hold her head for affection, and drag her body to move. Option-drag moves her from anywhere. The sparkle in the menu bar contains hide/show, pause, always-on-top, position reset and animation previews.
 
-Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 6–10 minutes of eligible time at high activity (longer with less attention). Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps permanently unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
+Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 3–5 minutes of eligible time, shortened by happiness and recent company. Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps permanently unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
 
 “Vogue Fem” adds hand performance, a cross-step, a low step and a supported dip. The character first rendered 20% smaller and now renders another 30% smaller, at 56% of the original size. Her latte, paper effects, shadow, motion, and rotation pivot scale with her; notes retain their existing size and stay beside her. Notes have unbranded, textured ruled paper and handwriting-style text; the text and rules scroll together.
 
@@ -58,13 +58,23 @@ minutes awake or enough routines, she yawns and takes a 2–4 minute beauty nap,
 then uncurls and wakes. Focus naps also recover energy. Hunger, tiredness,
 attention, phone time, care needs and open notes all prevent dancing. Need clocks
 freeze while hidden, paused or closed, and care state persists across restarts.
-Automatic performances are spaced by 6–10 eligible minutes and only use unlocked
+Automatic performances start after 3–5 eligible minutes, faster when happy and only use unlocked
 routines, so applause cannot be farmed from the menu. Ordinary recent company lets that countdown complete; long solitude or repeatedly ignored attention bids stop it. A pending restless invitation does not permanently block her spontaneous performances.
 
 Contemporary is a twelve-second phrase with breath, reach, contraction, spiral,
 floor reach, roll and recovery. Its selected performance plays a licensed excerpt
 of “Dreams Become Real” by Kevin MacLeod. Credits and license details are bundled
 and available at the bottom of the app menu.
+
+## Happiness, screen rest and a fresh start
+
+Spaced-out head rubs, accepted lattes, feeding a real hunger need and answering an attention bid increase happiness. Once she is cared for and free, a care reward can lead to a spontaneous unlocked dance after 8–20 eligible seconds. Happiness also speeds her regular dance countdown and settles gradually without care. Repeated rubs and extra coffees have cooldowns; automatic dances have a minimum two-minute rest between performances. Notes, focus, tiredness and unmet needs still prevent dancing. These dances offer normal applause and do not spend claps or play menu-only music.
+
+Locking the screen or switching away from the active user session leaves her in a still sleeping pose, silences her and stops animation and activity timers. Time spent resting restores energy while hunger, care, focus and reward clocks remain frozen. Previously open notes return on unlock. Screen rest uses macOS lock notifications and the public [workspace session notifications](https://developer.apple.com/documentation/appkit/nsworkspace/sessiondidresignactivenotification), following the notification combination used by [Electron](https://github.com/electron/electron/blob/main/shell/browser/api/electron_api_power_monitor_mac.mm).
+
+At bedtime, tap her to wake her for a sleepy 30-second cuddle. A small bubble offers “Back to bed”; otherwise she returns automatically to her original sleeping pose. Petting does not extend the visit, restore morning energy or start dances. Her normal 08:00 wake-up remains unchanged.
+
+Launch with `--reset-companion` to test the beginner journey again: it resets the tutorial, dance unlocks, claps, care, happiness and song requests, preserving all notes and app preferences such as position and shortcut. Before resetting, she saves a recoverable `before-companion-reset-UUID.json` beside her normal archive. A failed backup or unreadable archive prevents the reset. Native `--care-smoke /absolute/result.json` checks these mechanics with `--data-dir /absolute/temporary/profile`, including actual protein-bar drags and simulated lock notifications without locking the computer.
 
 ## Coffee and attitude
 
@@ -80,7 +90,7 @@ A rare stumble makes her fall onto her side, then cry with tiny pixel tears. Hea
 
 After a successful iced latte she finishes her six-second sip and any queued paper gesture, then gets eight seconds of zoomies: a quick in-place strut, three House footwork poses, a nod/wink, and a gentle settle. Opening notes cancels the burst immediately. No dancing takes place while notes are open. Nothing moves her desktop window. Each accepted latte triggers at most one burst; missed drops do not trigger it. Focus and new upset states cancel a queued or active burst, and reduced-motion mode keeps a settled pose. Animation pause, hiding, and dragging freeze the eligible response clock.
 
-Comforting crossed arms or crying starts 90 seconds of quiet reconciliation after the initial affection/recovery. She leans slightly toward the visible note and gives a shy pixel smile after 12 seconds, then every 16 seconds for about two seconds each. Normal head rubs still work without starting a new reconciliation. Her random dances, hover side-eye, and autosave celebrations stay quiet during this phase. Notes remain accessible. Focus pauses the phase while she stretches/naps, a new upset overrides it, and she returns to her usual idle behavior when it ends. These brief responses are session-only; notes and care needs remain saved. Quiet response poses are automatic. Existing approved sprites are reused with small position, tilt, and crossfade changes.
+Comforting crossed arms or crying starts 90 seconds of quiet reconciliation after the initial affection/recovery. She leans slightly toward the visible note and gives a shy pixel smile after 12 seconds, then every 16 seconds for about two seconds each. Normal head rubs still work without starting a new reconciliation. Her hover side-eye and autosave celebrations stay quiet during this phase; a care-driven happy dance can follow once her needs are met. Notes remain accessible. Focus pauses the phase while she stretches/naps, a new upset overrides it, and she returns to her usual idle behavior when it ends. These brief responses are session-only; notes and care needs remain saved. Quiet response poses are automatic. Existing approved sprites are reused with small position, tilt, and crossfade changes.
 
 ## Restless and show-off moods
 

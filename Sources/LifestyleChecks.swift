@@ -120,6 +120,7 @@ extension AppDelegate {
         character.chooseDance(.ballet); character.react(.house)
         checks["openNotesPreventAllDances"] = !character.mood.isDance && !character.canChooseDance
         closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
+        character.happiness = HappinessState() // Independent cadence fixture has no care-triggered shortcut.
         character.lifestyle.danceRemaining = 1
         character.advanceLifestyle(by: 2)
         checks["eligibleCadenceStartsUnlockedSpontaneousDance"] = character.mood.isChoreography && Mood.automaticDances.contains(character.mood) && character.danceProgress.allows(character.mood.rawValue)
@@ -149,16 +150,17 @@ extension AppDelegate {
         checks["completedNapAllowsNextDance"] = character.mood == .house
         character.react(.idle)
         character.lifestyle = LifestyleState(); character.activity = ActivityState()
+        character.happiness = HappinessState()
         character.solitaryYoga = SolitaryYoga()
-        character.lifestyle.danceRemaining = 600
+        character.lifestyle.danceRemaining = LifestyleState.danceInterval.upperBound
         character.lifestyle.attentionRemaining = 1200
         character.mood = .idle; character.moodUntil = .distantPast
         character.makeRestless()
         var spontaneousWait = 0
-        while spontaneousWait < 600 && !character.mood.isChoreography {
+        while spontaneousWait < 300 && !character.mood.isChoreography {
             character.advanceLifestyle(by: 1); spontaneousWait += 1
         }
-        checks["ordinaryCompanyStillGetsSpontaneousDanceWithinTenEligibleMinutes"] = character.mood.isChoreography && (360...600).contains(spontaneousWait)
+        checks["ordinaryCompanyGetsSpontaneousDanceWithinFiveEligibleMinutes"] = character.mood.isChoreography && (120...300).contains(spontaneousWait)
         checks["restlessnessDoesNotPermanentlyBlockSpontaneousDance"] = character.performance.restless && character.mood.isChoreography
         checks["spontaneousDanceAlsoCostsEnergy"] = character.lifestyle.energy < 80
         character.react(.idle)
