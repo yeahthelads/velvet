@@ -19,32 +19,39 @@ She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That 
 
 Open `build/Velvet.app`. Velvet appears near the lower-right corner of your desktop; click her face or body to open notes, stroke or briefly hold her head for affection, and drag her body to move. Option-drag moves her from anywhere. The sparkle in the menu bar contains hide/show, pause, always-on-top, position reset and animation previews.
 
-Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 6–10 minutes of eligible time. Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps permanently unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
+Choose an earned routine from “Choose a dance” in the menu-bar sparkle or her right-click menu. Unlocked Ballet, Floorwork, Robot disco, and House can be performed spontaneously after 6–10 minutes of eligible time at high activity (longer with less attention). Contemporary, Vogue Fem, Waacking, and Breakdance play only when explicitly selected. Chosen routines play their music, cost one clap per replay, and never offer applause. Three earned claps permanently unlock one routine, including its first performance. The choreography uses short illustrated sprite phrases with small position and tilt changes. Contemporary combines eleven phrase steps; her poses keep the direct changes of the existing animations.
 
 “Vogue Fem” adds hand performance, a cross-step, a low step and a supported dip. The character first rendered 20% smaller and now renders another 30% smaller, at 56% of the original size. Her latte, paper effects, shadow, motion, and rotation pivot scale with her; notes retain their existing size and stay beside her. Notes have unbranded, textured ruled paper and handwriting-style text; the text and rules scroll together.
 
 ## Meet Velvet, care and privacy
 
 On first launch a 216-point speech bubble points to her head and teaches one real interaction at a time: open and close a note,
-give her a robot protein bar, then stroke or briefly hold her head. Only then does
+drag her chocolate protein bar into her hand, then stroke or briefly hold her head. Only then does
 Ballet unlock, without spending claps. No locked dance is performed, including in
 latte zoomies. “Later” dismisses the tutorial; “Meet Velvet” resumes the saved step.
 Ordinary needs pause while learning. The bubble follows her when moved, flips below her near the top of the screen, and leaves the note editor and her head uncovered. Paused animations and existing care gates get a short, actionable instruction; already-open notes and a completed snack resume correctly. Existing earned dances survive an upgrade.
 
+Rarely, after **2–4 hours of eligible awake time**, she asks for a random Spotify song: Take a Bow (Rihanna), Ache or Sticky (FKA twigs), Superstar (LSDXOXO), Panic Attack (Pussy Riot), Noblest Strive (Bladee), What U Wanna Do? (Erika de Casier), Without You (Spooky Black/Corbin), or A thousand lies (Smerz). Her small speech bubble alternates sweet, pleading, demanding and bratty lines. Requests avoid consecutive repeats. The clock runs only with valid Spotify metadata and listening enabled, while she is healthy and free. Notes, focus, the tutorial, evening/bedtime, phone time, naps and performances prevent a new request. She waits for the requested title and artist to play in Spotify for two continuous seconds. Completing it earns exactly one clap and she puts in her white wired earbuds. The request, chosen song and reward persist; repeated playback cannot earn more claps. “Open Spotify” opens the track or its search, without issuing playback commands.
+
+Detection combines Spotify’s local `com.spotify.client.PlaybackStateChanged` notifications with its Core Audio output activity on macOS 14.2+. Nothing is recorded, downloaded or uploaded, and playback metadata is not saved. A track/playback update is needed after Velvet launches; if Spotify sends no usable metadata, she does not start new requests. An already-pending request resumes after restart and can be fulfilled by playing the track again.
+
 She asks for food after about 15–22 minutes, attention after 8–14 minutes, and takes
 25–45 seconds of phone time after 12–20 minutes. A hungry robot reaches for a foil
-protein bar beside her; click it or give it from her menu. She grips, unwraps and
+chocolate protein bar beside her; **drag it into her open hand** or give it from her menu. She reaches, catches, unwraps and
 bites it. A click answers her attention request without opening notes. Ignoring
 that request earns a side-eye and leaves the attention need unresolved. She may scroll her lavender phone with a little
 screen light on her visor.
 
 Interrupt phone time and she gives an offended glance, turns her **whole body**
 away, and ignores care and animation requests for 45 visible, unpaused seconds.
-Her rear view has a back panel, pink heels and small rounded robot hips. Petting
+Her rear view has a back panel, pink heels, rounded robot hips and one anatomically consistent pink piercing. Petting
 cannot shorten or restart that interval. Notes remain reachable from the menu
 and quick-capture shortcut during this sulk; existing coffee/affection gates
 remain independent. Overstimulation still blocks notes as before.
 
+At **22:00 local Mac time**, she winds down watching her series on a little MacBook, with screen light on her visor. At **23:00** she closes it and sleeps; sometimes she clumsily flops onto her belly. At **08:00** she yawns, stretches awake and regains energy. The same overnight pose survives midnight and restarts; needs pause overnight. Notes remain available through the menu. The beginner tutorial takes precedence over the bedtime poses.
+
+Her enthusiasm follows recent company gradually. Lingering over her for a moment, stroking her head and moving her lift her activity, with cooldowns to prevent rapid-hover farming. Without company she settles into quieter activities and stops spontaneous dances. Unanswered attention bids make her more withdrawn; responding and petting help her reconnect. She may do cat/cow, a compact downward dog, cobra and child’s pose on her own.
 She spends energy while awake and dancing. Food restores some energy; coffee
 still handles her latte mood rather than replacing sleep. After about 30–45
 minutes awake or enough routines, she yawns and takes a 2–4 minute beauty nap,
@@ -113,7 +120,7 @@ The build uses only system frameworks and applies a local ad-hoc signature. It h
 ## Verification
 
 ```sh
-swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
 build/store-tests
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CompanionCare.swift Sources/FocusSession.swift Sources/CompanionInteraction.swift Sources/CompanionResponse.swift Sources/PerformanceState.swift Sources/ListeningState.swift Sources/StimulationState.swift Tests/InteractionTests.swift -o build/interaction-tests
 build/interaction-tests
@@ -124,7 +131,7 @@ python3 Tests/AudioAssetsTests.py
 
 Persistence tests cover Unicode text, search, pinning, trash, restore, preferences, export content and preservation of an unreadable archive. `--data-dir /absolute/path` uses an isolated data folder for development. `--smoke-test /absolute/path/result.json` checks windows, focus, hit regions and hotkey registration, renders a notes preview, and exits. `--render-preview /absolute/path` renders the character's poses and exits.
 
-Interaction checks cover short strokes and holds without window movement, body and Option dragging, missed latte drops, independent coffee/affection gates, deferred note delivery, persistent upset states, tumble timing, focus stretching, napping, pausing, and completion, latte-to-zoomies timing, paper-gesture priority, shy smiles, quiet reconciliation, natural response expiry, restless timing, completed versus interrupted dances, held finishing poses, applause clicks, and focus/care priority. The native app check runs against an isolated archive, checks all 84 loaded sprites, and renders the lined Post-it and focus/tumble poses.
+Interaction checks cover short strokes and holds without window movement, body and Option dragging, missed latte drops, independent coffee/affection gates, deferred note delivery, persistent upset states, tumble timing, focus stretching, napping, pausing, and completion, latte-to-zoomies timing, paper-gesture priority, shy smiles, quiet reconciliation, natural response expiry, restless timing, completed versus interrupted dances, held finishing poses, applause clicks, and focus/care priority. The native app check runs against an isolated archive, checks all 116 loaded sprites, and renders the lined Post-it and focus/tumble poses.
 
 The previous native run passed 211 checks across timer dragging, splits/pancake stretching, overstimulation, quiet recovery, soft shadow rendering, intentional note restoration, restless/show-off moods, emoji applause, focus stop/stretch controls, Robot disco, latte/reconciliation responses, and existing mechanics, including operating-system key-window status, editor first-responder focus, window visibility, shortcut registration, independent note gates, and note restoration. The pure interaction and persistence suites also pass.
 
@@ -169,7 +176,7 @@ Included sounds: `Assets/vogue-chant.wav` (or `vogue-sound.wav`) plays the longe
 Ballet is earned free through the first-launch tutorial. Three timely claps buy one permanent dance of your choice, including its first performance. Replaying any unlocked routine from the menu costs one clap; the menu shows the spendable balance and disables unaffordable choices. Menu dances never offer applause afterward. Only spontaneous dances offer the six-second fading 👏 prompt. Missing the prompt earns no credit and briefly disappoints her. Lifetime claps, unlocks and replay spending persist together; existing profiles keep their progress. Actions and dances remain in separate, alphabetically sorted menus. The first profile can earn its initial claps from spontaneous Ballet without spending anything. When restless at zero balance, she offers a free Ballet to settle that need; this selected performance grants no applause reward.
 
 
-The final native run passed **323 checks** (278 regression checks and 45 care/tutorial checks). The suite covers menu-replay spending and no applause farming, zero-balance restless Ballet, spontaneous clap rewards, unlocks and persistence, the white-earbud animation, focus priority, preserved notes, and every chosen dance track including Contemporary, Robot disco and licensed Floorwork. The care checks exercise the real protein-bar click and head hold, resumable Ballet tutorial, whole-body phone sulk, naps/waking, hunger/attention gates, and refund when notes interrupt a paid replay. Interaction, persistence, seventeen bundled audio assets and the live non-Spotify playback exclusion check also pass. Native checks can be launched with `open -n build/Velvet.app --args --data-dir /absolute/temporary/path --smoke-test /absolute/path/result.json`. Spotify filtering is checked against its exact installed bundle identifiers; a live Spotify playback session was not started for the tests.
+The native suites cover regression behavior, care/tutorial interactions, song requests and daily routines. The suite covers menu-replay spending and no applause farming, zero-balance restless Ballet, spontaneous clap rewards, unlocks and persistence, the white-earbud animation, focus priority, preserved notes, and every chosen dance track including Contemporary, Robot disco and licensed Floorwork. The care checks exercise the real bar drag and head hold, resumable Ballet tutorial, whole-body phone sulk, naps/waking, hunger/attention gates, and refund when notes interrupt a paid replay. Interaction, persistence, seventeen bundled audio assets and the live non-Spotify playback exclusion check also pass. Native checks can be launched with `open -n build/Velvet.app --args --data-dir /absolute/temporary/path --smoke-test /absolute/path/result.json`. Spotify filtering is checked against its exact installed bundle identifiers; a live Spotify playback session was not started for the tests.
 
 
 Ballet now plays a twelve-second excerpt of Chopin’s **Waltz in A minor, B. 150**, performed by **Aya Higuchi**, when deliberately chosen. The performance is explicitly released under CC0; the composition is public domain. Source, license, excerpt boundaries, preparation recipe, and recording checksum are recorded in [Assets/BALLET-AUDIO.md](Assets/BALLET-AUDIO.md). The piano preserves its dynamics and matches the other foreground sounds at -20 LUFS, with a gentle one-second ending. Spontaneous Ballet and latte zoomies stay silent.
@@ -186,14 +193,28 @@ The detector reads public CoreAudio process playback flags every half-second; it
 The detector tests verify Spotify identity filtering and exclusion of a real silent non-Spotify output stream:
 
 ```sh
-swiftc -swift-version 5 -module-cache-path build/module-cache Sources/SystemAudioMonitor.swift Tests/SystemAudioTests.swift -framework CoreAudio -o build/system-audio-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/SystemAudioMonitor.swift Sources/SongRequestState.swift Tests/SystemAudioTests.swift -framework CoreAudio -o build/system-audio-tests
 build/system-audio-tests Assets/ballet.wav
 ```
 
 Robot disco uses “Disco Medusae” by Kevin MacLeod and Floorwork uses “Sexy Scene Instrumentals Vol. 8” by Sascha Ende. Both recordings are CC BY 4.0, ship in the repository and app, and have attribution available through Music credits. Twelve-second excerpts are matched to the other foreground sounds at approximately -20 LUFS. Contemporary uses “Dreams Become Real” by Kevin MacLeod under the same license and loudness target; see [Contemporary credits and preparation](Assets/CONTEMPORARY-AUDIO.md). See [Disco credits and preparation](Assets/DISCO-AUDIO.md), [Floorwork credits and preparation](Assets/FLOORWORK-AUDIO.md) and [bundled credits](Assets/MUSIC-CREDITS.txt).
 
-The care artwork was generated with the built-in imagegen tool. The bundled sixteen-frame sheet is `Assets/care-sprites-v1.png`; its final prompt and layout are saved in [Assets/CARE-ART.md](Assets/CARE-ART.md). Native care checks use a separate profile:
+The care artwork was generated with the built-in imagegen tool. The bundled sixteen-frame sheet is `Assets/care-sprites-v2.png`; its final prompt and layout are saved in [Assets/CARE-ART.md](Assets/CARE-ART.md). Native care checks use a separate profile:
 
 ```sh
 build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/path --lifestyle-smoke /absolute/path/result.json
 ```
+
+
+Additional isolated checks:
+
+```sh
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CompanionRoutine.swift Sources/CompanionInteraction.swift Tests/RoutineTests.swift -o build/routine-tests
+build/routine-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/SongRequestState.swift Sources/PerformanceState.swift Tests/SongRequestTests.swift -o build/song-tests
+build/song-tests
+```
+
+Native `--routine-smoke`, `--song-smoke` and `--lifestyle-smoke` accept an absolute result JSON path alongside `--data-dir` pointing to a temporary profile. They do not control Spotify or access the personal notes archive. The latte riser/liquor/Nelly mix plays at 65% of the chosen master volume (35% quieter than previously), with its internal balance unchanged.
+
+The sixteen daily-routine frames are in `Assets/daily-sprites-v1.png`. Their layout and the downward-dog proportion correction are recorded in [Assets/ROUTINE-ART.md](Assets/ROUTINE-ART.md).

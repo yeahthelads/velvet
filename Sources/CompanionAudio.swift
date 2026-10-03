@@ -98,8 +98,11 @@ final class CompanionAudio {
         clap = sample("clap")
         applyVolume()
     }
+    var coffeeVolume: Float { coffee.sound?.volume ?? 0 }
+    static let coffeeVolumeMultiplier: Float = 0.65
     private func applyVolume() {
-        for sound in oneShots + [chant.sound, breakdance.sound, house.sound, waacking.sound, floorwork.sound, ballet.sound, disco.sound, contemporary.sound, coffee.sound].compactMap({ $0 }) { sound.volume = volume }
+        for sound in oneShots + [chant.sound, breakdance.sound, house.sound, waacking.sound, floorwork.sound, ballet.sound, disco.sound, contemporary.sound].compactMap({ $0 }) { sound.volume = volume }
+        coffee.sound?.volume = volume * Self.coffeeVolumeMultiplier
     }
     func updateDance(vogue: Bool, breaking: Bool, house: Bool = false, waacking: Bool = false, ballet: Bool = false, floorwork: Bool = false, disco: Bool = false, contemporary: Bool = false, paused: Bool = false) {
         chant.update(playing: enabled && vogue, pause: paused)

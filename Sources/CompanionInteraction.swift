@@ -3,9 +3,9 @@ import Foundation
 /// Pointer intent is tracked independently of windows so a head rub never
 /// accidentally becomes a move, and a missed latte drop never feeds her.
 struct CompanionGesture {
-    enum Target { case body, crown, latte }
-    enum Phase { case pressed, moving, petting, carryingLatte }
-    enum Completion { case openNotes, poke, pet, moved, giveLatte, returnLatte }
+    enum Target { case body, crown, latte, bar }
+    enum Phase { case pressed, moving, petting, carryingLatte, carryingBar }
+    enum Completion { case openNotes, poke, pet, moved, giveLatte, returnLatte, giveBar, returnBar }
     let target: Target
     let origin: CGPoint
     let began: Double
@@ -21,6 +21,8 @@ struct CompanionGesture {
         switch target {
         case .latte:
             if distance > 4 { phase = .carryingLatte }
+        case .bar:
+            if distance > 4 { phase = .carryingBar }
         case .body:
             if distance > 4 { phase = .moving }
         case .crown:
@@ -30,9 +32,10 @@ struct CompanionGesture {
         }
         return phase
     }
-    func finish(overCup: Bool = false, overHand: Bool = false) -> Completion {
+    func finish(overCup: Bool = false, overHand: Bool = false, overBarHand: Bool = false) -> Completion {
         switch target {
         case .latte: return (phase == .carryingLatte ? overHand : overCup) ? .giveLatte : .returnLatte
+        case .bar: return phase == .carryingBar && overBarHand ? .giveBar : .returnBar
         case .body: return phase == .moving ? .moved : .openNotes
         case .crown:
             if phase == .moving { return .moved }

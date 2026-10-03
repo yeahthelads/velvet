@@ -39,6 +39,9 @@ struct Archive: Codable {
     var danceProgress: DanceProgress?
     var lifestyle: LifestyleState?
     var tutorial: TutorialState?
+    var songRequest: SongRequestState?
+    var activity: ActivityState?
+    var dailyRoutine: DailyRoutine?
 }
 
 final class NoteStore: ObservableObject {
@@ -74,6 +77,12 @@ final class NoteStore: ObservableObject {
     }
 
     var preferences: Preferences { archive.preferences }
+    var activity: ActivityState { archive.activity ?? ActivityState() }
+    func setActivity(_ value: ActivityState) { archive.activity = value; scheduleSave(celebrate: false) }
+    var dailyRoutine: DailyRoutine { archive.dailyRoutine ?? DailyRoutine() }
+    func setDailyRoutine(_ value: DailyRoutine) { archive.dailyRoutine = value; scheduleSave(celebrate: false) }
+    var songRequest: SongRequestState { archive.songRequest ?? SongRequestState() }
+    func setSongRequest(_ state: SongRequestState) { archive.songRequest = state; scheduleSave(celebrate: false) }
     var tutorial: TutorialState { archive.tutorial ?? TutorialState() }
     func setTutorial(_ state: TutorialState) { archive.tutorial = state; scheduleSave(celebrate: false) }
     var lifestyle: LifestyleState { archive.lifestyle ?? LifestyleState() }

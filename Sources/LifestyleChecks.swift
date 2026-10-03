@@ -39,13 +39,12 @@ extension AppDelegate {
         closeNotes(); checks["closingNoteOffersProtein"] = store.tutorial.step == .snack && character.mood == .hungry
         let bar = NSPoint(x: character.snackButtonRect.midX, y: character.snackButtonRect.midY)
         checks["proteinHasClickableHitbox"] = character.interactiveArea(bar) && character.hitTest(bar) != nil
-        if let button = character.hitTest(bar) as? NSButton { button.performClick(nil) }
-        else {
-            let clickTime = ProcessInfo.processInfo.systemUptime
-            character.beginPointer(at: bar, screenPoint: bar, time: clickTime)
-            character.endPointer(at: bar, time: clickTime + 0.1)
-        }
-        checks["feedingShowsGrippedBar"] = store.tutorial.step == .snacking && character.mood == .snack && character.displayedSpriteIndex == 86 && !notes.isVisible
+        let clickTime = ProcessInfo.processInfo.systemUptime
+        character.beginPointer(at: bar, screenPoint: bar, time: clickTime)
+        let hand = NSPoint(x: character.barHandRect.midX, y: character.barHandRect.midY)
+        character.updatePointer(at: hand, screenPoint: hand, time: clickTime + 0.2)
+        character.endPointer(at: hand, time: clickTime + 0.3)
+        checks["feedingShowsGrippedBar"] = store.tutorial.step == .snacking && character.mood == .snack && character.displayedSpriteIndex == 102 && !notes.isVisible
         character.advanceLifestyle(by: 2)
         checks["snackRaisesBarForBite"] = character.displayedSpriteIndex == 87
         character.advanceLifestyle(by: 4)
@@ -122,9 +121,9 @@ extension AppDelegate {
         checks["openNotesPreventAllDances"] = !character.mood.isDance && !character.canChooseDance
         closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
         character.lifestyle.danceRemaining = 1
-        character.advanceLifestyle(by: 1)
+        character.advanceLifestyle(by: 2)
         checks["eligibleCadenceStartsUnlockedSpontaneousDance"] = character.mood.isChoreography && Mood.automaticDances.contains(character.mood) && character.danceProgress.allows(character.mood.rawValue)
-        checks["careSpritesAreBundled"] = character.hasLifestyleAnimation && character.spriteFrameCount == 100
+        checks["careSpritesAreBundled"] = character.hasLifestyleAnimation && character.spriteFrameCount == 116
         checks["contemporaryMusicIsBundled"] = character.audio.hasContemporary
         let menu = makeMenu()
         checks["musicCreditsAtBottom"] = menu.items.dropLast().last?.title == "Music credits"

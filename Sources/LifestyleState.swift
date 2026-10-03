@@ -67,6 +67,7 @@ struct LifestyleState: Codable, Equatable {
         enter(.waking, duration: 4.2)
         return true
     }
+    mutating func restAfterNight() { energy = 100; napRemaining = Double.random(in: Self.napInterval) }
     mutating func finishDance() { energy = max(0, energy - 10); danceRemaining = Double.random(in: Self.danceInterval) }
     mutating func cancelDanceForNotes() { danceRemaining = Double.random(in: Self.danceInterval) }
     @discardableResult mutating func advanceDance(by seconds: Double, available: Bool) -> Bool {

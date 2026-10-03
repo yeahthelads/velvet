@@ -7,13 +7,13 @@ struct TutorialState: Codable, Equatable {
     var complete: Bool { step == .finished }
     var text: String {
         switch step {
-        case .welcome: return "I’m Velvet. Your notes live with me. Let’s earn you a little Ballet."
-        case .openNote: return "Tap my face to open a note. Write a little thought. I’m discreet."
+        case .welcome: return "I’m Velvet. Your notes live with me."
+        case .openNote: return "Tap my face to open a note. Write a little thought."
         case .closeNote: return "It saves itself. Close the note with its × when you’re done."
-        case .snack: return "Click the protein bar beside me. Talent needs fuel."
+        case .snack: return "Drag the chocolate bar into my hand. Talent needs fuel."
         case .snacking: return "One second. I’m eating."
         case .affection: return "Now hold my head gently for a moment, or stroke it."
-        case .finished: return "Ballet’s yours. Clap when I ask; three claps earn your next dance. Keep me spoiled."
+        case .finished: return "Clap when I ask; three claps earn your next dance."
         }
     }
     mutating func begin() { if step == .welcome { step = .openNote } }

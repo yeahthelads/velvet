@@ -1,15 +1,26 @@
 import Foundation
 import CoreAudio
 
-/// Reads playback activity flags only; no taps, samples, microphone or recording.
+/// Reads Spotify activity flags and local track notifications; no audio recording.
 final class SystemAudioMonitor {
     var onChange: ((Bool) -> Void)?
     private(set) var playing = false
     private var timer: Timer?
+    private var trackObserver: NSObjectProtocol?
+    private(set) var playback: SpotifyPlayback?
+    private(set) var hasTrackUpdates = false
     var supported: Bool { if #available(macOS 14.2, *) { return true }; return false }
     func start() {
         stop()
         guard supported else { return }
+        trackObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"), object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            self.playback = notification.userInfo.flatMap { SpotifyPlayback(notification: $0) }
+            self.hasTrackUpdates = self.playback != nil
+            self.poll()
+        }
         poll()
         // Polling also handles audio processes appearing/disappearing and drivers
         // that don't send running-output property notifications reliably.
@@ -17,7 +28,11 @@ final class SystemAudioMonitor {
         timer?.tolerance = 0.1
         RunLoop.main.add(timer!, forMode: .common)
     }
-    func stop() { timer?.invalidate(); timer = nil; setPlaying(false) }
+    func stop() {
+        timer?.invalidate(); timer = nil
+        if let observer = trackObserver { DistributedNotificationCenter.default().removeObserver(observer) }
+        trackObserver = nil; playback = nil; hasTrackUpdates = false; setPlaying(false)
+    }
     func poll() { setPlaying(Self.spotifyPlaybackActive()) }
     private func setPlaying(_ value: Bool) {
         guard value != playing else { return }
@@ -71,5 +86,5 @@ final class SystemAudioMonitor {
         guard #available(macOS 14.2, *) else { return false }
         return processes().contains { word($0, kAudioProcessPropertyPID) == UInt32(pid) && word($0, kAudioProcessPropertyIsRunningOutput) == 1 }
     }
-    deinit { timer?.invalidate() }
+    deinit { stop() }
 }
