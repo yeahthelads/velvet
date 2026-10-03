@@ -52,10 +52,10 @@ remain independent. Overstimulation still blocks notes as before.
 At **22:00 local Mac time**, she winds down watching her series on a little MacBook, with screen light on her visor. At **23:00** she closes it and sleeps; sometimes she clumsily flops onto her belly. At **08:00** she yawns, stretches awake and regains energy. The same overnight pose survives midnight and restarts; needs pause overnight. Notes remain available through the menu. The beginner tutorial takes precedence over the bedtime poses.
 
 Her enthusiasm follows recent company gradually. Lingering over her for a moment, stroking her head and moving her lift her activity, with cooldowns to prevent rapid-hover farming. Without company she settles into quieter activities and stops spontaneous dances. Unanswered attention bids make her more withdrawn; responding and petting help her reconnect. Yoga is a rare solo activity: an opportunity every 15–25 visible, unpaused minutes alone, with at least five uninterrupted minutes without company before she starts. Hovering, petting, moving her or opening notes resets that solitude. She only starts when free and physically rested, doing cat/cow, a compact downward dog, cobra and child’s pose. Yoga is not a menu action.
-She spends energy while awake and dancing. Each routine costs 18 energy when it **starts**, including an interrupted performance. A running dance cannot be replaced or restarted from the menu; after a few routines, she needs her nap before dancing again. Food restores some energy; coffee
+She spends energy while awake and dancing. Each routine costs 16 energy when it **starts**, including an interrupted performance. A running dance cannot be replaced or restarted from the menu; after a few routines, she needs her nap before dancing again. Food restores some energy; coffee
 still handles her latte mood rather than replacing sleep. After about 35–50
-minutes awake or enough routines, she yawns and takes a 90–180 second beauty nap,
-then uncurls and wakes. Focus naps also recover energy. Hunger, tiredness,
+minutes awake or enough routines, she yawns and takes a 75–135 second beauty nap,
+then uncurls and wakes. Daytime energy drains more gently, and natural naps restore energy faster so she stays awake longer between them. Focus naps also recover energy. Hunger, tiredness,
 attention, phone time, care needs and open notes all prevent dancing. Need clocks
 freeze while hidden, paused or closed, and care state persists across restarts.
 Automatic performances start after 3–5 eligible minutes, faster when happy and only use unlocked

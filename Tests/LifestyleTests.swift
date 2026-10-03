@@ -40,6 +40,7 @@ import Foundation
         precondition(state.phase == .yawning)
         state.advance(by: 4, available: true, awake: true, free: true)
         precondition(state.phase == .nap && !state.readyToDance)
+        precondition((75...135).contains(state.remaining), "Daytime naps are shorter")
         let sleepingEnergy = state.energy
         state.advance(by: state.remaining, available: true, awake: true, free: true)
         precondition(state.phase == .waking && state.energy > sleepingEnergy)
@@ -77,6 +78,14 @@ import Foundation
         precondition(!lockRest.advanceDance(by: 2, available: true, canStart: false) && lockRest.danceRemaining == 0)
         precondition(lockRest.advanceDance(by: 1, available: true), "A due spontaneous dance is retained until its rest ends")
 
+        var quietDay = LifestyleState()
+        quietDay.advance(by: 20 * 60, available: true, awake: true, free: false)
+        precondition(quietDay.energy > 65 && quietDay.phase == .idle, "Quiet daytime activity should not exhaust her so quickly")
+        var shortRest = LifestyleState(); shortRest.energy = 25
+        shortRest.advance(by: 1, available: true, awake: true, free: true)
+        shortRest.advance(by: 4, available: true, awake: true, free: true)
+        shortRest.advance(by: 75, available: true, awake: true, free: true)
+        precondition(shortRest.energy > 75, "A short nap restores enough energy for a useful awake period")
         var lesson = TutorialState(), progress = DanceProgress()
         precondition(!progress.allows("ballet") && !lesson.petted())
         lesson.closedNote(); lesson.fed(); lesson.finishedSnack()

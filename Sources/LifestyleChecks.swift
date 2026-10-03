@@ -117,6 +117,7 @@ extension AppDelegate {
         checks["tirednessStopsDances"] = character.mood == .yawn && !character.canChooseDance
         character.advanceLifestyle(by: 4)
         checks["naturalNapUsesApprovedPose"] = character.mood == .naturalNap && character.displayedSpriteIndex == 97
+        checks["daytimeNapIsShorter"] = (75...135).contains(character.lifestyle.remaining)
         let lowEnergy = character.lifestyle.energy
         character.advanceLifestyle(by: character.lifestyle.remaining)
         checks["napRestoresEnergyAndWakes"] = character.mood == .wakeUp && character.lifestyle.energy > lowEnergy
@@ -176,7 +177,7 @@ extension AppDelegate {
         }
         checks["ordinaryCompanyGetsSpontaneousDanceWithinFiveEligibleMinutes"] = character.mood.isChoreography && (120...300).contains(spontaneousWait)
         checks["restlessnessDoesNotPermanentlyBlockSpontaneousDance"] = character.performance.restless && character.mood.isChoreography
-        checks["spontaneousDanceAlsoCostsEnergy"] = character.lifestyle.energy < 80
+        checks["spontaneousDanceAlsoCostsEnergy"] = character.lifestyle.energy < 100 - LifestyleState.danceEnergyCost
         character.react(.idle)
         checks["careSpritesAreBundled"] = character.hasLifestyleAnimation && character.spriteFrameCount == 116
         checks["contemporaryMusicIsBundled"] = character.audio.hasContemporary

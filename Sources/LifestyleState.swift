@@ -6,7 +6,8 @@ struct LifestyleState: Codable, Equatable {
     static let danceInterval = 3.0 * 60...5.0 * 60
     static let napInterval = 35.0 * 60...50.0 * 60
     static let ignoreDuration = 45.0
-    static let danceEnergyCost = 18.0
+    static let danceEnergyCost = 16.0
+    static let napDuration = 75.0...135.0
     var energy = 100.0
     var foodRemaining = Double.random(in: 15 * 60...22 * 60)
     var napRemaining = Double.random(in: Self.napInterval)
@@ -40,7 +41,7 @@ struct LifestyleState: Codable, Equatable {
         phase = try c.decodeIfPresent(Phase.self, forKey: .phase) ?? .idle
         elapsed = try number(.elapsed, 0, 0...240)
         remaining = try number(.remaining, 0, 0...240)
-        if phase == .nap { remaining = min(180, remaining) }
+        if phase == .nap { remaining = min(Self.napDuration.upperBound, remaining) }
     }
     private mutating func enter(_ next: Phase, duration: Double) { phase = next; elapsed = 0; remaining = duration }
     @discardableResult mutating func feed() -> Bool {
@@ -97,11 +98,11 @@ struct LifestyleState: Codable, Equatable {
         if focusNap { energy = min(100, energy + seconds / 3) }
         if phase != .idle {
             elapsed += seconds
-            if phase == .nap { energy = min(100, energy + seconds * 0.5) }
+            if phase == .nap { energy = min(100, energy + seconds * 0.7) }
             remaining = max(0, remaining - seconds)
             if remaining == 0 {
                 switch phase {
-                case .yawning: enter(.nap, duration: Double.random(in: 90...180))
+                case .yawning: enter(.nap, duration: Double.random(in: Self.napDuration))
                 case .nap: napRemaining = Double.random(in: Self.napInterval); enter(.waking, duration: 4.2)
                 case .attention: attentionRemaining = Double.random(in: 8 * 60...14 * 60); enter(.idle, duration: 0)
                 default: enter(.idle, duration: 0)
@@ -110,7 +111,7 @@ struct LifestyleState: Codable, Equatable {
             return
         }
         guard awake else { return }
-        energy = max(0, energy - seconds / 32 * (lowIron ? 1.7 : 1))
+        energy = max(0, energy - seconds / 38 * (lowIron ? 1.7 : 1))
         foodRemaining = max(0, foodRemaining - seconds)
         napRemaining = max(0, napRemaining - seconds * (lowIron ? 1.2 : 1))
         attentionRemaining = max(0, attentionRemaining - seconds)
