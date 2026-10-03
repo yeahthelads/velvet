@@ -52,7 +52,7 @@ extension AppDelegate {
         checks["realNoteAdvancesTutorial"] = notes.isVisible && store.tutorial.step == .closeNote
         closeNotes(); checks["closingNoteOffersProtein"] = store.tutorial.step == .snack && character.mood == .hungry
         let bar = NSPoint(x: character.snackButtonRect.midX, y: character.snackButtonRect.midY)
-        checks["proteinHasClickableHitbox"] = character.interactiveArea(bar) && character.hitTest(bar) != nil
+        checks["proteinHasClickableHitbox"] = character.interactiveArea(bar) && character.hitTest(character.superview?.convert(bar, from: character) ?? bar) === character
         let clickTime = ProcessInfo.processInfo.systemUptime
         character.beginPointer(at: bar, screenPoint: bar, time: clickTime)
         let hand = NSPoint(x: character.barHandRect.midX, y: character.barHandRect.midY)

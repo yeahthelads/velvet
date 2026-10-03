@@ -90,7 +90,12 @@ extension AppDelegate {
         }
         requestAgain()
         let pickup = NSPoint(x: character.offeredScrewRect.minX + 2, y: character.offeredScrewRect.midY)
-        c["offCenterPickupRoutesToCharacter"] = character.hitTest(pickup) === character && character.interactiveArea(pickup)
+        let parentPickup = character.superview?.convert(pickup, from: character) ?? pickup
+        c["offCenterPickupRoutesToCharacter"] = character.hitTest(parentPickup) === character && character.interactiveArea(pickup)
+        c["nativeParentCoordinatesRouteScrewsToCharacter"] = character.hitTest(parentPickup) === character
+        c["actualNativeReceiver"] = character.hitTest(parentPickup).map { NSStringFromClass(type(of: $0)) } ?? "none"
+        c["parentCoordinateY"] = Double(parentPickup.y)
+        c["characterCoordinateY"] = Double(pickup.y)
         let body = NSPoint(x: character.screwDropRect.midX, y: character.screwDropRect.midY)
         // Exercise the real AppKit mouse handlers, including their coordinate conversion.
         func mouse(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
@@ -98,10 +103,17 @@ extension AppDelegate {
                                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: pet.windowNumber,
                                context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
         }
-        character.mouseDown(with: mouse(.leftMouseDown, pickup))
-        character.mouseDragged(with: mouse(.leftMouseDragged, body))
-        character.mouseUp(with: mouse(.leftMouseUp, body))
-        c["realMouseHandlersAcceptBodyDrop"] = character.iron.eating && !character.iron.needsScrews && pet.frame.origin == origin
+        // Dispatch through NSWindow, not directly to the view. A transparent
+        // NSButton can otherwise eat the complete drag while model tests pass.
+        if character.hitTest(parentPickup) === character {
+            pet.ignoresMouseEvents = false
+            pet.sendEvent(mouse(.leftMouseDown, pickup))
+            c["nativeWindowMouseDownStartsScrewGesture"] = character.pointerIsActive
+            pet.sendEvent(mouse(.leftMouseDragged, body))
+            c["nativeWindowDragReachesWithoutMovingWindow"] = character.isCarryingScrews && character.displayedSpriteIndex == 101 && pet.frame.origin == origin
+            pet.sendEvent(mouse(.leftMouseUp, body))
+        }
+        c["nativeWindowMouseUpFeedsScrews"] = character.iron.eating && !character.iron.needsScrews && pet.frame.origin == origin
         requestAgain()
         character.beginPointer(at: pickup, screenPoint: pickup, time: 10)
         // No intermediate drag callback: mouse-up contains the final movement.

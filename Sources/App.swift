@@ -942,7 +942,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 checks["restlessDiagnostic"] = "mood=\(character.mood) quiet=\(character.stimulation.overstimulated) cooldown=\(character.stimulation.cooldownRemaining) busy=\(character.isBusy)"
                 checks["restlessKeepsNotesAvailable"] = character.canGiveNotes
                 let button = NSPoint(x: character.applauseButtonRect.midX, y: character.applauseButtonRect.midY)
-                checks["restlessShowsClickableDanceChooser"] = character.showsDanceChooser && character.interactiveArea(button) && character.hitTest(button) is NSButton
+                checks["restlessShowsClickableDanceChooser"] = character.showsDanceChooser && character.interactiveArea(button) && character.hitTest(character.superview?.convert(button, from: character) ?? button) is NSButton
                 checks["danceMenuOffersSevenClearChoices"] = character.makeDanceMenu().items.filter { $0.representedObject != nil }.map(\.title) == ["Ballet", "Breakdance", "Contemporary", "Floorwork", "House", "Robot disco", "Vogue Fem", "Waacking"].map { $0 + " · 1 clap" }
                 checks["contextMenuClearlyOffersDanceChooser"] = makeMenu().items.contains { $0.title == "Choose a dance · she’s restless" && $0.submenu?.items.filter { $0.representedObject != nil }.count == 8 }
                 _ = capture("restless-preview.png")
@@ -977,7 +977,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             { [self] in
                 closeNotes(); character.mood = .idle; character.moodUntil = .distantPast; character.showOff()
                 let clap = NSPoint(x: character.applauseButtonRect.midX, y: character.applauseButtonRect.midY)
-                checks["applauseEmojiVisibleAndClickable"] = character.showsApplause && character.interactiveArea(clap) && character.hitTest(clap) is NSButton
+                checks["applauseEmojiVisibleAndClickable"] = character.showsApplause && character.interactiveArea(clap) && character.hitTest(character.superview?.convert(clap, from: character) ?? clap) is NSButton
                 let visible = notes.isVisible
                 character.clickApplauseButton()
                 checks["emojiApplaudsWithoutMovingOrTogglingNotes"] = !character.performance.awaitingApplause && character.mood == .takeBow && pet.frame.origin == position && notes.isVisible == visible && !character.showsApplause

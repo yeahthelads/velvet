@@ -446,8 +446,12 @@ final class CharacterView: NSView {
         return NSRect(x: rect.maxX - rect.width * 0.39, y: rect.maxY - rect.height * 0.3, width: rect.width * 0.41, height: rect.height * 0.32).insetBy(dx: -3, dy: -3)
     }
     override func hitTest(_ point: NSPoint) -> NSView? {
-        if showsScrews && screwHitbox.contains(point) { return self }
-        if !snackButton.isHidden && snackButtonRect.contains(point) { return self }
+        // AppKit supplies hit-test points in the superview's coordinates. This
+        // character is flipped; its borderless window's theme frame is not.
+        // Checking the raw point lets the transparent prop button consume drags.
+        let local = convert(point, from: superview)
+        if showsScrews && screwHitbox.contains(local) { return self }
+        if !snackButton.isHidden && snackButtonRect.contains(local) { return self }
         return super.hitTest(point)
     }
     var isBusy: Bool { (mood.isInteraction || mood == .yoga) && Date() < moodUntil }
