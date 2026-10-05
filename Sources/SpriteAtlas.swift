@@ -4,7 +4,7 @@ import AppKit
 /// specks outside the main silhouette are ignored when finding cell bounds.
 final class SpriteAtlas {
     struct Frame {
-        let image: NSImage
+        var image: NSImage
         let width: Int
         let height: Int
         let alpha: [UInt8]
@@ -136,18 +136,81 @@ final class SpriteAtlas {
                 output[112 + index] = frame
             }
         }
+        // Sleep artwork comes from separately generated sheets with a more
+        // saturated cyan-blue shell. Match only its shell hue/saturation to
+        // the standing reference once at load time, preserving light and props.
+        for index in [44, 45, 46, 47, 96, 97, 107, 108, 109, 110, 111] where index < output.count {
+            output[index].image = Self.matchingShellBlue(output[index].image, reference: output[0].image)
+        }
         frames = output
     }
 
-    private static func alphaBytes(_ image: CGImage) -> [UInt8] {
-        let width = image.width, height = image.height
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+    private static func rgbaBytes(_ image: CGImage) -> [UInt8] {
+        var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
         pixels.withUnsafeMutableBytes { buffer in
-            let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
-            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: bitmapInfo) else { return }
-            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            let info = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+            guard let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height,
+                bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: info) else { return }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         }
-        return (0..<(width * height)).map { pixels[$0 * 4 + 3] }
+        return pixels
+    }
+    private static func alphaBytes(_ image: CGImage) -> [UInt8] {
+        let pixels = rgbaBytes(image)
+        return (0..<(image.width * image.height)).map { pixels[$0 * 4 + 3] }
+    }
+    private static func shellTone(_ pixels: [UInt8]) -> (hue: CGFloat, saturation: CGFloat)? {
+        var hues: [CGFloat] = [], saturations: [CGFloat] = []
+        for offset in stride(from: 0, to: pixels.count, by: 4) where pixels[offset + 3] > 230 {
+            let r = Int(pixels[offset]), g = Int(pixels[offset + 1]), b = Int(pixels[offset + 2])
+            guard r > 35, g > 80, b > g + 30, g > r + 15 else { continue }
+            let range = CGFloat(b - r)
+            hues.append((CGFloat(r - g) / range + 4) / 6)
+            saturations.append(range / CGFloat(b))
+        }
+        guard hues.count > 100 else { return nil }
+        hues.sort(); saturations.sort()
+        return (hues[hues.count / 2], saturations[saturations.count / 2])
+    }
+    private static func matchingShellBlue(_ image: NSImage, reference: NSImage) -> NSImage {
+        guard let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let target = reference.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
+        var pixels = rgbaBytes(source)
+        guard let from = shellTone(pixels), let to = shellTone(rgbaBytes(target)) else { return image }
+        let hueShift = to.hue - from.hue, saturationScale = to.saturation / from.saturation
+        for offset in stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = CGFloat(pixels[offset + 3]) / 255
+            guard alpha > 0 else { continue }
+            let r = min(1, CGFloat(pixels[offset]) / 255 / alpha)
+            let g = min(1, CGFloat(pixels[offset + 1]) / 255 / alpha)
+            let b = min(1, CGFloat(pixels[offset + 2]) / 255 / alpha)
+            // Leave the dark visor, mint face, piercing, shoes and props alone.
+            guard b > g + 0.10, g > r + 0.06, g > 0.20 else { continue }
+            let range = b - r
+            let hue = min(1, max(0, ((r - g) / range + 4) / 6 + hueShift)) * 6
+            let saturation = min(1, range / b * saturationScale)
+            let sector = Int(hue), fraction = hue - CGFloat(sector)
+            let p = b * (1 - saturation), q = b * (1 - fraction * saturation), t = b * (1 - (1 - fraction) * saturation)
+            let channels: [CGFloat]
+            switch sector % 6 {
+            case 0: channels = [b, t, p]
+            case 1: channels = [q, b, p]
+            case 2: channels = [p, b, t]
+            case 3: channels = [p, q, b]
+            case 4: channels = [t, p, b]
+            default: channels = [b, p, q]
+            }
+            for channel in 0..<3 {
+                pixels[offset + channel] = UInt8(min(255, max(0, (channels[channel] * alpha * 255).rounded())))
+            }
+        }
+        guard let provider = CGDataProvider(data: Data(pixels) as CFData),
+              let result = CGImage(width: source.width, height: source.height, bitsPerComponent: 8, bitsPerPixel: 32,
+                bytesPerRow: source.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent) else { return image }
+        return NSImage(cgImage: result, size: image.size)
     }
 
     private static func silhouetteBounds(_ alpha: [UInt8], width: Int, height: Int, primaryOnly: Bool) -> CGRect {

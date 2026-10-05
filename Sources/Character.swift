@@ -728,6 +728,7 @@ final class CharacterView: NSView {
     func interactiveArea(_ point: NSPoint) -> Bool {
         guard canInteract else { return false }
         if showsScrews && screwHitbox.contains(point) { return true }
+        if crownRect.contains(point) { return true }
         if !snackButton.isHidden && snackButtonRect.contains(point) { return true }
         if showsApplause && applauseButtonRect.contains(point) { return true }
         if showsDanceChooser && applauseButtonRect.contains(point) { return true }
@@ -784,7 +785,9 @@ final class CharacterView: NSView {
         let rect = spritePose(time: animationTime, mood: mood, atlas: atlas).rect
         return NSRect(x: rect.minX - 6, y: rect.minY - 5, width: rect.width + 12, height: rect.height * 0.72 + 5)
     }
-    private func onCrown(_ point: NSPoint) -> Bool { crownRect.contains(point) && interactiveArea(point) }
+    // A tiny scalloped head needs forgiving padding: holds at its edge should
+    // still count as affection rather than pass through to the desktop.
+    private func onCrown(_ point: NSPoint) -> Bool { crownRect.contains(point) }
     var latteHandRect: NSRect {
         guard let atlas else { return NSRect(x: 110, y: 136, width: 30, height: 42) }
         let rect = spritePose(time: animationTime, mood: .grumpy, atlas: atlas, receiving: false).rect

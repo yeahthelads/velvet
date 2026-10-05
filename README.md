@@ -26,7 +26,7 @@ Choose an earned routine from “Choose a dance” in the menu-bar sparkle or he
 ## Meet Velvet, care and privacy
 
 Dialogue describes Velvet in third person. On first launch a 216-point speech bubble points to her head and teaches one real interaction at a time: open and close a note,
-drag her chocolate protein bar into her hand, then stroke or briefly hold her head. Only then does
+drag her chocolate protein bar into her hand, then stroke or briefly hold her head. The head accepts gentle holds at its scalloped edges, too. Only then does
 Ballet unlock, without spending claps. No locked dance is performed, including in
 latte zoomies. The tutorial is mandatory. “Continue” advances the greeting and final Ballet dialogue; opening/closing the note, dropping the bar, eating and petting advance automatically. Action steps cannot be skipped, and the saved step resumes after hiding or restarting her.
 Ordinary needs pause while learning. The bubble follows her when moved, flips below her near the top of the screen, and leaves the note editor and her head uncovered. Paused animations and existing care gates get a short, actionable instruction; already-open notes and a completed snack resume correctly. Existing earned dances survive an upgrade.
@@ -55,7 +55,7 @@ Her enthusiasm follows recent company gradually. Lingering over her for a moment
 She spends energy while awake and dancing. Each routine costs 16 energy when it **starts**, including an interrupted performance. A running dance cannot be replaced or restarted from the menu; after a few routines, she needs her nap before dancing again. Food restores some energy; coffee
 still handles her latte mood rather than replacing sleep. After about 35–50
 minutes awake or enough routines, she yawns and takes a 75–135 second beauty nap,
-then uncurls and wakes. Daytime energy drains more gently, and natural naps restore energy faster so she stays awake longer between them. Focus naps also recover energy. Hunger, tiredness,
+then uncurls and wakes. Sleep and wake frames match her standing shell’s blue hue and saturation while retaining their shading, mint face and pink details. The correction runs once when loading artwork. Daytime energy drains more gently, and natural naps restore energy faster so she stays awake longer between them. Focus naps also recover energy. Hunger, tiredness,
 attention, phone time, care needs and open notes all prevent dancing. Need clocks
 freeze while hidden, paused or closed, and care state persists across restarts.
 Automatic performances start after 3–5 eligible minutes, faster when happy and only use unlocked

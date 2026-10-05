@@ -63,11 +63,22 @@ extension AppDelegate {
         checks["snackRaisesBarForBite"] = character.displayedSpriteIndex == 87
         character.advanceLifestyle(by: 4)
         checks["finishedSnackAsksForHeadStroke"] = store.tutorial.step == .affection && !character.lifestyle.hungry
-        character.mood = .idle; character.moodUntil = .distantPast
-        let head = NSPoint(x: character.crownRect.midX, y: character.crownRect.minY + character.crownRect.height * 0.3)
+        let head = NSPoint(x: character.crownRect.midX, y: character.crownRect.minY + 0.5) // Gentle hold at the scalloped head edge.
         let now = ProcessInfo.processInfo.systemUptime
-        character.beginPointer(at: head, screenPoint: head, time: now)
-        character.endPointer(at: head, time: now + 0.4)
+        let parentHead = character.superview?.convert(head, from: character) ?? head
+        checks["tutorialAcceptsGentleHoldAtHeadEdge"] = character.interactiveArea(head)
+        checks["tutorialHeadRoutesToCharacter"] = character.hitTest(parentHead) === character
+        func headMouse(_ type: NSEvent.EventType) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: character.convert(head, to: nil), modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: pet.windowNumber,
+                context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+        }
+        if character.hitTest(parentHead) === character {
+            pet.ignoresMouseEvents = false
+            pet.sendEvent(headMouse(.leftMouseDown))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.45))
+            pet.sendEvent(headMouse(.leftMouseUp))
+        }
         checks["realHeadHoldEarnsBalletOnly"] = store.tutorial.step == .balletUnlocked && character.availableDances == [.ballet] && character.danceProgress.clapBalance == 0 && character.tutorialActive
         checks["tutorialCareDoesNotOpenNotes"] = !notes.isVisible
         tutorialBubble?.primaryButton.performClick(nil)
