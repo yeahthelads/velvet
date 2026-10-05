@@ -9,8 +9,7 @@ Velvet is a local macOS app. Build her on your Mac with Apple's Command Line Too
 ```sh
 git clone https://github.com/yeahthelads/velvet.git
 cd velvet
-zsh build.sh
-open build/Velvet.app
+zsh build.sh && open build/Velvet.app
 ```
 
 She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That personal archive, build outputs, and test data are excluded from this repository. The seventeen balanced sound samples are included. There is no cloud sync, telemetry, or network service. The source and character artwork are included; the app currently uses a local ad-hoc signature rather than a notarized release.
@@ -123,12 +122,13 @@ Notes save automatically after a short typing pause. Write directly on a small y
 
 ## Build
 
-Requires macOS 13 or later, Apple silicon, and Apple's Command Line Tools. This build was tested on macOS 26.4.1 with Swift 6.3.1.
+Requires macOS 13 or later, Apple silicon, and Apple's Command Line Tools. This build was tested on macOS 26.4.1 with Swift 6.3.1. Spotify detection uses stable Core Audio property selectors, so its optional macOS 14.2+ support also compiles with SDKs that lack the newer constant declarations.
 
 ```sh
-zsh build.sh
-open build/Velvet.app
+zsh build.sh && open build/Velvet.app
 ```
+
+If opening reports `kLSNoExecutableErr`, compilation did not finish. Update with `git pull`, then rerun the combined build/open command above; the app opens only after a successful build.
 
 The build uses only system frameworks and applies a local ad-hoc signature. It has not been notarized for public distribution.
 

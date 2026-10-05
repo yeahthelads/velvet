@@ -12,12 +12,25 @@ final class SystemAudioMonitor {
     private var lastProcessScan = -Double.infinity
     private var monitoring = false
     private(set) var processScanCount = 0
+    // Core Audio's stable FourCC selectors, from AudioHardware.h. Declaring
+    // them here allows builds with SDKs predating the macOS 14.2 process API.
+    // Runtime availability is checked before querying these properties.
+    private enum ProcessProperty {
+        static let list: AudioObjectPropertySelector = 0x70727323 // 'prs#'
+        static let pid: AudioObjectPropertySelector = 0x70706964 // 'ppid'
+        static let bundleID: AudioObjectPropertySelector = 0x70626964 // 'pbid'
+        static let runningOutput: AudioObjectPropertySelector = 0x7069726F // 'piro'
+    }
     private static var processListAddress: AudioObjectPropertyAddress {
-        AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        AudioObjectPropertyAddress(mSelector: ProcessProperty.list, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
     }
     private(set) var playback: SpotifyPlayback?
     private(set) var hasTrackUpdates = false
-    var supported: Bool { if #available(macOS 14.2, *) { return true }; return false }
+    var supported: Bool {
+        guard #available(macOS 14.2, *) else { return false }
+        var address = Self.processListAddress
+        return AudioObjectHasProperty(AudioObjectID(kAudioObjectSystemObject), &address)
+    }
     func start() {
         stop()
         guard supported else { return }
@@ -57,7 +70,7 @@ final class SystemAudioMonitor {
         lastProcessScan = ProcessInfo.processInfo.systemUptime
         let ownPID = UInt32(ProcessInfo.processInfo.processIdentifier)
         spotifyProcesses = Self.processes().filter {
-            guard let pid = Self.word($0, kAudioProcessPropertyPID), pid != ownPID,
+            guard let pid = Self.word($0, ProcessProperty.pid), pid != ownPID,
                   let identifier = Self.bundleID($0) else { return false }
             return Self.isSpotifyBundle(identifier)
         }
@@ -76,7 +89,7 @@ final class SystemAudioMonitor {
         if ProcessInfo.processInfo.systemUptime - lastProcessScan >= 10 { refreshSpotifyProcesses() }
         var stale = false
         let active = spotifyProcesses.contains { id in
-            guard let running = Self.word(id, kAudioProcessPropertyIsRunningOutput) else { stale = true; return false }
+            guard let running = Self.word(id, ProcessProperty.runningOutput) else { stale = true; return false }
             return running == 1
         }
         if stale { refreshSpotifyProcesses() }
@@ -94,7 +107,7 @@ final class SystemAudioMonitor {
         return result
     }
     private static func processes() -> [AudioObjectID] {
-        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var address = processListAddress
         var size: UInt32 = 0
         let system = AudioObjectID(kAudioObjectSystemObject)
         guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr, size > 0 else { return [] }
@@ -107,7 +120,7 @@ final class SystemAudioMonitor {
         guard #available(macOS 14.2, *) else { return false }
         let ownPID = UInt32(ProcessInfo.processInfo.processIdentifier)
         return processes().contains { id in
-            guard let pid = word(id, kAudioProcessPropertyPID), pid != ownPID else { return false }
+            guard let pid = word(id, ProcessProperty.pid), pid != ownPID else { return false }
             return spotifyProcessPlaying(id)
         }
     }
@@ -115,7 +128,7 @@ final class SystemAudioMonitor {
         ["com.spotify.client", "com.spotify.client.helper", "com.spotify.client.helper.gpu", "com.spotify.client.helper.renderer", "com.spotify.client.helper.plugin"].contains(identifier)
     }
     private static func bundleID(_ object: AudioObjectID) -> String? {
-        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyBundleID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var address = AudioObjectPropertyAddress(mSelector: ProcessProperty.bundleID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var value: Unmanaged<CFString>? = nil
         var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &value) == noErr else { return nil }
@@ -123,16 +136,16 @@ final class SystemAudioMonitor {
     }
     private static func spotifyProcessPlaying(_ id: AudioObjectID) -> Bool {
         guard let identifier = bundleID(id), isSpotifyBundle(identifier) else { return false }
-        return word(id, kAudioProcessPropertyIsRunningOutput) == 1
+        return word(id, ProcessProperty.runningOutput) == 1
     }
     static func isSpotifyProcessPlaying(_ pid: Int32) -> Bool {
         guard #available(macOS 14.2, *) else { return false }
-        return processes().contains { word($0, kAudioProcessPropertyPID) == UInt32(pid) && spotifyProcessPlaying($0) }
+        return processes().contains { word($0, ProcessProperty.pid) == UInt32(pid) && spotifyProcessPlaying($0) }
     }
     // Allows a live check against an isolated helper without inspecting app names.
     static func isProcessPlaying(_ pid: Int32) -> Bool {
         guard #available(macOS 14.2, *) else { return false }
-        return processes().contains { word($0, kAudioProcessPropertyPID) == UInt32(pid) && word($0, kAudioProcessPropertyIsRunningOutput) == 1 }
+        return processes().contains { word($0, ProcessProperty.pid) == UInt32(pid) && word($0, ProcessProperty.runningOutput) == 1 }
     }
     deinit { stop() }
 }
