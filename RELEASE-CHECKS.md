@@ -1,4 +1,12 @@
-# Velvet 0.2.0 release checks
+# Velvet release checks
+
+## 0.2.1 — saving claps
+
+Checked on 6 October 2026. Completing a spontaneous dance now settles an outstanding restless invitation and resets its eligible-time interval. Having enough claps to unlock another routine no longer shows the invitation button or the restless menu label; optional unlocks remain in the menu.
+
+The isolated native interaction suite passed all 292 boolean assertions, including six successive earned claps, the three-clap optional unlock menu, unchanged saved balance after another 30 eligible seconds, paid replay costs, no menu applause farming and note visibility. The separate interaction and styling suites passed, including 10-clap accessory purchases and persistent ownership. No personal companion data was reset.
+
+## 0.2.0
 
 Checked on 6 October 2026. These checks used isolated profiles; personal notes and companion progress were not reset.
 

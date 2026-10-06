@@ -1080,7 +1080,7 @@ final class CharacterView: NSView {
     }
     var showsApplause: Bool { performance.awaitingApplause && mood == .showOff && canGiveNotes && focusRest == nil && !stimulation.overstimulated }
     var canChooseDance: Bool { danceRequirementsMet && canInteract && !paused && !danceInProgress && !mood.isChoreography && focusRest == nil && !stimulation.overstimulated && mood != .coffee }
-    var showsDanceChooser: Bool { canChooseDance && !isBusy && !mood.isDance && !performance.awaitingApplause && ((performance.restless && mood == .restless) || danceProgress.availableUnlocks > 0) }
+    var showsDanceChooser: Bool { canChooseDance && !isBusy && !mood.isDance && !performance.awaitingApplause && performance.restless && mood == .restless }
     var applauseButtonRect: NSRect {
         let crown = crownRect
         return NSRect(x: min(bounds.maxX - 29, crown.maxX + 1), y: max(4, crown.minY + 8), width: 27, height: 27)

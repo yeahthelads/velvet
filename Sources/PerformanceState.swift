@@ -1,7 +1,7 @@
 import Foundation
 
 /// These playful needs never gate notes. Time accrues only while she is awake
-/// and available; completing a chosen dance settles restlessness.
+/// and available; completing any real dance settles restlessness.
 struct PerformanceState: Equatable {
     /// A twelve-second phrase: toprock, go-down, alternating footwork,
     /// baby freeze, backspin, and a held side-freeze finish.
@@ -32,10 +32,9 @@ struct PerformanceState: Equatable {
     mutating func settleRestless() { restless = false; timeUntilRestless = Double.random(in: 12 * 60...18 * 60) }
     mutating func beginDance() { cancelApplause() }
     mutating func finishDance(chosen: Bool, earnsUnlock: Bool = true) {
-        if chosen {
-            restless = false
-            timeUntilRestless = Double.random(in: 12 * 60...18 * 60)
-        }
+        // A spontaneous routine satisfies the same dance break as a chosen one.
+        // Applauding its finish must not immediately ask the user to spend it.
+        if chosen || earnsUnlock { settleRestless() }
         guard !chosen else { cancelApplause(); return }
         awaitingApplause = true
         applauseRemaining = Self.applauseDuration

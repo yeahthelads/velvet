@@ -1650,6 +1650,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 return
             }
             character.lifestyle.energy = 100 // Economy checks model separate rested performances.
+            character.makeRestless() // Exercise a spontaneous dance during an unanswered invitation.
             character.react(.ballet, duration: 12); character.moodUntil = .distantPast
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
                 checks["eachBalletFinishOffersClap\(lap + 1)"] = character.showsApplause && !character.audio.isBalletPlaying
@@ -1657,6 +1658,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 character.clickApplauseButton()
                 lap += 1
                 checks["realBalletClap\(lap)EarnsExactlyOnePoint"] = character.danceProgress.completedClaps == count + 1
+                checks["spontaneousFinishSettlesInvitation\(lap)"] = !character.performance.restless && character.performance.timeUntilRestless >= 720
                 if lap == 2 { checks["twoClapsKeepEveryOtherDanceHidden"] = character.availableDances == [.ballet] && character.danceProgress.availableUnlocks == 0 }
                 if lap == 3 {
                     checks["thirdClapOffersExactlyOneDanceReward"] = character.danceProgress.availableUnlocks == 1 && character.availableDances == [.ballet]
@@ -1669,6 +1671,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                     checks["spentRewardCannotUnlockAnotherRoutine"] = !character.unlockDance(.vogue) && character.danceProgress.availableUnlocks == 0
                 }
                 character.react(.idle); character.moodUntil = .distantPast
+                checks["earnedClapDoesNotPromptSpending\(lap)"] = !character.showsDanceChooser && makeMenu().items.contains { $0.title == "Choose a dance" }
+                if lap == 6 {
+                    checks["savedClapsKeepOptionalUnlockMenu"] = character.makeDanceMenu().items.contains { $0.title == "Unlock a dance" } && character.danceProgress.clapBalance == 3
+                    let saved = character.danceProgress
+                    character.advancePerformance(by: 30)
+                    checks["savedClapsDoNotTriggerRestlessnessOrSpend"] = !character.performance.restless && !character.showsDanceChooser && character.danceProgress == saved
+                }
                 performNext()
             }
         }
