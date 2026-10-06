@@ -37,7 +37,7 @@ final class SpriteAtlas {
     let scale: Double
     let cellWidth: Double
 
-    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil, drawingURL: URL? = nil, stylingURL: URL? = nil) {
+    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil, drawingURL: URL? = nil, stylingURL: URL? = nil, normalizeShellColors: Bool = true) {
         guard let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let edges = rowFractions ?? (0...rows).map { Double($0) / Double(rows) }
         guard edges.count == rows + 1, edges.first == 0, edges.last == 1 else { return nil }
@@ -57,7 +57,7 @@ final class SpriteAtlas {
         }
         guard output.count == columns * rows else { return nil }
         cellWidth = Double(source.width) / Double(columns)
-        if let additionalURL, let extra = SpriteAtlas(url: additionalURL, columns: 2, rows: 2) {
+        if let additionalURL, let extra = SpriteAtlas(url: additionalURL, columns: 2, rows: 2, normalizeShellColors: false) {
             let sizeRatio = cellWidth / extra.cellWidth
             output.append(contentsOf: extra.frames.map {
                 var frame = $0
@@ -65,7 +65,7 @@ final class SpriteAtlas {
                 return frame
             })
         }
-        if let latteURL, let extra = SpriteAtlas(url: latteURL, columns: 4, rows: 2) {
+        if let latteURL, let extra = SpriteAtlas(url: latteURL, columns: 4, rows: 2, normalizeShellColors: false) {
             // Match the standing robot's height rather than the atlas padding.
             // The isolated cup has its own display size.
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
@@ -79,7 +79,7 @@ final class SpriteAtlas {
             })
         }
         // This sheet has slightly uneven transparent gutters between its rows.
-        if let interactionURL, let extra = SpriteAtlas(url: interactionURL, rowFractions: [0, 355.0 / 1254, 660.0 / 1254, 950.0 / 1254, 1]) {
+        if let interactionURL, let extra = SpriteAtlas(url: interactionURL, rowFractions: [0, 355.0 / 1254, 660.0 / 1254, 950.0 / 1254, 1], normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             let center = Double(extra.frames[0].cropLeft) + Double(extra.frames[0].width) / 2
             output.append(contentsOf: extra.frames.map {
@@ -90,7 +90,7 @@ final class SpriteAtlas {
             })
         }
         scale = min(172 / Double(output[0].height), 180 / output.map { Double($0.width) * $0.unitScale }.max()!, 180 / output.map { Double($0.height) * $0.unitScale }.max()!)
-        if let wellbeingURL, let extra = SpriteAtlas(url: wellbeingURL, columns: 4, rows: 2, rowFractions: [0, 478.0 / 887, 1]) {
+        if let wellbeingURL, let extra = SpriteAtlas(url: wellbeingURL, columns: 4, rows: 2, rowFractions: [0, 478.0 / 887, 1], normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
                 var frame = $0
@@ -98,21 +98,21 @@ final class SpriteAtlas {
                 return frame
             })
         }
-        if let discoURL, let extra = SpriteAtlas(url: discoURL, columns: 2, rows: 2) {
+        if let discoURL, let extra = SpriteAtlas(url: discoURL, columns: 2, rows: 2, normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
                 var frame = $0; frame.unitScale *= sizeRatio
                 return frame
             })
         }
-        if let clubURL, let extra = SpriteAtlas(url: clubURL, columns: 4, rows: 3, rowFractions: [0, 362.0 / 1086, 709.0 / 1086, 1]) {
+        if let clubURL, let extra = SpriteAtlas(url: clubURL, columns: 4, rows: 3, rowFractions: [0, 362.0 / 1086, 709.0 / 1086, 1], normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
                 var frame = $0; frame.unitScale *= sizeRatio
                 return frame
             })
         }
-        if let stretchURL, let extra = SpriteAtlas(url: stretchURL, columns: 4, rows: 2, rowFractions: [0, 475.0 / 887, 1]) {
+        if let stretchURL, let extra = SpriteAtlas(url: stretchURL, columns: 4, rows: 2, rowFractions: [0, 475.0 / 887, 1], normalizeShellColors: false) {
             // The first cell is standing so seated/low poses retain her head size.
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
@@ -120,7 +120,7 @@ final class SpriteAtlas {
                 return frame
             })
         }
-        if let breakdanceURL, let extra = SpriteAtlas(url: breakdanceURL, columns: 4, rows: 2, rowFractions: [0, 461.0 / 887, 1]) {
+        if let breakdanceURL, let extra = SpriteAtlas(url: breakdanceURL, columns: 4, rows: 2, rowFractions: [0, 461.0 / 887, 1], normalizeShellColors: false) {
             // Standing toprock calibrates the sheet so floorwork keeps her head size.
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
@@ -128,28 +128,28 @@ final class SpriteAtlas {
                 return frame
             })
         }
-        if let lifestyleURL, let extra = SpriteAtlas(url: lifestyleURL, columns: 4, rows: 4) {
+        if let lifestyleURL, let extra = SpriteAtlas(url: lifestyleURL, columns: 4, rows: 4, normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
                 var frame = $0; frame.unitScale *= sizeRatio
                 return frame
             })
         }
-        if let dailyURL, let extra = SpriteAtlas(url: dailyURL, columns: 4, rows: 4, rowFractions: [0, 350.0 / 1280, 675.0 / 1280, 945.0 / 1280, 1]) {
+        if let dailyURL, let extra = SpriteAtlas(url: dailyURL, columns: 4, rows: 4, rowFractions: [0, 350.0 / 1280, 675.0 / 1280, 945.0 / 1280, 1], normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             output.append(contentsOf: extra.frames.map {
                 var frame = $0; frame.unitScale *= sizeRatio; return frame
             })
         }
         // Only the four yoga cells change; all food, laptop and sleep art stays original.
-        if let yogaURL, output.count >= 116, let extra = SpriteAtlas(url: yogaURL, rowFractions: [0, 350.0 / 1280, 675.0 / 1280, 945.0 / 1280, 1], primarySilhouetteOnly: true) {
+        if let yogaURL, output.count >= 116, let extra = SpriteAtlas(url: yogaURL, rowFractions: [0, 350.0 / 1280, 675.0 / 1280, 945.0 / 1280, 1], primarySilhouetteOnly: true, normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             for index in 0..<4 {
                 var frame = extra.frames[12 + index]; frame.unitScale *= sizeRatio
                 output[112 + index] = frame
             }
         }
-        if let drawingURL, output.count == 116, let extra = SpriteAtlas(url: drawingURL, columns: 4, rows: 2) {
+        if let drawingURL, output.count == 116, let extra = SpriteAtlas(url: drawingURL, columns: 4, rows: 2, normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[4].height)
             let center = Double(extra.frames[4].cropLeft) + Double(extra.frames[4].width) / 2
             output.append(contentsOf: extra.frames.map {
@@ -158,17 +158,21 @@ final class SpriteAtlas {
                 return frame
             })
         }
-        if let stylingURL, output.count == 124, let extra = SpriteAtlas(url: stylingURL, columns: 2, rows: 2) {
+        if let stylingURL, output.count == 124, let extra = SpriteAtlas(url: stylingURL, columns: 2, rows: 2, normalizeShellColors: false) {
             let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
             for source in extra.frames {
                 var frame = source; frame.unitScale *= sizeRatio; output.append(frame)
             }
         }
-        // Sleep artwork comes from separately generated sheets with a more
-        // saturated cyan-blue shell. Match only its shell hue/saturation to
-        // the standing reference once at load time, preserving light and props.
-        for index in [44, 45, 46, 47, 96, 97, 107, 108, 109, 110, 111] + Array(116..<128) where index < output.count {
-            output[index].image = Self.matchingShellBlue(output[index].image, reference: output[0].image)
+        // Every sheet shares one standing reference, not its own calibration
+        // pose. Correct once after assembly, before caching and pixel rendering.
+        // Hue/saturation matching preserves each pose's lighting and highlights.
+        if normalizeShellColors,
+           let reference = output[0].image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+           let tone = Self.shellTone(Self.rgbaBytes(reference)) {
+            for index in output.indices where ![27, 35, 103].contains(index) {
+                output[index].image = Self.matchingShellBlue(output[index].image, tone: tone)
+            }
         }
         styledImages.countLimit = 96; styledImages.totalCostLimit = 24 * 1024 * 1024
         frames = output
@@ -193,7 +197,8 @@ final class SpriteAtlas {
         var hues: [CGFloat] = [], saturations: [CGFloat] = []
         for offset in stride(from: 0, to: pixels.count, by: 4) where pixels[offset + 3] > 230 {
             let r = Int(pixels[offset]), g = Int(pixels[offset + 1]), b = Int(pixels[offset + 2])
-            guard r > 35, g > 80, b > g + 30, g > r + 15 else { continue }
+            // Calibrate the lit material, not pose-dependent dark creases.
+            guard b > 235, g > 80, b > g + 30, g > r + 15 else { continue }
             let range = CGFloat(b - r)
             hues.append((CGFloat(r - g) / range + 4) / 6)
             saturations.append(range / CGFloat(b))
@@ -202,20 +207,20 @@ final class SpriteAtlas {
         hues.sort(); saturations.sort()
         return (hues[hues.count / 2], saturations[saturations.count / 2])
     }
-    private static func matchingShellBlue(_ image: NSImage, reference: NSImage) -> NSImage {
-        guard let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
-              let target = reference.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
+    private static func matchingShellBlue(_ image: NSImage, tone to: (hue: CGFloat, saturation: CGFloat)) -> NSImage {
+        guard let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
         var pixels = rgbaBytes(source)
-        guard let from = shellTone(pixels), let to = shellTone(rgbaBytes(target)) else { return image }
+        guard let from = shellTone(pixels) else { return image }
         let hueShift = to.hue - from.hue, saturationScale = to.saturation / from.saturation
+        if abs(hueShift) < 0.000001 && abs(saturationScale - 1) < 0.000001 { return image }
         for offset in stride(from: 0, to: pixels.count, by: 4) {
             let alpha = CGFloat(pixels[offset + 3]) / 255
             guard alpha > 0 else { continue }
             let r = min(1, CGFloat(pixels[offset]) / 255 / alpha)
             let g = min(1, CGFloat(pixels[offset + 1]) / 255 / alpha)
             let b = min(1, CGFloat(pixels[offset + 2]) / 255 / alpha)
-            // Leave the dark visor, mint face, piercing, shoes and props alone.
-            guard b > g + 0.10, g > r + 0.06, g > 0.20 else { continue }
+            // Leave the dark visor, mint LEDs, pink piercing and shoes alone.
+            guard b > 0.55, b > g + 0.10, g > r + 0.06, g > 0.20 else { continue }
             let range = b - r
             let hue = min(1, max(0, ((r - g) / range + 4) / 6 + hueShift)) * 6
             let saturation = min(1, range / b * saturationScale)

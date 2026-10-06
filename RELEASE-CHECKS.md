@@ -1,5 +1,13 @@
 # Velvet release checks
 
+## 0.2.2 — consistent blue
+
+Checked on 6 October 2026. Palette correction now covers all robot poses instead of selected sleep/drawing/mirror poses. Supplemental sheets load without their own correction, then the combined atlas is calibrated once against the original standing pose. Sampling the lit blue material avoids dark-crease bias in seated and folded poses. The change adds no per-frame animation processing.
+
+The palette check covers all 128 cells: 125 robot poses and three isolated props. Corrected material median hue differs from the reference by at most 0.00043 turns; saturation differs by at most 0.00179. Per-pixel alpha is unchanged, brightness remains within one byte of the source, and dark visor pixels, mint LEDs, pink details and isolated props remain unchanged. The original standing image remains identical. All four full-pose sheets and representative before/after comparisons were visually inspected.
+
+The macOS 13-targeted app build succeeded, and all 32 native styling checks passed in an isolated profile, including all-pose accessory silhouette checks, cached styling renders, purchases, menu availability and saved ownership.
+
 ## 0.2.1 — saving claps
 
 Checked on 6 October 2026. Completing a spontaneous dance now settles an outstanding restless invitation and resets its eligible-time interval. Having enough claps to unlock another routine no longer shows the invitation button or the restless menu label; optional unlocks remain in the menu.

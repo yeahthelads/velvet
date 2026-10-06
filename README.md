@@ -146,6 +146,15 @@ The build explicitly targets macOS 13, matching the app’s minimum system versi
 
 The latest release checks and their limits are recorded in [Release checks](RELEASE-CHECKS.md).
 
+All 125 robot poses use the original standing pose's blue material as a shared reference. Colour matching runs once when the combined atlas loads, before accessories and pixel rendering. It preserves pose lighting, highlights, transparency, the dark visor and pink details; original artwork files stay intact. This covers dances, latte/notes gestures, phone/snack care, sleep, yoga, drawing and mirror poses.
+
+Palette checks and optional contact-sheet previews:
+
+```sh
+swiftc -swift-version 5 -O -module-cache-path build/module-cache Sources/SpriteAtlas.swift Sources/BodyStyling.swift Sources/LegWarmers.swift Tests/PaletteTests.swift -o build/palette-tests
+build/palette-tests /tmp/velvet-palette-review
+```
+
 ```sh
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/IronState.swift Sources/DrawingGiftState.swift Sources/StylingState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
 build/store-tests
