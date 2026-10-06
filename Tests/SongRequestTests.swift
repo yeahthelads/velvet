@@ -5,6 +5,23 @@ import Foundation
         SpotifyPlayback(notification: ["Name": name, "Artist": artist, "Player State": state, "Track ID": id])
     }
     static func main() throws {
+        precondition(RequestedSong.catalog.count == 12)
+        precondition(SongRequestState.initialInterval.contains(SongRequestState().timeUntilRequest))
+        let oldData = Data(#"{"timeUntilRequest":7200,"cadenceVersion":2}"#.utf8)
+        let migrated = try JSONDecoder().decode(SongRequestState.self, from: oldData)
+        precondition(migrated.timeUntilRequest == 1440)
+        let next = try JSONDecoder().decode(SongRequestState.self, from: JSONEncoder().encode(migrated))
+        precondition(next.timeUntilRequest == migrated.timeUntilRequest, "Migration happens once")
+        let almostDue = try JSONDecoder().decode(SongRequestState.self, from: Data(#"{"timeUntilRequest":10,"cadenceVersion":2}"#.utf8))
+        precondition(almostDue.timeUntilRequest == 2)
+        let pending = try JSONDecoder().decode(SongRequestState.self, from: Data(#"{"timeUntilRequest":0,"waiting":true,"songID":"sticky","tone":"sweet","cadenceVersion":2}"#.utf8))
+        precondition(pending.waiting && pending.songID == "sticky" && pending.tone == .sweet)
+        let amaarae = RequestedSong.catalog.first { $0.id == "sad-girlz-luv-money" }!
+        precondition(track("SAD GIRLZ LUV MONEY (feat. Moliy)", artist: "Amaarae, Moliy")!.matches(amaarae))
+        precondition(!track("SAD GIRLZ LUV MONEY Remix", artist: "Amaarae")!.matches(amaarae))
+        let adela = RequestedSong.catalog.first { $0.id == "nicole-kidman" }!
+        precondition(track("NICOLE KIDMAN", artist: "ADELA")!.matches(adela))
+        precondition(!track("Nicole Kidman", artist: "Other artist")!.matches(adela))
         var request = SongRequestState(timeUntilRequest: 3)
         precondition(!request.advance(by: .infinity, eligible: true))
         precondition(!request.advance(by: 300, eligible: false) && request.timeUntilRequest == 3)

@@ -24,7 +24,7 @@ final class SpriteAtlas {
     let scale: Double
     let cellWidth: Double
 
-    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil) {
+    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil, drawingURL: URL? = nil) {
         guard let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let edges = rowFractions ?? (0...rows).map { Double($0) / Double(rows) }
         guard edges.count == rows + 1, edges.first == 0, edges.last == 1 else { return nil }
@@ -136,10 +136,19 @@ final class SpriteAtlas {
                 output[112 + index] = frame
             }
         }
+        if let drawingURL, output.count == 116, let extra = SpriteAtlas(url: drawingURL, columns: 4, rows: 2) {
+            let sizeRatio = Double(output[0].height) / Double(extra.frames[4].height)
+            let center = Double(extra.frames[4].cropLeft) + Double(extra.frames[4].width) / 2
+            output.append(contentsOf: extra.frames.map {
+                var frame = $0; frame.unitScale *= sizeRatio
+                frame.anchorX = Double(frame.cropLeft) - center
+                return frame
+            })
+        }
         // Sleep artwork comes from separately generated sheets with a more
         // saturated cyan-blue shell. Match only its shell hue/saturation to
         // the standing reference once at load time, preserving light and props.
-        for index in [44, 45, 46, 47, 96, 97, 107, 108, 109, 110, 111] where index < output.count {
+        for index in [44, 45, 46, 47, 96, 97, 107, 108, 109, 110, 111] + Array(116..<124) where index < output.count {
             output[index].image = Self.matchingShellBlue(output[index].image, reference: output[0].image)
         }
         frames = output

@@ -21,7 +21,10 @@ struct RequestedSong: Equatable {
         .init(id: "what-u-wanna-do", title: "What U Wanna Do?", artist: "Erika de Casier", trackID: "1GkFopyb6RNt72rIx7ghhf"),
         .init(id: "without-you", title: "Without You", artist: "Spooky Black", trackID: "6G9w78ki4mR3AxvAwjsZFq", titleAliases: ["Without U"], artistAliases: ["Corbin"]),
         .init(id: "a-thousand-lies", title: "A thousand lies", artist: "Smerz", trackID: nil),
-        .init(id: "sticky", title: "Sticky", artist: "FKA twigs", trackID: "4tYob6KRAMp2TIFKlq72ZI")
+        .init(id: "sticky", title: "Sticky", artist: "FKA twigs", trackID: "4tYob6KRAMp2TIFKlq72ZI"),
+        .init(id: "sad-girlz-luv-money", title: "SAD GIRLZ LUV MONEY", artist: "Amaarae feat. Moliy", trackID: nil, titleAliases: ["SAD GIRLZ LUV MONEY (feat. Moliy)", "SAD GIRLZ LUV MONEY (ft. Moliy)"], artistAliases: ["Amaarae"]),
+        .init(id: "radw", title: "RADW", artist: "Haftbefehl", trackID: nil),
+        .init(id: "nicole-kidman", title: "Nicole Kidman", artist: "ADÉLA", trackID: nil)
     ]
 }
 
@@ -55,7 +58,8 @@ struct SpotifyPlayback: Equatable {
 
 struct SongRequestState: Codable, Equatable {
     enum Tone: String, Codable, CaseIterable { case sweet, pleading, demanding, bratty }
-    static let interval = 2.0 * 60 * 60...4.0 * 60 * 60
+    static let initialInterval = 25.0 * 60...40.0 * 60
+    static let interval = 45.0 * 60...75.0 * 60
     static let confirmationDuration = 2.0
     static let fulfilledText = "Velvet approves of your taste. You’ve earned a clap. She’s ready to continue."
     var timeUntilRequest: Double
@@ -63,7 +67,7 @@ struct SongRequestState: Codable, Equatable {
     private(set) var songID = "take-a-bow"
     private(set) var tone = Tone.demanding
     private var matchingSeconds = 0.0
-    private var cadenceVersion = 2
+    private var cadenceVersion = 3
     var song: RequestedSong { RequestedSong.catalog.first { $0.id == songID } ?? RequestedSong.catalog[0] }
     var requestText: String {
         switch tone {
@@ -73,14 +77,16 @@ struct SongRequestState: Codable, Equatable {
         case .bratty: return "Velvet has chosen ‘\(song.title)’ by \(song.artist). Spotify. She’ll wait."
         }
     }
-    init(timeUntilRequest: Double = Double.random(in: Self.interval)) { self.timeUntilRequest = max(0, timeUntilRequest) }
+    init(timeUntilRequest: Double = Double.random(in: Self.initialInterval)) { self.timeUntilRequest = max(0, timeUntilRequest) }
     private enum CodingKeys: String, CodingKey { case timeUntilRequest, waiting, songID, tone, cadenceVersion }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let value = try c.decodeIfPresent(Double.self, forKey: .timeUntilRequest) ?? Double.random(in: Self.interval)
+        let value = try c.decodeIfPresent(Double.self, forKey: .timeUntilRequest) ?? Double.random(in: Self.initialInterval)
         waiting = try c.decodeIfPresent(Bool.self, forKey: .waiting) ?? false
         let oldVersion = try c.decodeIfPresent(Int.self, forKey: .cadenceVersion) ?? 1
-        timeUntilRequest = oldVersion < 2 && !waiting ? Double.random(in: Self.interval) : (value.isFinite ? min(Self.interval.upperBound, max(0, value)) : Double.random(in: Self.interval))
+        // Shorten existing long countdowns once, retaining elapsed progress and pending requests.
+        let remaining = value.isFinite ? max(0, value) : Self.initialInterval.lowerBound
+        timeUntilRequest = oldVersion < 3 && !waiting ? min(Self.initialInterval.upperBound, remaining * 0.2) : min(Self.interval.upperBound, remaining)
         songID = try c.decodeIfPresent(String.self, forKey: .songID) ?? "take-a-bow"
         if !RequestedSong.catalog.contains(where: { $0.id == songID }) { songID = "take-a-bow" }
         tone = try c.decodeIfPresent(Tone.self, forKey: .tone) ?? .demanding

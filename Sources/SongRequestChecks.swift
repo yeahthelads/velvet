@@ -49,6 +49,9 @@ extension AppDelegate {
         checks["resolvedSongAndRewardPersistTogether"] = !saved.songRequest.waiting && saved.danceProgress.clapBalance == balance + 1
         checks["songCadenceResetsAfterReward"] = SongRequestState.interval.contains(songRequest.timeUntilRequest)
         character.react(.idle); character.mood = .idle; character.moodUntil = .distantPast
+        character.makeRestless()
+        checks["unansweredDanceInvitationCannotStarveSongRequests"] = canRequestSong(spotifySupported: true, metadataAvailable: true)
+        character.mood = .idle
         checks["healthyAvailableCharacterCanRequestSong"] = canRequestSong(spotifySupported: true, metadataAvailable: true)
         checks["missingSpotifyMetadataPreventsRequest"] = !canRequestSong(spotifySupported: true, metadataAvailable: false)
         openNotes()

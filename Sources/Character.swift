@@ -1,6 +1,7 @@
 import AppKit
 
 enum Mood: String, CaseIterable {
+    case drawing, offerDrawing, drawingThanks
     case windDown, nightSleep, bellySleep, yoga, reserved
     case ironNeed, ironLow, ironSnack
     case hungry, snack, attention, acknowledged, phone, phoneSulk, yawn, naturalNap, contemporary
@@ -31,9 +32,12 @@ enum Mood: String, CaseIterable {
     var isHeadphones: Bool { self == .plugIn || self == .listening || self == .unplug }
     var isDance: Bool { isChoreography || self == .zoomies }
     var isPaper: Bool { self == .paperOpen || self == .paperClose || self == .paperToss }
-    var isInteraction: Bool { isPaper || self == .ironSnack || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp || self == .snack || self == .acknowledged }
+    var isInteraction: Bool { self == .drawingThanks || isPaper || self == .ironSnack || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp || self == .snack || self == .acknowledged }
     var label: String {
         switch self {
+        case .drawing: return "Making something for you"
+        case .offerDrawing: return "A little drawing for you"
+        case .drawingThanks: return "She’s glad you kept it"
         case .windDown: return "Series time"
         case .nightSleep: return "Good night"
         case .bellySleep: return "Clumsy beauty sleep"
@@ -115,6 +119,10 @@ final class CharacterView: NSView {
     var externalAudioPlaying = false
     var listensToAudio = true { didSet { if !listensToAudio { listeningState.reset(); if mood.isHeadphones { mood = baseMood } }; needsDisplay = true } }
     private(set) var listeningState = ListeningState()
+    var drawingGift = DrawingGiftState()
+    var onDrawingGiftChanged: ((DrawingGiftState) -> Void)?
+    var onDrawingGiftAccepted: ((DrawingKeepsake) -> Void)?
+    private lazy var drawingImage = Bundle.main.url(forResource: "drawing-robots-kiss-v1", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
     var lifestyle = LifestyleState()
     var onLifestyleChanged: ((LifestyleState) -> Void)?
     var onAffection: (() -> Void)?
@@ -207,7 +215,51 @@ final class CharacterView: NSView {
     }
     func receiveCare(_ care: HappinessState.Care) {
         guard !screenLocked, dailyRoutine.period == .awake, !tutorialActive, !awaitingSong else { return }
-        if happiness.receive(care) { onHappinessChanged?(happiness) }
+        if happiness.receive(care) {
+            onHappinessChanged?(happiness)
+            let oldGift = drawingGift
+            drawingGift.recordCare(care)
+            if oldGift != drawingGift { onDrawingGiftChanged?(drawingGift) }
+        }
+    }
+    var drawingGiftAvailable: Bool {
+        dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused &&
+        canGiveNotes && canInteract && !tutorialActive && !noteIsVisible && focusRest == nil &&
+        !hasLifestyleActivity && !wantsCoffee && !needsAffection && !coffeeOverload.occupied &&
+        !responses.isActive && !performance.awaitingApplause && !mood.isDance && !mood.isInteraction &&
+        mood != .yoga && mood != .sleep && gesture == nil
+    }
+    var showsDrawing: Bool {
+        drawingGift.hasUnclaimed && canInteract && scheduledMood == nil && !tutorialActive &&
+        !hasLifestyleActivity && !wantsCoffee && !needsAffection && focusRest == nil && !noteIsVisible &&
+        (drawingGift.phase == .waiting || mood == .offerDrawing)
+    }
+    var drawingHitbox: NSRect {
+        if mood == .offerDrawing, let atlas {
+            let rect = spritePose(time: animationTime, mood: .offerDrawing, atlas: atlas).rect
+            return NSRect(x: rect.minX + rect.width * 0.27, y: rect.minY + rect.height * 0.56,
+                width: rect.width * 0.46, height: rect.height * 0.26).insetBy(dx: -3, dy: -3)
+        }
+        return NSRect(x: 135, y: 168, width: 30, height: 22)
+    }
+    func advanceDrawingGift(by seconds: Double) {
+        let oldPhase = drawingGift.phase
+        drawingGift.advance(by: seconds, available: drawingGiftAvailable, happiness: happiness.level)
+        if oldPhase != drawingGift.phase {
+            listeningState.reset()
+            if drawingGiftAvailable || oldPhase == .offering {
+                mood = baseMood; moodBegan = Date(); moodUntil = drawingGift.working ? .distantFuture : .distantPast
+            }
+            updateAccessibilityHelp(); onDrawingGiftChanged?(drawingGift); onPerformanceChanged?()
+            needsDisplay = true
+        } else if drawingGift.working && drawingGiftAvailable && mood != baseMood {
+            mood = baseMood; moodBegan = Date(); moodUntil = .distantFuture; needsDisplay = true
+        }
+    }
+    @discardableResult func acceptDrawingGift() -> Bool {
+        guard showsDrawing, let picture = drawingGift.accept() else { return false }
+        onDrawingGiftChanged?(drawingGift); onDrawingGiftAccepted?(picture)
+        react(.drawingThanks, duration: 3.0); updateAccessibilityHelp(); needsDisplay = true; return true
     }
     private var wakingFromNight = false
     private var closingLaptop = false
@@ -256,7 +308,7 @@ final class CharacterView: NSView {
     }
     private var paidDanceInProgress = false
     var hasLifestyleActivity: Bool { lifestyle.occupied || lifestyle.hungry || lifestyle.needsAttention || iron.needsScrews || iron.eating }
-    var danceRequirementsMet: Bool { dailyRoutine.period == .awake && scheduledMood == nil && canGiveNotes && lifestyle.readyToDance && !tutorialActive && !coffeeOverload.occupied && !iron.needsScrews && !iron.eating && !noteIsVisible && focusRest == nil && !reduceMotion }
+    var danceRequirementsMet: Bool { !drawingGift.working && dailyRoutine.period == .awake && scheduledMood == nil && canGiveNotes && lifestyle.readyToDance && !tutorialActive && !coffeeOverload.occupied && !iron.needsScrews && !iron.eating && !noteIsVisible && focusRest == nil && !reduceMotion }
     var hasHeadphones: Bool { mood.isHeadphones }
 
     private var pausedAt: Date?
@@ -348,6 +400,7 @@ final class CharacterView: NSView {
         if lifestyle.hungry { return .hungry }
         if lifestyle.needsAttention { return activity.withdrawn ? .reserved : .attention }
         if iron.needsScrews { return iron.lowIron ? .ironLow : .ironNeed }
+        if drawingGift.working && drawingGiftAvailable { return drawingGift.phase == .drawing ? .drawing : .offerDrawing }
         if performance.awaitingApplause { return .showOff }
         switch responses.phase {
         case .zoomies: return .zoomies
@@ -450,11 +503,12 @@ final class CharacterView: NSView {
         // character is flipped; its borderless window's theme frame is not.
         // Checking the raw point lets the transparent prop button consume drags.
         let local = convert(point, from: superview)
+        if showsDrawing && drawingHitbox.contains(local) { return self }
         if showsScrews && screwHitbox.contains(local) { return self }
         if !snackButton.isHidden && snackButtonRect.contains(local) { return self }
         return super.hitTest(point)
     }
-    var isBusy: Bool { (mood.isInteraction || mood == .yoga) && Date() < moodUntil }
+    var isBusy: Bool { (drawingGift.working && drawingGiftAvailable) || (mood.isInteraction || mood == .yoga) && Date() < moodUntil }
     private var moodBegan = Date()
     private let sipDuration = 6.0
     private var born = Date()
@@ -480,6 +534,7 @@ final class CharacterView: NSView {
     var animationInterval: TimeInterval {
         if gesture != nil || latteReturnBegan != nil || barReturnBegan != nil || screwReturnBegan != nil { return 1.0 / 24 }
         if paused || reduceMotion { return 0.25 }
+        if mood == .drawing || mood == .offerDrawing { return 1.0 / 8 }
         if showsApplause { return 1.0 / 24 }
         if mood == .phoneSulk && Date().timeIntervalSince(moodBegan) < 1.2 { return 1.0 / 24 }
         if [.nightSleep, .bellySleep, .windDown, .naturalNap, .focusNap, .yoga, .reserved, .phone, .phoneSulk, .showOff, .sleep].contains(mood) { return 0.25 }
@@ -547,7 +602,7 @@ final class CharacterView: NSView {
         addSubview(screwButton)
         updateAccessibilityHelp()
         if let url = Bundle.main.url(forResource: "velvet-sprites-v5", withExtension: "png") {
-            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"), yogaURL: Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png"))
+            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"), yogaURL: Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png"), drawingURL: Bundle.main.url(forResource: "drawing-sprites-v1", withExtension: "png"))
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -564,6 +619,7 @@ final class CharacterView: NSView {
         if lifestyle.ignoring { help += " Her phone time was interrupted. Give her forty-five seconds to cool off. Notes remain available from the menu or shortcut." }
         if lifestyle.phase == .nap { help += " She is resting. Notes remain available." }
         if needsAffection { help += " She needs affection before she will return your notes." }
+        if showsDrawing { help += " Click the little picture to keep her drawing." }
         if awaitingSong { help += " She wants her requested song in Spotify before resuming." }
         if wantsCoffee { help += " She needs an iced latte before she will return your notes. Drag the cup into her hand or click it." }
         if performance.restless { help += " Click the ballet-shoes button beside her to choose an unlocked dance. Three timely claps earn a new routine." }
@@ -700,6 +756,7 @@ final class CharacterView: NSView {
         advanceLifestyle(by: min(1, max(0, responseNow - lastResponseTick)))
         advancePerformance(by: min(1, max(0, responseNow - lastResponseTick)))
         advanceStimulation(by: min(1, max(0, responseNow - lastResponseTick)))
+        advanceDrawingGift(by: min(1, max(0, responseNow - lastResponseTick)))
         updateCompanionAudio()
         advanceListening(by: min(1, max(0, responseNow - lastResponseTick)))
         lastResponseTick = responseNow
@@ -727,6 +784,7 @@ final class CharacterView: NSView {
     }
     func interactiveArea(_ point: NSPoint) -> Bool {
         guard canInteract else { return false }
+        if showsDrawing && drawingHitbox.contains(point) { return true }
         if showsScrews && screwHitbox.contains(point) { return true }
         if crownRect.contains(point) { return true }
         if !snackButton.isHidden && snackButtonRect.contains(point) { return true }
@@ -797,6 +855,7 @@ final class CharacterView: NSView {
         solitaryYoga.interact()
         if wakeForNightVisit() { return }
         guard acceptCharacterInteraction() else { return }
+        if !forceMove && showsDrawing && drawingHitbox.contains(point) { acceptDrawingGift(); return }
         if !forceMove && showsScrews && screwHitbox.contains(point) {
             screwPickupOffset = currentScrewOffset; screwOffset = screwPickupOffset; screwReturnBegan = nil
             gesture = CompanionGesture(target: .screws, point: point, time: time)
@@ -1308,6 +1367,9 @@ final class CharacterView: NSView {
         if showsScrews { drawScrewOffer() }
         if iron.eating { drawScrewBites() }
         if mood == .coffee { drawLatteHandoff() }
+        if showsDrawing && drawingGift.phase == .waiting {
+            drawingImage?.draw(in: drawingHitbox.insetBy(dx: 3, dy: 3), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        }
         if mood == .paperToss { drawPaperToss() }
         if mood == .affection || mood == .recover || mood == .takeBow { drawAffection() }
     }
@@ -1321,6 +1383,11 @@ final class CharacterView: NSView {
         let zoom = max(0, responseElapsed ?? previewTime ?? (coffeeOverload.phase == .hyped ? 8 - coffeeOverload.remaining : responses.zoomiesElapsed))
         var index: Int
         switch mood {
+        case .drawing:
+            let progress = previewTime ?? drawingGift.elapsed
+            index = spriteFrameCount >= 124 ? (progress >= 8 ? 119 : 116 + (active ? Int(progress * 2) % 3 : 0)) : 0
+        case .offerDrawing: index = spriteFrameCount >= 124 ? ((previewTime ?? drawingGift.elapsed) < 1 ? 120 : 121) : 0
+        case .drawingThanks: index = spriteFrameCount >= 124 ? (elapsed < 1.5 ? 122 : 123) : 3
         case .windDown: index = hasDailyAnimation ? 104 + (active ? Int(elapsed / 4) % 2 : 0) : 89
         case .nightSleep: index = hasDailyAnimation ? (closingLaptop && elapsed < 1 ? 106 : 110) : 97
         case .bellySleep: index = hasDailyAnimation ? (closingLaptop && elapsed < 1 ? 106 : 108 + (active ? Int(elapsed / 5) % 2 : 0)) : 97
@@ -1414,7 +1481,7 @@ final class CharacterView: NSView {
         if let forcedIndex { index = forcedIndex }
         let frame = atlas.frames[index]
         var lift = active ? sin(t * 1.8) * 0.35 : 0
-        if [.windDown, .nightSleep, .bellySleep, .yoga, .reserved, .contemporary, .naturalNap, .phone, .phoneSulk, .focusNap, .wakeUp, .crying, .tumble, .showOff, .overstimulated, .breakdance].contains(mood) { lift = 0 }
+        if [.drawing, .offerDrawing, .drawingThanks, .windDown, .nightSleep, .bellySleep, .yoga, .reserved, .contemporary, .naturalNap, .phone, .phoneSulk, .focusNap, .wakeUp, .crying, .tumble, .showOff, .overstimulated, .breakdance].contains(mood) { lift = 0 }
         if mood == .takeBow && active { lift += sin(min(1, elapsed / 1.8) * .pi) * 4 }
         if mood == .celebrate && active { lift -= abs(sin(t * 6)) * 8 }
         if mood.isDance && mood != .zoomies && mood != .breakdance && mood != .contemporary && active { lift -= abs(sin(t * .pi * 2.5)) * (mood == .ballet ? 2 : 0.6) }

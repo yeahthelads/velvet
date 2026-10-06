@@ -22,7 +22,7 @@ extension AppDelegate {
         tutorialPanel?.isVisible != true && !notes.isVisible && !store.focus.isActive &&
         !character.pointerIsActive && character.mood != .pickedUp &&
         !character.isBusy && !character.mood.isDance && character.mood != .sleep &&
-        !character.hasGentleResponse && !character.performance.isEngaged
+        !character.hasGentleResponse && !character.performance.awaitingApplause
     }
     func advanceSongRequest(by seconds: Double) {
         if songRequest.waiting {

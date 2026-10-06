@@ -45,6 +45,7 @@ struct Archive: Codable {
     var coffeeOverload: CoffeeOverload?
     var iron: IronState?
     var dailyRoutine: DailyRoutine?
+    var drawingGift: DrawingGiftState?
 }
 
 final class NoteStore: ObservableObject {
@@ -106,6 +107,8 @@ final class NoteStore: ObservableObject {
         if flush() { return true }
         archive = previous; return false
     }
+    var drawingGift: DrawingGiftState { archive.drawingGift ?? DrawingGiftState() }
+    func setDrawingGift(_ value: DrawingGiftState) { archive.drawingGift = value; scheduleSave(celebrate: false) }
     var dailyRoutine: DailyRoutine { archive.dailyRoutine ?? DailyRoutine() }
     func setDailyRoutine(_ value: DailyRoutine) { archive.dailyRoutine = value; scheduleSave(celebrate: false) }
     var songRequest: SongRequestState { archive.songRequest ?? SongRequestState() }
