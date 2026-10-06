@@ -21,7 +21,7 @@ extension AppDelegate {
             }
             character.previewTime = nil
         }
-        checks["dailySpritesBundled"] = character.hasDailyAnimation && character.spriteFrameCount == 124
+        checks["dailySpritesBundled"] = character.hasDailyAnimation && character.spriteFrameCount == 128
         checks["cuteYogaSpritesBundled"] = Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png") != nil
         updateDailyRoutine(at: date(22), calendar: calendar)
         checks["tenPMWatchesSeriesAndBlocksDancing"] = character.mood == .windDown && character.displayedSpriteIndex == 104 && !character.canChooseDance

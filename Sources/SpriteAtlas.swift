@@ -20,11 +20,20 @@ final class SpriteAtlas {
             return alpha[py * width + px] > 45
         }
     }
+    private let styledImages = NSCache<NSString, NSImage>()
+    func image(at index: Int, style: Int) -> NSImage {
+        guard style != 0, let placement = BodyStyling.placement(for: index) else { return frames[index].image }
+        let key = "\(index)-\(style)" as NSString
+        if let image = styledImages.object(forKey: key) { return image }
+        let image = BodyStyling.render(frame: frames[index], placement: placement, style: style)
+        styledImages.setObject(image, forKey: key, cost: frames[index].width * frames[index].height * 4)
+        return image
+    }
     let frames: [Frame]
     let scale: Double
     let cellWidth: Double
 
-    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil, drawingURL: URL? = nil) {
+    init?(url: URL, columns: Int = 4, rows: Int = 4, rowFractions: [Double]? = nil, primarySilhouetteOnly: Bool = false, additionalURL: URL? = nil, latteURL: URL? = nil, interactionURL: URL? = nil, wellbeingURL: URL? = nil, discoURL: URL? = nil, clubURL: URL? = nil, stretchURL: URL? = nil, breakdanceURL: URL? = nil, lifestyleURL: URL? = nil, dailyURL: URL? = nil, yogaURL: URL? = nil, drawingURL: URL? = nil, stylingURL: URL? = nil) {
         guard let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let edges = rowFractions ?? (0...rows).map { Double($0) / Double(rows) }
         guard edges.count == rows + 1, edges.first == 0, edges.last == 1 else { return nil }
@@ -145,12 +154,19 @@ final class SpriteAtlas {
                 return frame
             })
         }
+        if let stylingURL, output.count == 124, let extra = SpriteAtlas(url: stylingURL, columns: 2, rows: 2) {
+            let sizeRatio = Double(output[0].height) / Double(extra.frames[0].height)
+            for source in extra.frames {
+                var frame = source; frame.unitScale *= sizeRatio; output.append(frame)
+            }
+        }
         // Sleep artwork comes from separately generated sheets with a more
         // saturated cyan-blue shell. Match only its shell hue/saturation to
         // the standing reference once at load time, preserving light and props.
-        for index in [44, 45, 46, 47, 96, 97, 107, 108, 109, 110, 111] + Array(116..<124) where index < output.count {
+        for index in [44, 45, 46, 47, 96, 97, 107, 108, 109, 110, 111] + Array(116..<128) where index < output.count {
             output[index].image = Self.matchingShellBlue(output[index].image, reference: output[0].image)
         }
+        styledImages.countLimit = 96; styledImages.totalCostLimit = 24 * 1024 * 1024
         frames = output
     }
 

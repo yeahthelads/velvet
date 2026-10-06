@@ -8,6 +8,7 @@ extension AppDelegate {
         character.stimulation = StimulationState(cooldown: 60); character.focusRest = nil; character.noteIsVisible = false
         character.mood = .idle; character.moodUntil = .distantPast
         character.danceProgress = DanceProgress(unlockedDanceIDs: ["ballet"])
+        store.setPreferences { $0.hasSeenIronIntro = false }; ironMessagePending = false
         character.iron = IronState(timeUntilNeed: 0)
         character.advanceIron(by: 1)
         c["requestGetsFullTwoMinutes"] = character.iron.phase == .requested && character.iron.requestRemaining == 120
@@ -22,7 +23,16 @@ extension AppDelegate {
         }
         syncIronRequest(announce: true)
         c["boundedIronBubble"] = ironBubble?.bubbleSize.width == 216 && (ironBubble?.bubbleSize.height ?? 500) < 150
+        c["firstScrewRequestShowsIntroduction"] = ironPanel?.isVisible == true && store.preferences.hasSeenIronIntro == true
         capture("iron-request")
+        ironBubble?.begin?()
+        syncIronRequest(announce: true)
+        c["dismissedIntroductionDoesNotReopenOnStateChanges"] = ironPanel?.isVisible != true && !ironMessagePending
+        store.flush()
+        c["screwIntroductionFlagSurvivesRestart"] = NoteStore(directory: store.directory).preferences.hasSeenIronIntro == true
+        character.iron = IronState(timeUntilNeed: 0); character.advanceIron(by: 1); syncIronRequest(announce: true)
+        c["nextScrewRequestStillShowsPropWithoutExplanation"] = character.showsScrews && ironPanel?.isVisible != true
+
         let origin = pet.frame.origin, screws = NSPoint(x: character.offeredScrewRect.midX, y: character.offeredScrewRect.midY)
         character.beginPointer(at: screws, screenPoint: screws, time: 1)
         character.endPointer(at: screws, time: 1.1)

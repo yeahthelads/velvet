@@ -16,7 +16,7 @@ extension AppDelegate {
     @objc func sessionDidBecomeActive() { sessionInactive = false; updateScreenRest() }
     func saveCompanionState() {
         store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setIron(character.iron)
-        store.setDrawingGift(character.drawingGift); store.setSongRequest(songRequest); store.setActivity(character.activity)
+        store.setStyling(character.styling); store.setDrawingGift(character.drawingGift); store.setSongRequest(songRequest); store.setActivity(character.activity)
         store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload); store.setDailyRoutine(dailyRoutine); store.flush()
     }
     func updateScreenRest(at date: Date = Date()) {

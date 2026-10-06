@@ -70,19 +70,21 @@ struct DanceProgress: Codable, Equatable {
     static let danceIDs = ["ballet", "breakdance", "contemporary", "floorwork", "house", "disco", "vogue", "waacking"]
     private(set) var forfeitedUnlocks: Int = 0
     private(set) var replayClapsSpent: Int
+    private(set) var cosmeticClapsSpent: Int
     private(set) var careClapsSpent: Int
     private(set) var completedClaps: Int
     private(set) var unlockedDanceIDs: [String]
-    init(completedClaps: Int = 0, unlockedDanceIDs: [String] = [], replayClapsSpent: Int = 0, careClapsSpent: Int = 0) {
+    init(completedClaps: Int = 0, unlockedDanceIDs: [String] = [], replayClapsSpent: Int = 0, careClapsSpent: Int = 0, cosmeticClapsSpent: Int = 0) {
         self.completedClaps = max(0, completedClaps)
         self.replayClapsSpent = min(max(0, replayClapsSpent), self.completedClaps)
         self.careClapsSpent = min(max(0, careClapsSpent), self.completedClaps - self.replayClapsSpent)
+        self.cosmeticClapsSpent = min(max(0, cosmeticClapsSpent), self.completedClaps - self.replayClapsSpent - self.careClapsSpent)
         self.unlockedDanceIDs = Array(Set(unlockedDanceIDs.filter { Self.danceIDs.contains($0) })).sorted()
     }
-    private enum CodingKeys: String, CodingKey { case completedClaps, unlockedDanceIDs, replayClapsSpent, careClapsSpent, forfeitedUnlocks }
+    private enum CodingKeys: String, CodingKey { case completedClaps, unlockedDanceIDs, replayClapsSpent, careClapsSpent, cosmeticClapsSpent, forfeitedUnlocks }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(completedClaps: try values.decodeIfPresent(Int.self, forKey: .completedClaps) ?? 0, unlockedDanceIDs: try values.decodeIfPresent([String].self, forKey: .unlockedDanceIDs) ?? ["ballet"], replayClapsSpent: try values.decodeIfPresent(Int.self, forKey: .replayClapsSpent) ?? 0, careClapsSpent: try values.decodeIfPresent(Int.self, forKey: .careClapsSpent) ?? 0)
+        self.init(completedClaps: try values.decodeIfPresent(Int.self, forKey: .completedClaps) ?? 0, unlockedDanceIDs: try values.decodeIfPresent([String].self, forKey: .unlockedDanceIDs) ?? ["ballet"], replayClapsSpent: try values.decodeIfPresent(Int.self, forKey: .replayClapsSpent) ?? 0, careClapsSpent: try values.decodeIfPresent(Int.self, forKey: .careClapsSpent) ?? 0, cosmeticClapsSpent: try values.decodeIfPresent(Int.self, forKey: .cosmeticClapsSpent) ?? 0)
         forfeitedUnlocks = min(completedClaps / Self.clapCost, max(0, try values.decodeIfPresent(Int.self, forKey: .forfeitedUnlocks) ?? 0))
     }
     @discardableResult mutating func revokeDance(_ id: String) -> Bool {
@@ -91,7 +93,7 @@ struct DanceProgress: Codable, Equatable {
         return true
     }
     var spentUnlocks: Int { forfeitedUnlocks + unlockedDanceIDs.filter { $0 != "ballet" }.count }
-    var clapBalance: Int { max(0, completedClaps - spentUnlocks * Self.clapCost - replayClapsSpent - careClapsSpent) }
+    var clapBalance: Int { max(0, completedClaps - spentUnlocks * Self.clapCost - replayClapsSpent - careClapsSpent - cosmeticClapsSpent) }
     var availableUnlocks: Int { allows("ballet") ? min(Self.danceIDs.count - unlockedDanceIDs.count, clapBalance / Self.clapCost) : 0 }
     var clapsToNextUnlock: Int { max(0, Self.clapCost - clapBalance) }
     func canReplay(_ danceID: String) -> Bool { allows(danceID) && clapBalance >= Self.replayCost }
@@ -109,6 +111,10 @@ struct DanceProgress: Codable, Equatable {
         guard cost > 0, clapBalance >= cost else { return false }
         careClapsSpent += cost
         return true
+    }
+    @discardableResult mutating func payForCosmetic(cost: Int) -> Bool {
+        guard cost > 0, clapBalance >= cost else { return false }
+        cosmeticClapsSpent += cost; return true
     }
     func allows(_ danceID: String) -> Bool { unlockedDanceIDs.contains(danceID) }
     mutating func earnTutorialBallet() {

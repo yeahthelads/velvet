@@ -37,7 +37,11 @@ final class CompanionAudio {
     private let crossedArms: NSSound?
     private let quiet: NSSound?
     private let clap: NSSound?
-    private var oneShots: [NSSound] { [headPet, tumble, crossedArms, quiet, clap].compactMap { $0 } }
+    private let jersey: [JerseyReaction: NSSound]
+    private(set) var jerseyCadence = JerseyCadence()
+    var hasJersey: Bool { jersey.count == JerseyReaction.allCases.count }
+    var isJerseyPlaying: Bool { jersey.values.contains { $0.isPlaying } }
+    private var oneShots: [NSSound] { [headPet, tumble, crossedArms, quiet, clap].compactMap { $0 } + Array(jersey.values) }
     var enabled = true { didSet { if !enabled { stopAll() } } }
     // Assets share a measured -20 LUFS level; this remains the master control.
     var volume: Float = 0.65 { didSet { applyVolume() } }
@@ -96,6 +100,9 @@ final class CompanionAudio {
         crossedArms = sample("crossed-arms")
         quiet = sample("overwhelmed-sleep")
         clap = sample("clap")
+        jersey = Dictionary(uniqueKeysWithValues: JerseyReaction.allCases.compactMap { reaction in
+            sample("jersey-" + reaction.rawValue).map { (reaction, $0) }
+        })
         applyVolume()
     }
     var coffeeVolume: Float { coffee.sound?.volume ?? 0 }
@@ -119,6 +126,13 @@ final class CompanionAudio {
         guard enabled else { return }
         // Restart one sound without layering reactions or music.
         stopAll(); sound?.play()
+    }
+    /// Optional expressions yield to every existing sample and never cut off music.
+    @discardableResult func playJersey(_ reaction: JerseyReaction, chance: Double = 1,
+        roll: Double = Double.random(in: 0..<1), now: Double = ProcessInfo.processInfo.systemUptime) -> Bool {
+        guard enabled, let sound = jersey[reaction], !coffeeActive, !isAnyDancePlaying,
+            !oneShots.contains(where: { $0.isPlaying }), jerseyCadence.accept(now: now, chance: chance, roll: roll) else { return false }
+        return sound.play()
     }
     func playHeadPet() { playOnce(headPet) }
     func playTumble() { playOnce(tumble) }

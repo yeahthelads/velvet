@@ -229,7 +229,7 @@ extension AppDelegate {
         checks["restlessnessDoesNotPermanentlyBlockSpontaneousDance"] = character.performance.restless && character.mood.isChoreography
         checks["spontaneousDanceAlsoCostsEnergy"] = character.lifestyle.energy < 100 - LifestyleState.danceEnergyCost
         character.react(.idle)
-        checks["careSpritesAreBundled"] = character.hasLifestyleAnimation && character.spriteFrameCount == 124
+        checks["careSpritesAreBundled"] = character.hasLifestyleAnimation && character.spriteFrameCount == 128
         checks["contemporaryMusicIsBundled"] = character.audio.hasContemporary
         let menu = makeMenu()
         checks["musicCreditsAtBottom"] = menu.items.dropLast().last?.title == "Music credits"

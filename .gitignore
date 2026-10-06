@@ -34,3 +34,10 @@ Assets/floorwork-levels.json
 !Assets/disco.wav
 !Assets/floorwork.wav
 !Assets/contemporary.wav
+
+# Local imported kit; only selected short reactions ship.
+Assets/NAVO Nu-Jersey Kit*/
+!Assets/jersey-laugh.wav
+!Assets/jersey-shy.wav
+!Assets/jersey-attitude.wav
+!Assets/jersey-pleased.wav

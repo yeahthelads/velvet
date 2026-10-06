@@ -13,7 +13,7 @@ extension AppDelegate {
         closeNotes(); tutorialPanel?.orderOut(nil)
         character.drawingGift = DrawingGiftState(timeUntilGift: 0)
         character.receiveCare(.pet); character.receiveCare(.coffee); character.receiveCare(.food)
-        checks["drawingArtAndEightPosesBundled"] = character.spriteFrameCount == 124 && Bundle.main.url(forResource: "drawing-robots-kiss-v1", withExtension: "png") != nil
+        checks["drawingArtAndEightPosesBundled"] = character.spriteFrameCount == 128 && Bundle.main.url(forResource: "drawing-robots-kiss-v1", withExtension: "png") != nil
         // A dance invitation must not freeze a gift forever.
         character.makeRestless()
         character.advanceDrawingGift(by: 120)

@@ -1,6 +1,7 @@
 import AppKit
 
 enum Mood: String, CaseIterable {
+    case styling
     case drawing, offerDrawing, drawingThanks
     case windDown, nightSleep, bellySleep, yoga, reserved
     case ironNeed, ironLow, ironSnack
@@ -32,9 +33,10 @@ enum Mood: String, CaseIterable {
     var isHeadphones: Bool { self == .plugIn || self == .listening || self == .unplug }
     var isDance: Bool { isChoreography || self == .zoomies }
     var isPaper: Bool { self == .paperOpen || self == .paperClose || self == .paperToss }
-    var isInteraction: Bool { self == .drawingThanks || isPaper || self == .ironSnack || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp || self == .snack || self == .acknowledged }
+    var isInteraction: Bool { self == .styling || self == .drawingThanks || isPaper || self == .ironSnack || self == .coffee || self == .affection || self == .annoyed || self == .tumble || self == .crying || self == .recover || self == .takeBow || self == .disappointed || self == .wakeUp || self == .snack || self == .acknowledged }
     var label: String {
         switch self {
+        case .styling: return "Checking her look"
         case .drawing: return "Making something for you"
         case .offerDrawing: return "A little drawing for you"
         case .drawingThanks: return "She’s glad you kept it"
@@ -119,6 +121,26 @@ final class CharacterView: NSView {
     var externalAudioPlaying = false
     var listensToAudio = true { didSet { if !listensToAudio { listeningState.reset(); if mood.isHeadphones { mood = baseMood } }; needsDisplay = true } }
     private(set) var listeningState = ListeningState()
+    var styling = StylingState() { didSet { if styling.imageKey != oldValue.imageKey { cachedPixelImage = nil; cachedVisual = nil; needsDisplay = true } } }
+    var onStylingChanged: ((StylingState) -> Void)?
+    var stylingSideEye = false
+    private var stylingSoundPlayed = false
+    var canStyle: Bool {
+        canInteract && canGiveNotes && dailyRoutine.period == .awake && scheduledMood == nil &&
+        !tutorialActive && !paused && !noteIsVisible && focusRest == nil && !hasLifestyleActivity &&
+        !coffeeOverload.occupied && !drawingGift.working && !mood.isDance && !isBusy && !performance.awaitingApplause
+    }
+    @discardableResult func selectStyle(_ item: Cosmetic, sideEye: Bool? = nil) -> Bool {
+        guard canStyle else { return false }
+        var next = styling, progress = danceProgress
+        if next.purchased.contains(item) { guard next.toggle(item) else { return false } }
+        else { guard next.buy(item, progress: &progress) else { return false } }
+        styling = next; danceProgress = progress
+        onStylingChanged?(styling)
+        stylingSoundPlayed = false
+        stylingSideEye = sideEye ?? (Int.random(in: 0..<4) == 0)
+        react(.styling, duration: 4.2); return true
+    }
     var drawingGift = DrawingGiftState()
     var onDrawingGiftChanged: ((DrawingGiftState) -> Void)?
     var onDrawingGiftAccepted: ((DrawingKeepsake) -> Void)?
@@ -217,6 +239,9 @@ final class CharacterView: NSView {
         guard !screenLocked, dailyRoutine.period == .awake, !tutorialActive, !awaitingSong else { return }
         if happiness.receive(care) {
             onHappinessChanged?(happiness)
+            let oldStyling = styling
+            styling.recordCare(care)
+            if styling != oldStyling { onStylingChanged?(styling) }
             let oldGift = drawingGift
             drawingGift.recordCare(care)
             if oldGift != drawingGift { onDrawingGiftChanged?(drawingGift) }
@@ -258,6 +283,7 @@ final class CharacterView: NSView {
     }
     @discardableResult func acceptDrawingGift() -> Bool {
         guard showsDrawing, let picture = drawingGift.accept() else { return false }
+        styling.updateHistory(from: drawingGift); onStylingChanged?(styling)
         onDrawingGiftChanged?(drawingGift); onDrawingGiftAccepted?(picture)
         react(.drawingThanks, duration: 3.0); updateAccessibilityHelp(); needsDisplay = true; return true
     }
@@ -534,7 +560,7 @@ final class CharacterView: NSView {
     var animationInterval: TimeInterval {
         if gesture != nil || latteReturnBegan != nil || barReturnBegan != nil || screwReturnBegan != nil { return 1.0 / 24 }
         if paused || reduceMotion { return 0.25 }
-        if mood == .drawing || mood == .offerDrawing { return 1.0 / 8 }
+        if mood == .styling || mood == .drawing || mood == .offerDrawing { return 1.0 / 8 }
         if showsApplause { return 1.0 / 24 }
         if mood == .phoneSulk && Date().timeIntervalSince(moodBegan) < 1.2 { return 1.0 / 24 }
         if [.nightSleep, .bellySleep, .windDown, .naturalNap, .focusNap, .yoga, .reserved, .phone, .phoneSulk, .showOff, .sleep].contains(mood) { return 0.25 }
@@ -602,7 +628,7 @@ final class CharacterView: NSView {
         addSubview(screwButton)
         updateAccessibilityHelp()
         if let url = Bundle.main.url(forResource: "velvet-sprites-v5", withExtension: "png") {
-            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"), yogaURL: Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png"), drawingURL: Bundle.main.url(forResource: "drawing-sprites-v1", withExtension: "png"))
+            atlas = SpriteAtlas(url: url, additionalURL: Bundle.main.url(forResource: "vogue-sprites-v2", withExtension: "png"), latteURL: Bundle.main.url(forResource: "iced-latte-sprites-v2", withExtension: "png"), interactionURL: Bundle.main.url(forResource: "interaction-sprites-v2", withExtension: "png"), wellbeingURL: Bundle.main.url(forResource: "wellbeing-sprites-v1", withExtension: "png"), discoURL: Bundle.main.url(forResource: "disco-sprites-v1", withExtension: "png"), clubURL: Bundle.main.url(forResource: "club-sprites-v1", withExtension: "png"), stretchURL: Bundle.main.url(forResource: "stretch-sprites-v1", withExtension: "png"), breakdanceURL: Bundle.main.url(forResource: "breakdance-sprites-v1", withExtension: "png"), lifestyleURL: Bundle.main.url(forResource: "care-sprites-v2", withExtension: "png"), dailyURL: Bundle.main.url(forResource: "daily-sprites-v1", withExtension: "png"), yogaURL: Bundle.main.url(forResource: "yoga-sprites-v2", withExtension: "png"), drawingURL: Bundle.main.url(forResource: "drawing-sprites-v1", withExtension: "png"), stylingURL: Bundle.main.url(forResource: "styling-sprites-v1", withExtension: "png"))
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -713,9 +739,23 @@ final class CharacterView: NSView {
         moodUntil = [.grumpy, .annoyed, .crying, .focusNap, .zoomies, .reconcile, .restless, .showOff, .overstimulated].contains(mood) ? .distantFuture : Date().addingTimeInterval(length)
         if mood == .tumble { audio.playTumble() }
         if mood == .coffee { audio.playCoffee(paused: paused) }
+        if mood == newMood && previousMood != mood {
+            switch mood {
+            case .drawingThanks: playJerseyReaction(.shy)
+            case .shySmile: playJerseyReaction(.laugh, chance: 0.25)
+            case .disappointed: playJerseyReaction(.attitude, chance: 0.35)
+            case .sideEye: playJerseyReaction(.attitude, chance: 0.15)
+            default: break
+            }
+        }
         idleSince = Date()
         syncCompanionButtons()
         needsDisplay = true
+    }
+    private func playJerseyReaction(_ reaction: JerseyReaction, chance: Double = 1) {
+        guard previewTime == nil, canInteract, !paused, !tutorialActive, !noteIsVisible,
+            focusRest == nil, !externalAudioPlaying, !listeningState.isActive, !hasLifestyleActivity else { return }
+        _ = audio.playJersey(reaction, chance: chance)
     }
     private func updatePointerPresence() {
         guard let window, window.isVisible else { return }
@@ -749,6 +789,10 @@ final class CharacterView: NSView {
             mood = baseMood
             if [.restless, .showOff, .overstimulated].contains(mood) { moodUntil = .distantFuture }
             if let paper = pendingPaper { pendingPaper = nil; if canGiveNotes { react(paper) } }
+        }
+        if mood == .styling && !paused && !stylingSoundPlayed && now.timeIntervalSince(moodBegan) >= 2.5 {
+            stylingSoundPlayed = true
+            playJerseyReaction(stylingSideEye ? .attitude : .pleased)
         }
         let responseNow = ProcessInfo.processInfo.systemUptime
         advanceNightVisit(by: min(1, max(0, responseNow - lastResponseTick)))
@@ -1383,6 +1427,7 @@ final class CharacterView: NSView {
         let zoom = max(0, responseElapsed ?? previewTime ?? (coffeeOverload.phase == .hyped ? 8 - coffeeOverload.remaining : responses.zoomiesElapsed))
         var index: Int
         switch mood {
+        case .styling: index = spriteFrameCount >= 128 ? (elapsed < 1 ? 124 : (elapsed < 2.5 ? 125 : (stylingSideEye ? 127 : 126))) : 2
         case .drawing:
             let progress = previewTime ?? drawingGift.elapsed
             index = spriteFrameCount >= 124 ? (progress >= 8 ? 119 : 116 + (active ? Int(progress * 2) % 3 : 0)) : 0
@@ -1481,7 +1526,7 @@ final class CharacterView: NSView {
         if let forcedIndex { index = forcedIndex }
         let frame = atlas.frames[index]
         var lift = active ? sin(t * 1.8) * 0.35 : 0
-        if [.drawing, .offerDrawing, .drawingThanks, .windDown, .nightSleep, .bellySleep, .yoga, .reserved, .contemporary, .naturalNap, .phone, .phoneSulk, .focusNap, .wakeUp, .crying, .tumble, .showOff, .overstimulated, .breakdance].contains(mood) { lift = 0 }
+        if [.styling, .drawing, .offerDrawing, .drawingThanks, .windDown, .nightSleep, .bellySleep, .yoga, .reserved, .contemporary, .naturalNap, .phone, .phoneSulk, .focusNap, .wakeUp, .crying, .tumble, .showOff, .overstimulated, .breakdance].contains(mood) { lift = 0 }
         if mood == .takeBow && active { lift += sin(min(1, elapsed / 1.8) * .pi) * 4 }
         if mood == .celebrate && active { lift -= abs(sin(t * 6)) * 8 }
         if mood.isDance && mood != .zoomies && mood != .breakdance && mood != .contemporary && active { lift -= abs(sin(t * .pi * 2.5)) * (mood == .ballet ? 2 : 0.6) }
@@ -1579,11 +1624,11 @@ final class CharacterView: NSView {
             // Add weighted frames inside an isolated layer for a true crossfade,
             // so the robot stays opaque while her hands and cup change poses.
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-            atlas.frames[previous.index].image.draw(in: previous.rect, from: .zero, operation: .sourceOver, fraction: 1 - fraction, respectFlipped: true, hints: nil)
-            atlas.frames[pose.index].image.draw(in: pose.rect, from: .zero, operation: .plusLighter, fraction: fraction, respectFlipped: true, hints: nil)
+            atlas.image(at: previous.index, style: styling.imageKey).draw(in: previous.rect, from: .zero, operation: .sourceOver, fraction: 1 - fraction, respectFlipped: true, hints: nil)
+            atlas.image(at: pose.index, style: styling.imageKey).draw(in: pose.rect, from: .zero, operation: .plusLighter, fraction: fraction, respectFlipped: true, hints: nil)
             ctx.endTransparencyLayer()
         } else {
-            atlas.frames[pose.index].image.draw(in: pose.rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            atlas.image(at: pose.index, style: styling.imageKey).draw(in: pose.rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }
         if mood.isHeadphones { drawHeadphones(in: pose.rect, time: t, mood: mood) }
         ctx.restoreGState()
@@ -1929,5 +1974,51 @@ final class CharacterView: NSView {
     }
     private func text(_ value: String, point: NSPoint, size: Double, color: NSColor) {
         (value as NSString).draw(at: point, withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .bold), .foregroundColor: color])
+    }
+}
+
+extension CharacterView {
+    func renderStyleSheets(to directory: URL) {
+        guard let atlas else { return }
+        for start in stride(from: 0, to: atlas.frames.count, by: 32) {
+            let size = NSSize(width: 720, height: 1280)
+            let image = NSImage(size: size)
+            image.lockFocusFlipped(true)
+            NSColor(calibratedWhite: 0.84, alpha: 1).setFill(); NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+            for index in start..<min(start + 32, atlas.frames.count) {
+                let frame = atlas.frames[index], slot = index - start
+                let cell = NSRect(x: (slot % 4) * 180, y: (slot / 4) * 160, width: 180, height: 160)
+                let scale = min(155 / Double(frame.width), 133 / Double(frame.height))
+                let rect = NSRect(x: cell.midX - Double(frame.width) * scale / 2, y: cell.minY + 18,
+                    width: Double(frame.width) * scale, height: Double(frame.height) * scale)
+                atlas.image(at: index, style: 3).draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                ("\(index)" as NSString).draw(at: NSPoint(x: cell.minX + 6, y: cell.minY + 3), withAttributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.black])
+            }
+            image.unlockFocus()
+            if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                try? NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("style-sheet-\(start).png"))
+            }
+        }
+    }
+}
+
+
+extension CharacterView {
+    func styledSilhouettesMatch() -> Bool {
+        guard let atlas else { return false }
+        for index in atlas.frames.indices {
+            let frame = atlas.frames[index]
+            guard let image = atlas.image(at: index, style: 3).cgImage(forProposedRect: nil, context: nil, hints: nil) else { return false }
+            var bytes = [UInt8](repeating: 0, count: frame.width * frame.height * 4)
+            let drawn = bytes.withUnsafeMutableBytes { data -> Bool in
+                guard let context = CGContext(data: data.baseAddress, width: frame.width, height: frame.height,
+                    bitsPerComponent: 8, bytesPerRow: frame.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+                context.draw(image, in: CGRect(x: 0, y: 0, width: frame.width, height: frame.height))
+                return true
+            }
+            guard drawn, frame.alpha.indices.allSatisfy({ bytes[$0 * 4 + 3] == frame.alpha[$0] }) else { return false }
+        }
+        return true
     }
 }

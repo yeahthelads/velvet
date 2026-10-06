@@ -27,6 +27,7 @@ struct Preferences: Codable {
     var paused = false
     var shortcut = 0
     var hasMetVelvet: Bool?
+    var hasSeenIronIntro: Bool? // Remember the one-time screw explanation across restarts.
     var listensToAudio: Bool? // Missing in older archives means enabled.
 }
 
@@ -46,6 +47,7 @@ struct Archive: Codable {
     var iron: IronState?
     var dailyRoutine: DailyRoutine?
     var drawingGift: DrawingGiftState?
+    var styling: StylingState?
 }
 
 final class NoteStore: ObservableObject {
@@ -72,6 +74,12 @@ final class NoteStore: ObservableObject {
                 archive = try JSONDecoder().decode(Archive.self, from: Data(contentsOf: file))
                 // Previous releases already offered Ballet; preserve that upgrade path.
                 if archive.danceProgress == nil { archive.danceProgress = DanceProgress(unlockedDanceIDs: ["ballet"]) }
+                // Prior iron feeding/deficiency proves the mechanic was introduced.
+                if archive.preferences.hasSeenIronIntro == nil &&
+                    (archive.drawingGift?.careKinds.contains(HappinessState.Care.iron.rawValue) == true ||
+                     archive.iron?.lowIron == true || archive.iron?.eating == true) {
+                    archive.preferences.hasSeenIronIntro = true
+                }
             }
         } catch {
             saveError = "Could not read your notes: \(error.localizedDescription)"
@@ -101,12 +109,15 @@ final class NoteStore: ObservableObject {
         archive.coffee = CoffeeState(); archive.coffeeOverload = CoffeeOverload(); archive.iron = IronState(); archive.care = CompanionCare()
         archive.danceProgress = DanceProgress(); archive.lifestyle = LifestyleState()
         archive.tutorial = TutorialState(); archive.songRequest = SongRequestState()
+        archive.styling = StylingState()
         archive.activity = ActivityState(); archive.happiness = HappinessState(); archive.dailyRoutine = DailyRoutine()
-        archive.preferences.hasMetVelvet = false; archive.preferences.paused = false
+        archive.preferences.hasMetVelvet = false; archive.preferences.hasSeenIronIntro = false; archive.preferences.paused = false
         focus.end()
         if flush() { return true }
         archive = previous; return false
     }
+    var styling: StylingState { archive.styling ?? StylingState() }
+    func setStyling(_ value: StylingState) { archive.styling = value; scheduleSave(celebrate: false) }
     var drawingGift: DrawingGiftState { archive.drawingGift ?? DrawingGiftState() }
     func setDrawingGift(_ value: DrawingGiftState) { archive.drawingGift = value; scheduleSave(celebrate: false) }
     var dailyRoutine: DailyRoutine { archive.dailyRoutine ?? DailyRoutine() }

@@ -135,7 +135,7 @@ The build uses only system frameworks and applies a local ad-hoc signature. It h
 ## Verification
 
 ```sh
-swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/IronState.swift Sources/DrawingGiftState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/IronState.swift Sources/DrawingGiftState.swift Sources/StylingState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
 build/store-tests
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CompanionCare.swift Sources/FocusSession.swift Sources/CompanionInteraction.swift Sources/CompanionResponse.swift Sources/PerformanceState.swift Sources/ListeningState.swift Sources/StimulationState.swift Tests/InteractionTests.swift -o build/interaction-tests
 build/interaction-tests
@@ -249,7 +249,7 @@ build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/path --cpu
 
 See [PERFORMANCE.md](PERFORMANCE.md) for before/after results and their limits.
 
-Every 25–35 eligible awake minutes, Velvet asks for silver screws. Drag them onto her hand or body within two minutes. She reaches out, closes her fingers around them, lifts them to her visor and eats them. The drop checks the carried object as well as the pointer, and accepts movement on release. A shrinking pink line shows the deadline; missing it makes the screws disappear and leaves her low on iron, with faster fatigue and naps. “Give her screws · 1 clap” in the menu offers an immediate rescue using her reach-and-eat animation. It spends one clap from the same balance used for dances, only on a successful feeding. Without a clap she has a little cry, feeling neglected. After five eligible awake minutes, a fresh free two-minute drag-and-drop offer appears; she stays iron deficient until fed. The cooldown and care spending survive restarting. Only screws cure low iron, with a modest energy and happiness boost. Coffee and sleeping do not clear it. Iron clocks pause during notes, focus, sleep, hidden/locked/paused states and other activities or care needs that prevent feeding. The need and deadline survive restarting.
+Every 25–35 eligible awake minutes, Velvet asks for silver screws. Drag them onto her hand or body within two minutes. She reaches out, closes her fingers around them, lifts them to her visor and eats them. The drop checks the carried object as well as the pointer, and accepts movement on release. A shrinking pink line shows the deadline; missing it makes the screws disappear and leaves her low on iron, with faster fatigue and naps. “Give her screws · 1 clap” in the menu offers an immediate rescue using her reach-and-eat animation. It spends one clap from the same balance used for dances, only on a successful feeding. Without a clap she has a little cry, feeling neglected. After five eligible awake minutes, a fresh free two-minute drag-and-drop offer appears; she stays iron deficient until fed. The cooldown and care spending survive restarting. Only screws cure low iron, with a modest energy and happiness boost. Coffee and sleeping do not clear it. Iron clocks pause during notes, focus, sleep, hidden/locked/paused states and other activities or care needs that prevent feeding. The need and deadline survive restarting. Her introduction bubble appears only on the first screw request; its seen flag persists across restarts. Later requests show the screws and shrinking timer without repeating the explanation.
 
 Native screw feeding checks dispatch mouse-down, dragging and release through the companion window, using the real parent/view coordinate conversion. The transparent prop controls forward screw and protein-bar drags to the character instead of consuming them as button clicks.
 
@@ -261,3 +261,23 @@ After 35–55 minutes of free daytime company, Velvet may draw a crayon picture 
 Notes, focus, care needs, performances, sleep, screen lock and animation pause suspend drawing. An unclaimed picture has no deadline or disappointment penalty. The gift, its progress and collected pictures survive quitting. Collected pictures reopen from **Her drawings**. This release includes one unique picture, given once per profile; resetting the companion journey retains keepsakes. Art and its generation brief are in [Assets/DRAWING-ART.md](Assets/DRAWING-ART.md).
 
 Run the isolated native gift checks with `build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/profile --drawing-smoke /absolute/temporary/result.json`. The state checks compile with `swiftc -swift-version 5 Sources/CompanionRoutine.swift Sources/DrawingGiftState.swift Tests/DrawingGiftTests.swift -o build/drawing-tests` and run with `build/drawing-tests`.
+
+
+## Styling
+
+Experiences unlock the ability to buy accessories. Three different rewarded care types, including head affection, make the **Tribal heart tattoo** available. Accepting Velvet's crayon drawing makes the **Navel piercing** available. Each costs **10 claps** from the same balance used for dances and care. Unlocking never grants a free item. Purchased items remain owned; the alphabetically sorted **Styling** submenu lets you wear or remove them for free. She checks the look in a little hand mirror, then poses or occasionally gives a side-eye.
+
+Styling waits while notes are open, focus runs, she needs care, dances, sleeps, is paused or cannot be interacted with. Accessories follow the visible shell across poses, with no added logo or extra ear piercing. Ownership, eligibility, worn choices and clap spending survive normal restarts. An explicit companion-journey reset clears styling and clap progress together; it keeps personal notes and collected pictures. Existing care and accepted drawings are recognized on upgrade without awarding free cosmetics.
+
+Four short Jersey vocal reactions now punctuate a shy smile, an accepted drawing, occasional attitude and her mirror pose. A shared 45-second cooldown prevents repeated gestures from spamming sounds. They yield to current music and care samples. Details and measured levels: [Jersey reactions](Assets/JERSEY-AUDIO.md). Styling artwork and prompt: [Styling art](Assets/STYLING-ART.md).
+
+Checks:
+
+```sh
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CompanionRoutine.swift Sources/DrawingGiftState.swift Sources/StylingState.swift Sources/PerformanceState.swift Tests/StylingTests.swift -o build/styling-tests
+build/styling-tests
+swiftc -swift-version 5 -module-cache-path build/module-cache Sources/JerseyReaction.swift Tests/JerseyTests.swift -o build/jersey-tests
+build/jersey-tests
+python3 Tests/JerseyAssetsTests.py
+build/Velvet.app/Contents/MacOS/Velvet --data-dir /absolute/temporary/profile --styling-smoke /absolute/temporary/result.json
+```

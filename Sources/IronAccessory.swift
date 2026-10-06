@@ -130,8 +130,18 @@ extension CharacterView {
 extension AppDelegate {
     @objc func buyIronScrews() { _ = character.buyScrews() }
     func syncIronRequest(announce: Bool = false) {
-        if announce { ironMessagePending = character.iron.needsScrews }
-        guard ironMessagePending && character.iron.needsScrews && character.ironAvailable else { ironPanel?.orderOut(nil); return }
+        guard character.iron.needsScrews else {
+            ironMessagePending = false; ironPanel?.orderOut(nil); return
+        }
+        if store.preferences.hasSeenIronIntro == true && !character.iron.freeOfferAvailable {
+            ironMessagePending = false; ironPanel?.orderOut(nil); return
+        }
+        if announce && store.preferences.hasSeenIronIntro != true { ironMessagePending = true }
+        guard ironMessagePending && character.ironAvailable else { ironPanel?.orderOut(nil); return }
+        if store.preferences.hasSeenIronIntro != true {
+            store.setPreferences { $0.hasSeenIronIntro = true }
+            store.flush()
+        }
         if ironPanel == nil {
             let bubble = TutorialView(frame: NSRect(x: 0, y: 0, width: 216, height: 96))
             bubble.begin = { [weak self] in self?.ironMessagePending = false; self?.ironPanel?.orderOut(nil) }

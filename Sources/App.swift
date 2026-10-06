@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var ironPanel: NotesPanel?
     var ironBubble: TutorialView?
     var ironMessagePending = false
-    var diagnostics: Bool { ["--drawing-smoke", "--iron-smoke", "--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke", "--care-smoke", "--cpu-profile"].contains(where: CommandLine.arguments.contains) }
+    var diagnostics: Bool { ["--styling-smoke", "--drawing-smoke", "--iron-smoke", "--smoke-test", "--render-preview", "--lifestyle-smoke", "--song-smoke", "--routine-smoke", "--care-smoke", "--cpu-profile"].contains(where: CommandLine.arguments.contains) }
     var drawingPanel: NotesPanel?
     var songPanel: NotesPanel?
     var songBubble: TutorialView?
@@ -119,6 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: args[i + 1]))
             NSApp.terminate(nil)
         }
+        if let i = args.firstIndex(of: "--styling-smoke"), args.count > i + 1 {
+            let result = checkStyling(previewDirectory: URL(fileURLWithPath: args[i + 1]).deletingLastPathComponent())
+            try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: args[i + 1]))
+            NSApp.terminate(nil)
+        }
         if let i = args.firstIndex(of: "--drawing-smoke"), args.count > i + 1 {
             let result = checkDrawingGifts(previewDirectory: URL(fileURLWithPath: args[i + 1]).deletingLastPathComponent())
             try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: args[i + 1]))
@@ -178,7 +183,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.coffeeOverload = store.coffeeOverload
         character.onCoffeeOverloadChanged = { [weak self] value in self?.store.setCoffeeOverload(value) }
         character.onDanceLost = { [weak self] dance in self?.showConsequence("Velvet is upset you interrupted her phone time. She’s taking back ‘\(dance.label)’. Earn it again.") }
+        character.styling = store.styling
         character.drawingGift = store.drawingGift
+        character.styling.updateHistory(from: character.drawingGift)
+        store.setStyling(character.styling)
+        character.onStylingChanged = { [weak self] value in
+            guard let self else { return }
+            self.store.setStyling(value); self.store.setDanceProgress(self.character.danceProgress); self.rebuildMenu()
+        }
         store.setDrawingGift(character.drawingGift)
         character.onDrawingGiftChanged = { [weak self] value in self?.store.setDrawingGift(value); self?.rebuildMenu() }
         character.onDrawingGiftAccepted = { [weak self] picture in self?.store.flush(); self?.showDrawing(picture) }
@@ -534,7 +546,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         advanceActivity(by: elapsed)
         if !diagnostics { syncIronRequest() }
         if now - lastCoffeeCheckpoint >= 30 {
-            store.setDrawingGift(character.drawingGift); store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setIron(character.iron); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload); store.setDailyRoutine(dailyRoutine); lastCoffeeCheckpoint = now
+            store.setStyling(character.styling); store.setDrawingGift(character.drawingGift); store.setCoffee(coffee); store.setCare(character.care); store.setLifestyle(character.lifestyle); store.setIron(character.iron); store.setSongRequest(songRequest); store.setActivity(character.activity); store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload); store.setDailyRoutine(dailyRoutine); lastCoffeeCheckpoint = now
         }
     }
     func advanceActivity(by elapsed: Double) {
@@ -637,6 +649,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         let dances = NSMenuItem(title: character.showsDanceChooser ? "Choose a dance · she’s restless" : "Choose a dance", action: nil, keyEquivalent: "")
         dances.submenu = character.makeDanceMenu(); dances.isEnabled = character.canInteract; menu.addItem(dances)
+        let style = NSMenuItem(title: "Styling", action: nil, keyEquivalent: "")
+        style.submenu = makeStylingMenu(); style.isEnabled = character.canInteract; menu.addItem(style)
         let moods = NSMenu(); moods.autoenablesItems = false
         let previews: [Mood] = [.wave, .walk, .sleep, .sideEye, .celebrate, .stretch, .annoyed, .tumble, .restless, .showOff, .overstimulated]
         for mood in previews.sorted(by: { $0.label.localizedStandardCompare($1.label) == .orderedAscending }) {
@@ -742,6 +756,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         store.setIron(character.iron)
         store.setSongRequest(songRequest)
         store.setDrawingGift(character.drawingGift)
+        store.setStyling(character.styling)
         store.setActivity(character.activity); store.setDailyRoutine(dailyRoutine)
         store.setHappiness(character.happiness); store.setCoffeeOverload(character.coffeeOverload)
         store.setPreferences { $0.x = Double(pet.frame.minX); $0.y = Double(pet.frame.minY) }
