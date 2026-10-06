@@ -1153,7 +1153,9 @@ final class CharacterView: NSView {
         advanceCoffeeOverload(by: seconds)
         advanceIron(by: seconds)
         let oldPhase = lifestyle.phase, oldHunger = lifestyle.hungry
-        let available = dailyRoutine.period == .awake && scheduledMood == nil && window?.isVisible == true && !paused && !awaitingSong && gesture == nil && !stimulation.overstimulated && !coffeeOverload.occupied && !iron.eating && (focusRest == nil || lifestyle.phase == .idle)
+        // The tutorial overrides bedtime poses, so its required meal must also
+        // finish at night. Hidden, paused, locked and focus states still suspend it.
+        let available = (tutorialActive || dailyRoutine.period == .awake) && scheduledMood == nil && window?.isVisible == true && !paused && !awaitingSong && gesture == nil && !stimulation.overstimulated && !coffeeOverload.occupied && !iron.eating && (focusRest == nil || lifestyle.phase == .idle)
         let free = canGiveNotes && focusRest == nil && !stimulation.overstimulated && !isBusy && !mood.isDance && !performance.awaitingApplause && !responses.isActive && !listeningState.isActive
         activity.advance(by: seconds, available: available && !tutorialActive && focusRest == nil)
         lifestyle.advance(by: seconds, available: available && (!tutorialActive || lifestyle.occupied), awake: focusRest == nil && !tutorialActive && !mood.isDance && mood != .coffee, free: free && !tutorialActive, focusNap: focusRest == .focusNap, lowIron: iron.lowIron)

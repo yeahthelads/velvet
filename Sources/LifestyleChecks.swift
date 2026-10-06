@@ -91,6 +91,45 @@ extension AppDelegate {
         checks["tutorialResumesWithAlreadyOpenNote"] = store.tutorial.step == .closeNote
         closeNotes(); feedVelvet(); tutorialPanel?.orderOut(nil); character.advanceLifestyle(by: 6); showTutorial()
         checks["tutorialResumesAfterSnackFinished"] = store.tutorial.step == .affection
+        // The first-run lesson stays usable during evening and overnight hours.
+        // Resume an in-progress meal from the same archive used on a real restart.
+        let ordinaryRoutine = character.dailyRoutine
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        for hour in [22, 23, 7] {
+            var routine = DailyRoutine()
+            let date = calendar.date(from: DateComponents(year: 2026, month: 10, day: 6, hour: hour))!
+            _ = routine.update(at: date, calendar: calendar)
+            character.applyDailyRoutine(routine)
+            character.lifestyle = LifestyleState()
+            var eveningLesson = TutorialState()
+            eveningLesson.begin(); eveningLesson.openedNote(); eveningLesson.closedNote()
+            store.setTutorial(eveningLesson); syncTutorial()
+            checks["tutorialAcceptsSnackAtHour\(hour)"] = character.giveProteinBar() && store.tutorial.step == .snacking
+            character.advanceLifestyle(by: 2)
+            store.setLifestyle(character.lifestyle) // The quit handler saves the current timer.
+            store.flush()
+            let savedMeal = NoteStore(directory: store.directory).lifestyle
+            checks["tutorialSavesPartialSnackAtHour\(hour)"] = savedMeal.phase == .snack && savedMeal.remaining == 4
+            character.lifestyle = savedMeal
+            if hour == 22 {
+                character.paused = true
+                character.advanceLifestyle(by: 100)
+                checks["pausedEveningTutorialKeepsMeal"] = character.lifestyle == savedMeal
+                character.paused = false
+                character.setScreenLocked(true)
+                character.advanceLifestyle(by: 100)
+                checks["lockedEveningTutorialKeepsMeal"] = character.lifestyle == savedMeal
+                character.setScreenLocked(false)
+                character.start()
+                // Exercise the production animation clock, not just direct advances.
+                RunLoop.main.run(until: Date().addingTimeInterval(4.5))
+            } else {
+                character.advanceLifestyle(by: 4)
+            }
+            checks["tutorialFinishesRestoredSnackAtHour\(hour)"] = character.lifestyle.phase == .idle && character.mood != .snack && store.tutorial.step == .affection
+        }
+        character.applyDailyRoutine(ordinaryRoutine)
         togglePaused(); syncTutorial()
         checks["pausedTutorialExplainsHowToContinue"] = tutorialBubble?.primaryButton.title == "Continue" && tutorialBubble?.primaryButton.isHidden == false
         tutorialBubble?.primaryButton.performClick(nil)
