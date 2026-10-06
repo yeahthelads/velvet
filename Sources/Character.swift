@@ -128,7 +128,7 @@ final class CharacterView: NSView {
     var canStyle: Bool {
         canInteract && canGiveNotes && dailyRoutine.period == .awake && scheduledMood == nil &&
         !tutorialActive && !paused && !noteIsVisible && focusRest == nil && !hasLifestyleActivity &&
-        !coffeeOverload.occupied && !drawingGift.working && !mood.isDance && !isBusy && !performance.awaitingApplause
+        !coffeeOverload.occupied && !drawingGift.working && !mood.isDance && !mood.isHeadphones && mood != .sleep && !isBusy && !performance.awaitingApplause
     }
     @discardableResult func selectStyle(_ item: Cosmetic, sideEye: Bool? = nil) -> Bool {
         guard canStyle else { return false }
@@ -365,7 +365,10 @@ final class CharacterView: NSView {
     var danceProgress = DanceProgress() {
         didSet {
             guard danceProgress != oldValue else { return }
+            let previousStyle = styling
+            styling.updateProgress(from: danceProgress)
             onDanceProgressChanged?(danceProgress)
+            if styling != previousStyle { onStylingChanged?(styling) }
             updateAccessibilityHelp(); onPerformanceChanged?()
         }
     }
@@ -742,9 +745,6 @@ final class CharacterView: NSView {
         if mood == newMood && previousMood != mood {
             switch mood {
             case .drawingThanks: playJerseyReaction(.shy)
-            case .shySmile: playJerseyReaction(.laugh, chance: 0.25)
-            case .disappointed: playJerseyReaction(.attitude, chance: 0.35)
-            case .sideEye: playJerseyReaction(.attitude, chance: 0.15)
             default: break
             }
         }
@@ -792,7 +792,7 @@ final class CharacterView: NSView {
         }
         if mood == .styling && !paused && !stylingSoundPlayed && now.timeIntervalSince(moodBegan) >= 2.5 {
             stylingSoundPlayed = true
-            playJerseyReaction(stylingSideEye ? .attitude : .pleased)
+            playJerseyReaction(stylingSideEye ? .attitude : (Bool.random() ? .pleased : .laugh))
         }
         let responseNow = ProcessInfo.processInfo.systemUptime
         advanceNightVisit(by: min(1, max(0, responseNow - lastResponseTick)))
@@ -1991,7 +1991,7 @@ extension CharacterView {
                 let scale = min(155 / Double(frame.width), 133 / Double(frame.height))
                 let rect = NSRect(x: cell.midX - Double(frame.width) * scale / 2, y: cell.minY + 18,
                     width: Double(frame.width) * scale, height: Double(frame.height) * scale)
-                atlas.image(at: index, style: 3).draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                atlas.image(at: index, style: 15).draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
                 ("\(index)" as NSString).draw(at: NSPoint(x: cell.minX + 6, y: cell.minY + 3), withAttributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.black])
             }
             image.unlockFocus()
@@ -2008,7 +2008,7 @@ extension CharacterView {
         guard let atlas else { return false }
         for index in atlas.frames.indices {
             let frame = atlas.frames[index]
-            guard let image = atlas.image(at: index, style: 3).cgImage(forProposedRect: nil, context: nil, hints: nil) else { return false }
+            guard let image = atlas.image(at: index, style: 15).cgImage(forProposedRect: nil, context: nil, hints: nil) else { return false }
             var bytes = [UInt8](repeating: 0, count: frame.width * frame.height * 4)
             let drawn = bytes.withUnsafeMutableBytes { data -> Bool in
                 guard let context = CGContext(data: data.baseAddress, width: frame.width, height: frame.height,

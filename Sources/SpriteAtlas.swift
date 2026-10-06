@@ -22,10 +22,14 @@ final class SpriteAtlas {
     }
     private let styledImages = NSCache<NSString, NSImage>()
     func image(at index: Int, style: Int) -> NSImage {
-        guard style != 0, let placement = BodyStyling.placement(for: index) else { return frames[index].image }
+        guard style != 0 else { return frames[index].image }
+        let shell = BodyStyling.placement(for: index)
+        let legs = style & 4 != 0 ? LegWarmers.placements(for: index) : []
+        guard shell != nil || !legs.isEmpty else { return frames[index].image }
+        let placement = shell ?? BodyStyling.Placement(navel: nil, hip: nil)
         let key = "\(index)-\(style)" as NSString
         if let image = styledImages.object(forKey: key) { return image }
-        let image = BodyStyling.render(frame: frames[index], placement: placement, style: style)
+        let image = BodyStyling.render(frame: frames[index], placement: placement, style: style, legs: legs, showsCharm: ![7, 16, 38, 39, 41, 65, 66, 92, 96, 102].contains(index))
         styledImages.setObject(image, forKey: key, cost: frames[index].width * frames[index].height * 4)
         return image
     }

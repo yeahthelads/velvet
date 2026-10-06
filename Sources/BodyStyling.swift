@@ -71,7 +71,7 @@ enum BodyStyling {
         }
     }
 
-    static func render(frame: SpriteAtlas.Frame, placement: Placement, style: Int) -> NSImage {
+    static func render(frame: SpriteAtlas.Frame, placement: Placement, style: Int, legs: [LegWarmers.Leg] = [], showsCharm: Bool = true) -> NSImage {
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: frame.width, pixelsHigh: frame.height,
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
             let graphics = NSGraphicsContext(bitmapImageRep: bitmap) else { return frame.image }
@@ -86,6 +86,14 @@ enum BodyStyling {
         func shell(_ point: NSPoint) -> Bool {
             frame.contains(x: Double(point.x * rect.width), y: Double(point.y * rect.height))
         }
+        if style & 8 != 0, showsCharm, let navel = placement.navel {
+            let chest = NSPoint(x: navel.x, y: navel.y - 0.075)
+            if shell(chest) {
+                ctx.saveGState(); ctx.translateBy(x: chest.x * rect.width, y: chest.y * rect.height)
+                ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit, y: unit)
+                drawHeartCharm(); ctx.restoreGState()
+            }
+        }
         if style & 1 != 0, let hip = placement.hip, shell(hip) {
             ctx.saveGState(); ctx.translateBy(x: hip.x * rect.width, y: hip.y * rect.height)
             ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit, y: unit)
@@ -95,6 +103,22 @@ enum BodyStyling {
             ctx.saveGState(); ctx.translateBy(x: navel.x * rect.width, y: navel.y * rect.height)
             ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit, y: unit)
             drawPiercing(); ctx.restoreGState()
+        }
+        if style & 4 != 0, let pixels = bitmap.bitmapData {
+            let original = Array(UnsafeBufferPointer(start: pixels, count: bitmap.bytesPerRow * frame.height))
+            LegWarmers.draw(legs, in: rect)
+            // Knit wraps the blue calf. Forward-facing soles and covering props
+            // remain untouched even in foreshortened or folded poses.
+            let first = bitmap.bitmapFormat.contains(.alphaFirst) ? 1 : 0
+            for y in 0..<frame.height {
+                for x in 0..<frame.width {
+                    let offset = y * bitmap.bytesPerRow + x * 4
+                    let r = Int(original[offset + first]), g = Int(original[offset + first + 1]), b = Int(original[offset + first + 2])
+                    if !(b > g + 10 && g > r + 8) {
+                        for channel in 0..<4 { pixels[offset + channel] = original[offset + channel] }
+                    }
+                }
+            }
         }
         NSGraphicsContext.restoreGraphicsState()
         // Restore the silhouette alpha after drawing; ink and jewelry cannot
@@ -120,6 +144,22 @@ enum BodyStyling {
             }
         }
         return NSImage(cgImage: bitmap.cgImage!, size: rect.size)
+    }
+    private static func drawHeartCharm() {
+        let chain = NSBezierPath(); chain.move(to: NSPoint(x: -1.25, y: -0.52))
+        chain.curve(to: NSPoint(x: 1.25, y: -0.52), controlPoint1: NSPoint(x: -0.48, y: 0.03), controlPoint2: NSPoint(x: 0.48, y: 0.03))
+        NSColor(calibratedWhite: 0.32, alpha: 0.5).setStroke(); chain.lineWidth = 0.042; chain.stroke()
+        NSColor(calibratedWhite: 0.89, alpha: 1).setStroke(); chain.lineWidth = 0.023; chain.stroke()
+        let heart = NSBezierPath(); heart.move(to: NSPoint(x: 0, y: -0.10))
+        heart.curve(to: NSPoint(x: -0.29, y: -0.03), controlPoint1: NSPoint(x: -0.14, y: -0.34), controlPoint2: NSPoint(x: -0.38, y: -0.24))
+        heart.curve(to: NSPoint(x: 0, y: 0.29), controlPoint1: NSPoint(x: -0.28, y: 0.12), controlPoint2: NSPoint(x: -0.12, y: 0.18))
+        heart.curve(to: NSPoint(x: 0.29, y: -0.03), controlPoint1: NSPoint(x: 0.12, y: 0.18), controlPoint2: NSPoint(x: 0.28, y: 0.12))
+        heart.curve(to: NSPoint(x: 0, y: -0.10), controlPoint1: NSPoint(x: 0.38, y: -0.24), controlPoint2: NSPoint(x: 0.14, y: -0.34))
+        heart.close()
+        NSGradient(colors: [.white, NSColor(calibratedWhite: 0.88, alpha: 1), NSColor(calibratedWhite: 0.40, alpha: 1)])?.draw(in: heart, angle: 65)
+        NSColor(calibratedWhite: 0.25, alpha: 0.5).setStroke(); heart.lineWidth = 0.027; heart.stroke()
+        NSColor.white.withAlphaComponent(0.9).setFill()
+        NSBezierPath(ovalIn: NSRect(x: -0.19, y: -0.12, width: 0.13, height: 0.06)).fill()
     }
     private static func drawTribalHeart() {
         let heart = NSBezierPath()

@@ -21,10 +21,6 @@ https://creativecommons.org/licenses/by/4.0/
 https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1500027
 Changes: excerpt 00:24–00:36, fades, loudness balancing.
 
-SHORT JERSEY REACTIONS
-User-provided NAVO Nu-Jersey Kit: four BADSISTA vocal one-shots
-BADSISTA_vocal_one_shot_badsista_laugh.wav
-BADSISTA_vocal_one_shot_tocomvergonha.wav
-BADSISTA_vocal_one_shot_pausaai.wav
-BADSISTA_vocal_one_shot_aiquetudo.wav
-Selected short reactions, gain-balanced to -20 LUFS. See Assets/JERSEY-AUDIO.md.
+SHORT JERSEY DRIP REACTIONS
+User-provided NAVO Nu-Jersey Kit: FX/Drip 1.wav, Drip 2.wav, Drip 4.wav, Drip 6.wav
+Selected short effects, gain-balanced to -23 LUFS. See Assets/JERSEY-AUDIO.md.

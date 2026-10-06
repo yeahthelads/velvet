@@ -8,7 +8,7 @@ extension AppDelegate {
         character.care = CompanionCare(); character.lifestyle = LifestyleState(); character.iron = IronState()
         character.coffeeOverload = CoffeeOverload(); character.stimulation = StimulationState(cooldown: 60)
         character.happiness = HappinessState(); character.drawingGift = DrawingGiftState()
-        character.styling = StylingState(); character.danceProgress = DanceProgress(completedClaps: 21, unlockedDanceIDs: ["ballet"])
+        character.styling = StylingState(); character.danceProgress = DanceProgress(completedClaps: 41, unlockedDanceIDs: ["ballet"])
         character.mood = .idle; character.moodUntil = .distantPast; character.paused = false
         checks["stylingPosesBundled"] = character.spriteFrameCount == 128
         checks["jerseyReactionsBundled"] = character.audio.hasJersey
@@ -21,12 +21,12 @@ extension AppDelegate {
         character.audio.stopAll(); character.audio.updateDance(vogue: true, breaking: false)
         checks["jerseyDoesNotInterruptDanceMusic"] = !character.audio.playJersey(.shy, roll: 0, now: 200) && character.audio.isChantPlaying
         character.audio.enabled = false
-        checks["lockedItemCannotBeBoughtEvenWithFunds"] = !character.selectStyle(.tribalHeart) && character.danceProgress.clapBalance == 21
+        checks["lockedItemCannotBeBoughtEvenWithFunds"] = !character.selectStyle(.tribalHeart) && character.danceProgress.clapBalance == 41
         for care: HappinessState.Care in [.pet, .coffee, .food] { character.receiveCare(care) }
         checks["careUnlocksShopWithoutFreeOwnership"] = character.styling.available.contains(.tribalHeart) && character.styling.purchased.isEmpty && character.styling.worn.isEmpty
         openNotes(); closeNotes(); character.mood = .idle; character.moodUntil = .distantPast
         let count = store.activeCount
-        checks["tattooPurchaseSpendsTenAndStartsMirror"] = character.selectStyle(.tribalHeart, sideEye: false) && character.danceProgress.clapBalance == 11 && character.mood == .styling && character.displayedSpriteIndex == 124
+        checks["tattooPurchaseSpendsTenAndStartsMirror"] = character.selectStyle(.tribalHeart, sideEye: false) && character.danceProgress.clapBalance == 31 && character.mood == .styling && character.displayedSpriteIndex == 124
         character.previewTime = 1.8
         checks["mirrorHasSecondPose"] = character.displayedSpriteIndex == 125
         character.previewTime = 3
@@ -41,17 +41,35 @@ extension AppDelegate {
         _ = character.acceptDrawingGift(); drawingPanel?.orderOut(nil)
         checks["drawingUnlocksPiercingShopOnly"] = character.styling.available.contains(.navelPiercing) && !character.styling.purchased.contains(.navelPiercing)
         character.mood = .idle; character.moodUntil = .distantPast
-        checks["piercingCostsAnotherTen"] = character.selectStyle(.navelPiercing, sideEye: false) && character.danceProgress.clapBalance == 1 && character.styling.worn.count == 2
+        checks["piercingCostsAnotherTen"] = character.selectStyle(.navelPiercing, sideEye: false) && character.danceProgress.clapBalance == 21 && character.styling.worn.count == 2
+        character.mood = .idle; character.moodUntil = .distantPast
+        checks["legWarmersEarnedWithoutFreeOwnership"] = character.styling.available.contains(.legWarmers) && !character.styling.purchased.contains(.legWarmers)
+        checks["legWarmersCostTenAndJoinExistingLook"] = character.selectStyle(.legWarmers, sideEye: false) && character.danceProgress.clapBalance == 11 && character.styling.worn.count == 3 && character.styling.imageKey == 7
+        character.receiveCare(.attention)
+        checks["attentionAndAffectionUnlockCharmShopOnly"] = character.styling.available.contains(.heartCharm) && !character.styling.purchased.contains(.heartCharm)
+        character.mood = .idle; character.moodUntil = .distantPast
+        checks["charmPurchaseCostsTenAndCompletesLook"] = character.selectStyle(.heartCharm, sideEye: false) && character.danceProgress.clapBalance == 1 && character.styling.worn.count == 4 && character.styling.imageKey == 15
         store.flush()
         let resumed = NoteStore(directory: store.directory)
-        checks["purchaseAndBalanceSaveTogether"] = resumed.styling == character.styling && resumed.danceProgress.clapBalance == 1 && resumed.danceProgress.cosmeticClapsSpent == 20
+        checks["purchaseAndBalanceSaveTogether"] = resumed.styling == character.styling && resumed.danceProgress.clapBalance == 1 && resumed.danceProgress.cosmeticClapsSpent == 40
         character.mood = .idle; character.moodUntil = .distantPast
         checks["takingOffPurchasedItemIsFree"] = character.selectStyle(.tribalHeart) && character.danceProgress.clapBalance == 1 && !character.styling.worn.contains(.tribalHeart)
         character.mood = .idle; character.moodUntil = .distantPast
         checks["puttingItBackOnIsFree"] = character.selectStyle(.tribalHeart) && character.danceProgress.clapBalance == 1 && character.styling.worn.contains(.tribalHeart)
         character.mood = .idle; character.moodUntil = .distantPast
         let menus = makeStylingMenu().items.filter { $0.representedObject != nil }
-        checks["stylingMenuIsSortedAndMarksWornItems"] = menus.map(\.title) == ["Navel piercing", "Tribal heart tattoo"] && menus.allSatisfy { $0.state == .on }
+        checks["stylingMenuIsSortedAndMarksWornItems"] = menus.map(\.title) == ["Heart charm", "Leg warmers", "Navel piercing", "Tribal heart tattoo"] && menus.allSatisfy { $0.state == .on }
+        let staleMenu = makeMenu()
+        character.mood = .styling; character.moodUntil = Date().addingTimeInterval(4)
+        menuNeedsUpdate(staleMenu)
+        let disabled = staleMenu.items.first { $0.title == "Styling" }?.submenu?.items.first { $0.representedObject as? String == Cosmetic.legWarmers.rawValue }
+        checks["outfitBusyMenuDisablesActions"] = disabled?.isEnabled == false
+        character.mood = .idle; character.moodUntil = .distantPast
+        menuNeedsUpdate(staleMenu)
+        checks["menuRefreshesAfterMirrorFinishes"] = staleMenu.items.first { $0.title == "Styling" }?.submenu?.items.first { $0.representedObject as? String == Cosmetic.legWarmers.rawValue }?.isEnabled == true
+        character.mood = .sleep
+        checks["sleepDoesNotAllowOutfitChange"] = !character.selectStyle(.legWarmers)
+        character.mood = .idle
         openNotes(); let before = character.styling
         checks["writingPreventsOutfitAnimation"] = !character.selectStyle(.tribalHeart) && character.styling == before
         closeNotes(); character.mood = .idle; character.moodUntil = .distantPast

@@ -1,38 +1,38 @@
 {
-  "target_lufs": -20,
-  "measurement": "four repetitions to measure short one-shots; gain only, no pitch or timing change",
+  "target_lufs": -23,
+  "measurement": "16 repetitions of the short drip clips; gain only, no pitch or timing change",
   "samples": [
     {
       "file": "jersey-laugh.wav",
-      "source": "BADSISTA_vocal_one_shot_badsista_laugh.wav",
-      "duration_seconds": 1.422834,
-      "gain_db": -2.75,
-      "balanced_lufs": -20.01,
-      "true_peak_db": -3.69
+      "source": "Drip 1.wav",
+      "duration_seconds": 0.428776,
+      "gain_db": -6.83,
+      "balanced_lufs": -23.06,
+      "true_peak_db": -6.76
     },
     {
       "file": "jersey-shy.wav",
-      "source": "BADSISTA_vocal_one_shot_tocomvergonha.wav",
-      "duration_seconds": 1.688639,
-      "gain_db": -8.23,
-      "balanced_lufs": -19.99,
-      "true_peak_db": -9.21
+      "source": "Drip 2.wav",
+      "duration_seconds": 0.428776,
+      "gain_db": -4.86,
+      "balanced_lufs": -22.96,
+      "true_peak_db": -4.84
     },
     {
       "file": "jersey-attitude.wav",
-      "source": "BADSISTA_vocal_one_shot_pausaai.wav",
-      "duration_seconds": 0.586531,
-      "gain_db": -9.71,
-      "balanced_lufs": -20.0,
-      "true_peak_db": -10.76
+      "source": "Drip 4.wav",
+      "duration_seconds": 0.214399,
+      "gain_db": -12.27,
+      "balanced_lufs": -23.02,
+      "true_peak_db": -12.27
     },
     {
       "file": "jersey-pleased.wav",
-      "source": "BADSISTA_vocal_one_shot_aiquetudo.wav",
-      "duration_seconds": 1.158367,
-      "gain_db": -6.81,
-      "balanced_lufs": -20.0,
-      "true_peak_db": -7.79
+      "source": "Drip 6.wav",
+      "duration_seconds": 0.348299,
+      "gain_db": -12.49,
+      "balanced_lufs": -23.0,
+      "true_peak_db": -12.49
     }
   ]
 }

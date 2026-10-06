@@ -1,10 +1,19 @@
 #!/bin/zsh
 set -eu
 cd "$(dirname "$0")"
-APP="$PWD/build/Velvet.app"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$PWD/build/module-cache"
-swiftc -swift-version 5 -O -module-cache-path "$PWD/build/module-cache" \
-  Sources/JerseyReaction.swift Sources/StylingState.swift Sources/BodyStyling.swift Sources/StylingMenu.swift Sources/StylingChecks.swift Sources/DrawingGiftState.swift Sources/DrawingGift.swift Sources/DrawingGiftChecks.swift Sources/IronState.swift Sources/IronAccessory.swift Sources/IronChecks.swift Sources/LifestyleState.swift Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/CompanionInteraction.swift Sources/CompanionResponse.swift Sources/PerformanceState.swift Sources/ListeningState.swift Sources/SystemAudioMonitor.swift Sources/StimulationState.swift Sources/Store.swift Sources/SpriteAtlas.swift Sources/CompanionAudio.swift Sources/Character.swift Sources/NotesView.swift Sources/App.swift \
+DESTINATION="$PWD/build/Velvet.app"
+mkdir -p "$PWD/build/module-cache"
+STAGING=$(mktemp -d "$PWD/build/.Velvet-build.XXXXXX")
+APP="$STAGING/Velvet.app"
+BACKUP="$STAGING/previous.app"
+cleanup() {
+  if [[ -d "$BACKUP" && ! -e "$DESTINATION" ]]; then mv "$BACKUP" "$DESTINATION"; fi
+  rm -rf "$STAGING"
+}
+trap cleanup EXIT
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+swiftc -swift-version 5 -O -target "$(uname -m)-apple-macos13.0" -module-cache-path "$PWD/build/module-cache" \
+  Sources/LegWarmers.swift Sources/JerseyReaction.swift Sources/StylingState.swift Sources/BodyStyling.swift Sources/StylingMenu.swift Sources/StylingChecks.swift Sources/DrawingGiftState.swift Sources/DrawingGift.swift Sources/DrawingGiftChecks.swift Sources/IronState.swift Sources/IronAccessory.swift Sources/IronChecks.swift Sources/LifestyleState.swift Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/CompanionInteraction.swift Sources/CompanionResponse.swift Sources/PerformanceState.swift Sources/ListeningState.swift Sources/SystemAudioMonitor.swift Sources/StimulationState.swift Sources/Store.swift Sources/SpriteAtlas.swift Sources/CompanionAudio.swift Sources/Character.swift Sources/NotesView.swift Sources/App.swift \
   Sources/CompanionRoutine.swift Sources/CompanionRest.swift Sources/CareMechanicsChecks.swift Sources/RoutineChecks.swift Sources/PerformanceChecks.swift Sources/SongRequestState.swift Sources/SongRequest.swift Sources/SongRequestChecks.swift Sources/TutorialState.swift Sources/TutorialView.swift Sources/LifestyleChecks.swift \
   -o "$APP/Contents/MacOS/Velvet" -framework AppKit -framework SwiftUI -framework Carbon -framework CoreAudio
 cp Info.plist "$APP/Contents/Info.plist"
@@ -35,4 +44,8 @@ for sample in jersey-laugh jersey-shy jersey-attitude jersey-pleased vogue-chant
 done
 cp Assets/MUSIC-CREDITS.txt "$APP/Contents/Resources/MUSIC-CREDITS.txt"
 codesign --force --sign - "$APP"
-echo "Built $APP"
+codesign --verify --deep --strict "$APP"
+[[ -x "$APP/Contents/MacOS/Velvet" ]]
+if [[ -d "$DESTINATION" ]]; then mv "$DESTINATION" "$BACKUP"; fi
+mv "$APP" "$DESTINATION"
+echo "Built $DESTINATION"

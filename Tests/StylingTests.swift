@@ -25,6 +25,20 @@ import Foundation
         precondition(style.available.contains(.navelPiercing) && !style.purchased.contains(.navelPiercing))
         for _ in 0..<10 { poor.recordClap() }
         precondition(style.buy(.navelPiercing, progress: &poor) && poor.clapBalance == 0 && poor.cosmeticClapsSpent == 20)
+        style.updateProgress(from: DanceProgress(completedClaps: 2))
+        precondition(!style.available.contains(.legWarmers))
+        style.updateProgress(from: poor)
+        precondition(style.available.contains(.legWarmers) && !style.purchased.contains(.legWarmers))
+        for _ in 0..<10 { poor.recordClap() }
+        precondition(style.buy(.legWarmers, progress: &poor) && poor.clapBalance == 0 && poor.cosmeticClapsSpent == 30 && style.imageKey == 7)
+        precondition(style.toggle(.legWarmers) && style.imageKey == 3 && poor.clapBalance == 0)
+        precondition(style.toggle(.legWarmers) && style.imageKey == 7)
+        style.recordCare(.attention)
+        precondition(style.available.contains(.heartCharm) && !style.purchased.contains(.heartCharm))
+        for _ in 0..<10 { poor.recordClap() }
+        precondition(style.buy(.heartCharm, progress: &poor) && poor.clapBalance == 0 && poor.cosmeticClapsSpent == 40 && style.imageKey == 15)
+        let future = try JSONDecoder().decode(StylingState.self, from: Data(#"{"available":["legWarmers","futureHat"],"purchased":["legWarmers","futureHat"],"worn":["legWarmers","futureHat"]}"#.utf8))
+        precondition(future.purchased == [.legWarmers] && future.worn == [.legWarmers])
         let encoder = JSONEncoder(), decoder = JSONDecoder()
         let saved = try decoder.decode(StylingState.self, from: encoder.encode(style))
         let balance = try decoder.decode(DanceProgress.self, from: encoder.encode(poor))

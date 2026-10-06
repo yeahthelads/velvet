@@ -12,7 +12,17 @@ cd velvet
 zsh build.sh && open build/Velvet.app
 ```
 
-She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That personal archive, build outputs, and test data are excluded from this repository. The seventeen balanced sound samples are included. There is no cloud sync, telemetry, or network service. The source and character artwork are included; the app currently uses a local ad-hoc signature rather than a notarized release.
+She keeps your notes in `~/Library/Application Support/Velvet/notes.json`. That personal archive, build outputs, and test data are excluded from this repository. The twenty-one balanced sound samples are included. There is no cloud sync, telemetry, or network service. The source and character artwork are included; the app currently uses a local ad-hoc signature rather than a notarized release.
+
+## Updating
+
+Quit Velvet first. In your existing `velvet` checkout, run:
+
+```sh
+git pull --ff-only && zsh build.sh && open build/Velvet.app
+```
+
+This keeps notes, care state, earned dances, claps and bought accessories in the separate Application Support archive. Do not reset the companion to update. If the build fails, the command stops before opening the app and the previous working build remains intact.
 
 ## Use
 
@@ -130,9 +140,11 @@ zsh build.sh && open build/Velvet.app
 
 If opening reports `kLSNoExecutableErr`, compilation did not finish. Update with `git pull`, then rerun the combined build/open command above; the app opens only after a successful build.
 
-The build uses only system frameworks and applies a local ad-hoc signature. It has not been notarized for public distribution.
+The build explicitly targets macOS 13, matching the app’s minimum system version. Spotify activity detection requires macOS 14.2; other features remain available on macOS 13. Compilation, bundled resources and signature validation finish in a temporary staging directory before replacing the app; a failed update retains the previous working app. The build uses only system frameworks and applies a local ad-hoc signature. It has not been notarized for public distribution.
 
 ## Verification
+
+The latest release checks and their limits are recorded in [Release checks](RELEASE-CHECKS.md).
 
 ```sh
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/CoffeeState.swift Sources/CompanionCare.swift Sources/FocusSession.swift Sources/PerformanceState.swift Sources/LifestyleState.swift Sources/TutorialState.swift Sources/SongRequestState.swift Sources/CompanionRoutine.swift Sources/IronState.swift Sources/DrawingGiftState.swift Sources/StylingState.swift Sources/Store.swift Tests/StoreTests.swift -o build/store-tests
@@ -144,6 +156,7 @@ build/lifestyle-tests
 swiftc -swift-version 5 -module-cache-path build/module-cache Sources/IronState.swift Sources/LifestyleState.swift Tests/IronTests.swift -o build/iron-tests
 build/iron-tests
 python3 Tests/AudioAssetsTests.py
+python3 Tests/BuildScriptTests.py
 ```
 
 Persistence tests cover Unicode text, search, pinning, trash, restore, preferences, export content and preservation of an unreadable archive. `--data-dir /absolute/path` uses an isolated data folder for development. `--smoke-test /absolute/path/result.json` checks windows, focus, hit regions and hotkey registration, renders a notes preview, and exits. `--render-preview /absolute/path` renders the character's poses and exits.
@@ -265,11 +278,11 @@ Run the isolated native gift checks with `build/Velvet.app/Contents/MacOS/Velvet
 
 ## Styling
 
-Experiences unlock the ability to buy accessories. Three different rewarded care types, including head affection, make the **Tribal heart tattoo** available. Accepting Velvet's crayon drawing makes the **Navel piercing** available. Each costs **10 claps** from the same balance used for dances and care. Unlocking never grants a free item. Purchased items remain owned; the alphabetically sorted **Styling** submenu lets you wear or remove them for free. She checks the look in a little hand mirror, then poses or occasionally gives a side-eye.
+Experiences unlock the ability to buy accessories. Three different rewarded care types, including head affection, make the **Tribal heart tattoo** available. Accepting Velvet's crayon drawing makes the **Navel piercing** available. Earning three claps makes the pink **Leg warmers** available. Affection and an answered attention bid make the silver **Heart charm** available. Each item costs **10 claps** from the same balance used for dances and care. Unlocking never grants a free item. Purchased items remain owned; the alphabetically sorted **Styling** submenu lets you wear or remove them for free. She checks the look in a little hand mirror, then poses or occasionally gives a side-eye.
 
 Styling waits while notes are open, focus runs, she needs care, dances, sleeps, is paused or cannot be interacted with. Accessories follow the visible shell across poses, with no added logo or extra ear piercing. Ownership, eligibility, worn choices and clap spending survive normal restarts. An explicit companion-journey reset clears styling and clap progress together; it keeps personal notes and collected pictures. Existing care and accepted drawings are recognized on upgrade without awarding free cosmetics.
 
-Four short Jersey vocal reactions now punctuate a shy smile, an accepted drawing, occasional attitude and her mirror pose. A shared 45-second cooldown prevents repeated gestures from spamming sounds. They yield to current music and care samples. Details and measured levels: [Jersey reactions](Assets/JERSEY-AUDIO.md). Styling artwork and prompt: [Styling art](Assets/STYLING-ART.md).
+Short Jersey drip effects play when she accepts her drawing or finishes checking her look in the mirror. The BADSISTA vocals and random idle triggers have been removed. A shared 45-second cooldown prevents repeated gestures from spamming sounds. They yield to current music and care samples. Details and measured levels: [Jersey reactions](Assets/JERSEY-AUDIO.md). Styling artwork and prompt: [Styling art](Assets/STYLING-ART.md).
 
 Checks:
 

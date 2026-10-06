@@ -8,7 +8,7 @@ final class NotesPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     var pet: PetPanel!
     var character: CharacterView!
     var notes: NotesPanel!
@@ -186,6 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         character.styling = store.styling
         character.drawingGift = store.drawingGift
         character.styling.updateHistory(from: character.drawingGift)
+        character.styling.updateProgress(from: character.danceProgress)
         store.setStyling(character.styling)
         character.onStylingChanged = { [weak self] value in
             guard let self else { return }
@@ -620,6 +621,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func makeMenu() -> NSMenu {
         let menu = NSMenu(); menu.autoenablesItems = false
+        menu.delegate = self
         let open = item("Open thoughts", #selector(openNotes)); open.isEnabled = !character.stimulation.overstimulated && !character.awaitingSong; menu.addItem(open)
         let capture = item("New thought    \(shortcutLabels[max(0, min(2, store.preferences.shortcut))])", #selector(quickCapture))
         capture.isEnabled = !character.stimulation.overstimulated && !character.awaitingSong; menu.addItem(capture)
@@ -697,6 +699,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(item("Music credits", #selector(showMusicCredits)))
         let quit = NSMenuItem(title: "Quit Velvet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"); menu.addItem(quit)
         return menu
+    }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let refreshed = makeMenu()
+        menu.removeAllItems()
+        for entry in refreshed.items { refreshed.removeItem(entry); menu.addItem(entry) }
     }
     func rebuildMenu() {
         status?.menu = makeMenu()
