@@ -1,5 +1,11 @@
 # Velvet release checks
 
+## 0.2.3 — visible navel piercing
+
+The silver bar and pink gem now render at 1.9 times their initial scale, centred higher on the same belly attachment point so the lower gem stays above the pink soles. This preserves the purchased/worn state and the concealed-pose rules. The change addresses an equipped piercing that was difficult to distinguish after desktop pixel rendering.
+
+All 32 native styling checks passed in an isolated profile. The actual desktop preview was inspected and compared against the previous rendering; the visual change is confined to the belly jewellery. The source build and signature validation passed.
+
 ## 0.2.2 — consistent blue
 
 Checked on 6 October 2026. Palette correction now covers all robot poses instead of selected sleep/drawing/mirror poses. Supplemental sheets load without their own correction, then the combined atlas is calibrated once against the original standing pose. Sampling the lit blue material avoids dark-crease bias in seated and folded poses. The change adds no per-frame animation processing.

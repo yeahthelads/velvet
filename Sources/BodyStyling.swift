@@ -101,7 +101,10 @@ enum BodyStyling {
         }
         if style & 2 != 0, let navel = placement.navel, shell(navel) {
             ctx.saveGState(); ctx.translateBy(x: navel.x * rect.width, y: navel.y * rect.height)
-            ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit, y: unit)
+            // The original beads were smaller than one desktop pixel cell.
+            // Keep the approved jewellery, but let both beads survive downsampling.
+            ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit * 1.9, y: unit * 1.9)
+            ctx.translateBy(x: 0, y: -0.18) // Centre the larger piece on the belly, above the pink soles.
             drawPiercing(); ctx.restoreGState()
         }
         if style & 4 != 0, let pixels = bitmap.bitmapData {

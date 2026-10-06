@@ -20,6 +20,8 @@ Final generation prompt:
 
 Native `--styling-smoke` writes four contact sheets showing all 128 poses with all four cosmetics, plus the actual desktop-size mirror pose. It uses a temporary profile.
 
+The navel piercing's silver bar and pink gem render at 1.9 times the initial overlay scale, so its beads remain visible after the desktop pixel treatment. Its attachment points, ownership, wear toggle and concealed-pose rules stay the same.
+
 ## Leg warmers
 
 Pink ribbed knit leg warmers match the left robot in the earlier styling concept. They are drawn directly by `Sources/LegWarmers.swift` in the existing code-native costume renderer. Each visible calf has its own pose placement, including raised legs, back-facing poses and naps. Soft side shading, narrow knit ribs and folded cuffs match the original toy lighting; the pink soles remain visible. Deeply covered legs and isolated props receive no overlay. Costume rendering remains cached, pixel-treated and clipped to the source sprite silhouette.
