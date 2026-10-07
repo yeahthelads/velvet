@@ -216,7 +216,7 @@ final class CharacterView: NSView {
         }
     }
     @discardableResult func wakeForNightVisit() -> Bool {
-        guard !screenLocked, dailyRoutine.period == .asleep, !tutorialActive, !paused,
+        guard canInteract, dailyRoutine.period == .asleep, !tutorialActive, !paused,
               window?.isVisible == true, nightVisit.wake() else { return false }
         mood = .wakeUp; moodBegan = Date(); moodUntil = Date().addingTimeInterval(4.2)
         wakingFromNight = true; needsDisplay = true; onNightVisitChanged?(); onPerformanceChanged?()
@@ -1243,7 +1243,9 @@ final class CharacterView: NSView {
     }
     func advanceCoffeeOverload(by seconds: Double) {
         let before = coffeeOverload.phase
-        coffeeOverload.advance(by: seconds, available: !screenLocked && !paused && window?.isVisible == true && scheduledMood == nil && (!tutorialActive || coffeeOverload.occupied))
+        // Bedtime changes her pose, not caffeine recovery. Otherwise a crash
+        // beginning before 23:00 keeps interaction disabled until morning.
+        coffeeOverload.advance(by: seconds, available: !screenLocked && !paused && window?.isVisible == true && (!tutorialActive || coffeeOverload.occupied))
         guard before != coffeeOverload.phase else { return }
         responses.cancelZoomies(); cancelDance(); performance.cancelApplause(); listeningState.reset()
         if coffeeOverload.crashed { disappoint(.caffeineCrash); enterQuietMood() }

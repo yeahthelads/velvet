@@ -81,6 +81,8 @@ Ignoring attention or applause, poking her, tumbling and overstimulation lower h
 
 Three extra, unneeded lattes within five visible, unpaused minutes produce an eight-second rush after sipping, then a three-minute crash. During the crash, care, notes and animation requests are blocked. Needed coffees do not count. The cycle survives restarts and ends with reduced energy. The shutdown sample plays on every new overwhelm or sleep entry, including screen-lock rest, with normal volume/mute settings.
 
+Caffeine recovery continues during the scheduled evening wind-down and night sleep, so bedtime cannot trap her in a crash until morning. Hiding, pausing or locking the Mac still suspends the reaction clock. Once recovered, a bedtime head tap starts her usual short sleepy cuddle; it keeps previously closed notes closed. The menu disables note actions during a crash, and the menu-bar tooltip distinguishes caffeine recovery from ordinary overnight sleep.
+
 
 Spaced-out head rubs, accepted lattes, feeding a real hunger need and answering an attention bid increase happiness. Once she is cared for and free, a care reward can lead to a spontaneous unlocked dance after 8–20 eligible seconds. Happiness also speeds her regular dance countdown and settles gradually without care. Repeated rubs and extra coffees have cooldowns; automatic dances have a minimum two-minute rest between performances. Notes, focus, tiredness and unmet needs still prevent dancing. These dances offer normal applause and do not spend claps or play menu-only music.
 

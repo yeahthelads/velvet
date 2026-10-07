@@ -1,5 +1,13 @@
 # Velvet release checks
 
+## 0.2.4 — nighttime caffeine recovery
+
+Checked on 6 October 2026. A live process sample showed the app event loop running normally, while the saved companion was in a caffeine crash after 23:00. Scheduled bedtime had suspended the caffeine timer, leaving character interaction unavailable overnight.
+
+Caffeine recovery now continues through the evening and night poses while Velvet is visible and unpaused. Screen lock, hiding and pause still suspend the clock. A crash continues to block care and notes until recovery; it cannot be bypassed by a nighttime wake-up. After recovery, her normal brief sleepy visit works and returns her to bed without opening notes. Note menu items reflect the crash gate, and the tooltip explains ordinary nighttime sleep separately.
+
+All 73 native care checks passed in a temporary profile, including seven new regressions for overnight crash recovery, disabled note actions, preserved sleeping pose, reachable head hitbox and the short cuddle/return-to-bed cycle. The app build and signature verification passed.
+
 ## 0.2.3 — visible navel piercing
 
 The silver bar and pink gem now render at 1.9 times their initial scale, centred higher on the same belly attachment point so the lower gem stays above the pink soles. This preserves the purchased/worn state and the concealed-pose rules. The change addresses an equipped piercing that was difficult to distinguish after desktop pixel rendering.

@@ -160,6 +160,27 @@ extension AppDelegate {
         checks["caffeineCrashLastsLongerThanRush"] = character.coffeeOverload.crashed && !character.canInteract
         character.advanceCoffeeOverload(by: 1)
         checks["caffeineCrashEndsWithLowEnergy"] = character.canInteract && character.lifestyle.energy <= 45
+        rested()
+        for _ in 0..<3 { _ = character.coffeeOverload.accepted(needed: false) }
+        character.advanceCoffeeOverload(by: 14)
+        var nightCrash = DailyRoutine()
+        nightCrash.update(at: calendar.date(from: DateComponents(year: 2026, month: 10, day: 6, hour: 23))!, calendar: calendar, bellyChoice: true)
+        character.applyDailyRoutine(nightCrash)
+        let sleepingHead = NSPoint(x: character.crownRect.midX, y: character.crownRect.midY)
+        character.beginPointer(at: sleepingHead, screenPoint: sleepingHead, time: now + 120)
+        checks["bedtimeCrashStillBlocksCuddlesUntilRecovered"] = character.coffeeOverload.crashed && !character.isNightVisit && !character.interactiveArea(sleepingHead)
+        let crashMenu = makeMenu()
+        checks["bedtimeCrashDisablesNoteActionsInMenu"] = crashMenu.items.filter { $0.title == "Open thoughts" || $0.title.hasPrefix("New thought") }.allSatisfy { !$0.isEnabled }
+        character.advanceCoffeeOverload(by: 179)
+        checks["bedtimeCrashRecoveryClockKeepsRunning"] = character.coffeeOverload.crashed && character.coffeeOverload.remaining == 1 && character.mood == .bellySleep
+        character.advanceCoffeeOverload(by: 1)
+        checks["bedtimeCrashRecoversWithoutWakingOrOpeningNotes"] = !character.coffeeOverload.occupied && character.canInteract && character.mood == .bellySleep && !notes.isVisible
+        checks["recoveredSleepHasReachableHeadHitbox"] = character.interactiveArea(sleepingHead)
+        character.beginPointer(at: sleepingHead, screenPoint: sleepingHead, time: now + 121)
+        character.endPointer(at: sleepingHead, time: now + 121.1)
+        checks["recoveredBedtimeCrashAllowsNormalSleepyCuddle"] = character.isNightVisit && character.mood == .wakeUp && !notes.isVisible
+        character.advanceNightVisit(by: NightVisit.duration)
+        checks["recoveredBedtimeCrashReturnsToBed"] = !character.isNightVisit && character.mood == .bellySleep
         checks["proteinBarAbsentFromActionMenu"] = makeMenu().items.allSatisfy { !($0.title.localizedCaseInsensitiveContains("chocolate") || $0.title.localizedCaseInsensitiveContains("protein")) }
         rested(); let audio = character.audio; audio.enabled = true; audio.volume = 0
         var quietCount = audio.quietPlayCount

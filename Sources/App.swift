@@ -622,9 +622,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func makeMenu() -> NSMenu {
         let menu = NSMenu(); menu.autoenablesItems = false
         menu.delegate = self
-        let open = item("Open thoughts", #selector(openNotes)); open.isEnabled = !character.stimulation.overstimulated && !character.awaitingSong; menu.addItem(open)
+        let open = item("Open thoughts", #selector(openNotes)); open.isEnabled = !character.screenLocked && !character.stimulation.overstimulated && !character.coffeeOverload.crashed && !character.awaitingSong; menu.addItem(open)
         let capture = item("New thought    \(shortcutLabels[max(0, min(2, store.preferences.shortcut))])", #selector(quickCapture))
-        capture.isEnabled = !character.stimulation.overstimulated && !character.awaitingSong; menu.addItem(capture)
+        capture.isEnabled = !character.screenLocked && !character.stimulation.overstimulated && !character.coffeeOverload.crashed && !character.awaitingSong; menu.addItem(capture)
         menu.addItem(.separator())
         if songRequest.waiting { menu.addItem(item("Open ‘\(songRequest.song.title)’ in Spotify", #selector(openRequestedSong))) }
         let rub = item("A little head rub", #selector(petHead)); rub.isEnabled = character.canInteract && !character.iron.eating && character.lifestyle.phase != .snack; menu.addItem(rub)
@@ -708,9 +708,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func rebuildMenu() {
         status?.menu = makeMenu()
         if character.screenLocked { status?.button?.toolTip = "Resting while your screen is locked." }
-        else if character.isNightVisit { status?.button?.toolTip = "Sleepy · A little cuddle, then back to bed." }
         else if character.coffeeOverload.crashed { status?.button?.toolTip = "Too much latte · Let her crash quietly for three minutes." }
         else if character.stimulation.overstimulated { status?.button?.toolTip = "A little quiet, please · Give her thirty seconds of quiet; interaction is paused." }
+        else if character.isNightVisit { status?.button?.toolTip = "Sleepy · A little cuddle, then back to bed." }
+        else if character.dailyRoutine.period == .asleep && !character.tutorialActive { status?.button?.toolTip = "Sleeping until 08:00 · Tap her for a brief sleepy cuddle." }
         else if character.needsAffection { status?.button?.toolTip = "She needs affection · Stroke or hold her head to get your notes back." }
         else if coffee.needsCoffee { status?.button?.toolTip = "Iced latte. Now. · Drag the drink into her hand for your notes." }
         else if store.focus.isActive { status?.button?.toolTip = "Focus · \(store.focus.label) · \(store.focus.phase == .paused ? "paused" : (store.focus.isStretching ? "stretching" : "napping"))" }
