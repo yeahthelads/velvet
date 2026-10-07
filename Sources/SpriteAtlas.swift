@@ -29,7 +29,10 @@ final class SpriteAtlas {
         let placement = shell ?? BodyStyling.Placement(navel: nil, hip: nil)
         let key = "\(index)-\(style)" as NSString
         if let image = styledImages.object(forKey: key) { return image }
-        let image = BodyStyling.render(frame: frames[index], placement: placement, style: style, legs: legs, showsCharm: ![7, 16, 38, 39, 41, 65, 66, 92, 96, 102].contains(index))
+        // The standing body is the size reference. Cropped pose width includes
+        // spread limbs and props, so it must not determine tattoo/jewellery size.
+        let shellUnit = CGFloat(Double(frames[0].width) * 0.085 / frames[index].unitScale)
+        let image = BodyStyling.render(frame: frames[index], placement: placement, style: style, legs: legs, showsCharm: ![7, 16, 38, 39, 41, 65, 66, 92, 96, 102].contains(index), shellUnit: shellUnit)
         styledImages.setObject(image, forKey: key, cost: frames[index].width * frames[index].height * 4)
         return image
     }

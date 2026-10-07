@@ -9,69 +9,65 @@ enum BodyStyling {
         var size = 1.0
         var angle = 0.0
     }
+    /// Torso surface coordinates in each cropped sprite.
+    /// Limbs and props can cover either attachment even inside the sprite alpha.
     static func placement(for index: Int) -> Placement? {
-        // Coordinates are normalized to each cropped sprite, not its atlas cell.
         func pose(_ nx: Double, _ ny: Double, _ hx: Double, _ hy: Double,
             size: Double = 1, angle: Double = 0) -> Placement {
             Placement(navel: NSPoint(x: nx, y: ny), hip: NSPoint(x: hx, y: hy), size: size, angle: angle)
         }
-        let ordinary = pose(0.50, 0.77, 0.59, 0.84)
         switch index {
-        case 0...3, 6, 8, 20, 34, 36, 38...43, 52...54, 56...57, 64...67, 84, 96, 99...101, 122...123:
-            return ordinary
-        case 5: return pose(0.50, 0.77, 0.57, 0.82)
-        case 9, 44: return pose(0.49, 0.71, 0.53, 0.80)
-        case 10: return pose(0.46, 0.74, 0.43, 0.81)
-        case 11: return Placement(navel: NSPoint(x: 0.56, y: 0.80), hip: nil)
-        case 12: return pose(0.51, 0.78, 0.61, 0.83, angle: -0.2)
-        case 13: return pose(0.56, 0.79, 0.64, 0.84, angle: -0.4)
-        case 14: return pose(0.55, 0.82, 0.64, 0.82, angle: -0.5)
-        case 15: return Placement(navel: nil, hip: NSPoint(x: 0.59, y: 0.84), angle: -0.5)
-        case 16: return pose(0.51, 0.76, 0.61, 0.83)
-        case 17: return pose(0.48, 0.74, 0.57, 0.80)
-        case 18: return Placement(navel: nil, hip: NSPoint(x: 0.57, y: 0.80))
-        case 19: return pose(0.53, 0.79, 0.64, 0.82, angle: -0.4)
+        case 0...1, 3, 20, 34, 36, 40, 42...43, 56...57, 68, 84, 96, 99...101, 122...123:
+            return pose(0.50, 0.77, 0.60, 0.80)
         case 21: return Placement(navel: NSPoint(x: 0.50, y: 0.77), hip: nil)
-        case 22...26: return Placement(navel: nil, hip: NSPoint(x: 0.61, y: 0.84))
-        case 28...31: return Placement(navel: nil, hip: NSPoint(x: 0.60, y: 0.85))
-        case 32: return pose(0.50, 0.77, 0.49, 0.83)
-        case 33: return Placement(navel: nil, hip: NSPoint(x: 0.60, y: 0.85))
-        case 37: return pose(0.48, 0.77, 0.39, 0.85)
-        case 45: return pose(0.51, 0.76, 0.63, 0.86)
-        case 46...47: return Placement(navel: nil, hip: NSPoint(x: 0.67, y: 0.83))
-        case 48: return pose(0.47, 0.76, 0.58, 0.78)
-        case 51: return pose(0.55, 0.73, 0.63, 0.80)
-        case 55: return pose(0.44, 0.73, 0.46, 0.82)
-        case 58...59: return pose(0.50, 0.75, 0.57, 0.81)
-        case 60: return pose(0.47, 0.77, 0.56, 0.82)
-        case 61: return pose(0.46, 0.75, 0.43, 0.82)
-        case 62: return pose(0.49, 0.75, 0.57, 0.80)
-        case 63: return pose(0.48, 0.72, 0.44, 0.81)
-        case 68: return ordinary
-        case 76...77: return pose(0.45, 0.74, 0.52, 0.80)
-        case 78: return pose(0.52, 0.72, 0.63, 0.75, angle: -0.4)
-        case 79: return Placement(navel: nil, hip: NSPoint(x: 0.63, y: 0.70))
-        case 80: return pose(0.47, 0.79, 0.45, 0.85, angle: 0.3)
-        case 81: return Placement(navel: nil, hip: NSPoint(x: 0.73, y: 0.67), angle: -0.7)
-        case 82: return pose(0.50, 0.30, 0.65, 0.28, angle: .pi)
-        case 83: return Placement(navel: nil, hip: NSPoint(x: 0.68, y: 0.70), angle: -0.7)
-        case 85: return pose(0.37, 0.80, 0.44, 0.85, size: 0.8)
-        case 86...88: return Placement(navel: nil, hip: NSPoint(x: 0.60, y: 0.85))
-        case 89: return Placement(navel: nil, hip: NSPoint(x: 0.60, y: 0.86))
-        case 90...91: return Placement(navel: nil, hip: NSPoint(x: 0.64, y: 0.81))
-        case 92: return Placement(navel: nil, hip: NSPoint(x: 0.46, y: 0.84), size: 0.9)
-        case 102: return Placement(navel: nil, hip: NSPoint(x: 0.60, y: 0.85))
-        case 107, 111: return pose(0.49, 0.78, 0.60, 0.85)
-        case 124: return pose(0.43, 0.77, 0.52, 0.84, size: 0.85)
-        case 125: return pose(0.47, 0.77, 0.51, 0.86, size: 0.85)
-        case 126: return pose(0.46, 0.79, 0.55, 0.85, size: 0.85)
-        case 127: return pose(0.46, 0.78, 0.55, 0.85, size: 0.85)
-        // Back views, isolated props, laptop and deeply folded poses conceal the shell.
+        case 2: return Placement(navel: NSPoint(x: 0.45, y: 0.77), hip: nil, angle: 0.08)
+        case 5...6: return pose(0.50, 0.75, 0.60, 0.76)
+        case 8: return pose(0.50, 0.76, 0.60, 0.79)
+        case 9, 44: return pose(0.49, 0.71, 0.58, 0.75)
+        case 10: return Placement(navel: NSPoint(x: 0.48, y: 0.70), hip: nil, angle: 0.10)
+        case 11: return pose(0.55, 0.73, 0.62, 0.74, angle: -0.12)
+        case 12: return pose(0.52, 0.81, 0.58, 0.84, size: 0.85, angle: -0.15)
+        case 13: return pose(0.57, 0.79, 0.63, 0.79, size: 0.85, angle: -0.65)
+        case 14: return pose(0.56, 0.82, 0.62, 0.81, size: 0.85, angle: -0.55)
+        case 15: return Placement(navel: nil, hip: NSPoint(x: 0.61, y: 0.77), size: 0.7, angle: -0.4)
+        case 16: return pose(0.49, 0.71, 0.59, 0.72, angle: 0.12)
+        case 17: return pose(0.47, 0.71, 0.58, 0.71)
+        case 19: return pose(0.56, 0.78, 0.63, 0.78, size: 0.8, angle: -0.65)
+        case 32: return Placement(navel: nil, hip: NSPoint(x: 0.61, y: 0.78))
+        case 37: return pose(0.48, 0.76, 0.37, 0.80)
+        case 38...39: return Placement(navel: NSPoint(x: 0.50, y: 0.82), hip: nil, size: 0.75)
+        case 41: return pose(0.50, 0.80, 0.62, 0.80, size: 0.8)
+        case 45: return Placement(navel: NSPoint(x: 0.44, y: 0.75), hip: nil, angle: 0.18)
+        case 48: return pose(0.54, 0.73, 0.62, 0.75, angle: -0.3)
+        case 52: return pose(0.50, 0.77, 0.61, 0.79)
+        case 53: return pose(0.49, 0.73, 0.59, 0.77, angle: 0.1)
+        case 54: return pose(0.56, 0.75, 0.63, 0.78, angle: -0.25)
+        case 55: return pose(0.46, 0.71, 0.54, 0.73)
+        case 58...59: return pose(0.49, 0.73, 0.60, 0.72)
+        case 60: return pose(0.47, 0.76, 0.58, 0.79)
+        case 61: return pose(0.47, 0.72, 0.58, 0.71, angle: 0.12)
+        case 62: return pose(0.51, 0.72, 0.61, 0.74, angle: -0.12)
+        case 63: return Placement(navel: NSPoint(x: 0.48, y: 0.71), hip: nil)
+        case 64: return pose(0.47, 0.72, 0.57, 0.73)
+        case 65: return pose(0.49, 0.70, 0.59, 0.71, size: 0.9)
+        case 66: return pose(0.48, 0.67, 0.58, 0.70, size: 0.9)
+        case 67: return pose(0.49, 0.71, 0.60, 0.72, angle: -0.15)
+        case 76...77: return pose(0.48, 0.70, 0.58, 0.70)
+        case 78: return pose(0.53, 0.72, 0.61, 0.71, size: 0.85, angle: -0.7)
+        case 80: return pose(0.48, 0.75, 0.57, 0.77, size: 0.85, angle: 0.3)
+        case 82: return pose(0.50, 0.28, 0.59, 0.29, size: 0.85, angle: .pi)
+        case 85: return pose(0.37, 0.78, 0.45, 0.78, size: 0.8, angle: 0.10)
+        case 107, 111: return pose(0.49, 0.78, 0.61, 0.79, size: 0.85)
+        case 124: return pose(0.46, 0.77, 0.56, 0.80)
+        case 125: return pose(0.37, 0.77, 0.48, 0.80, angle: 0.08)
+        case 126: return pose(0.43, 0.78, 0.54, 0.81, angle: -0.08)
+        case 127: return pose(0.41, 0.77, 0.52, 0.80)
         default: return nil
         }
     }
 
-    static func render(frame: SpriteAtlas.Frame, placement: Placement, style: Int, legs: [LegWarmers.Leg] = [], showsCharm: Bool = true) -> NSImage {
+    static func render(frame: SpriteAtlas.Frame, placement: Placement, style: Int, legs: [LegWarmers.Leg] = [], showsCharm: Bool = true,
+        shellUnit: CGFloat) -> NSImage {
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: frame.width, pixelsHigh: frame.height,
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
             let graphics = NSGraphicsContext(bitmapImageRep: bitmap) else { return frame.image }
@@ -82,12 +78,15 @@ enum BodyStyling {
         let rect = NSRect(x: 0, y: 0, width: frame.width, height: frame.height)
         frame.image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         // Preserve source alpha: decorations cannot extend the sprite hitbox.
-        let unit = CGFloat(frame.width) * 0.085 * placement.size
+        let unit = shellUnit * placement.size
         func shell(_ point: NSPoint) -> Bool {
             frame.contains(x: Double(point.x * rect.width), y: Double(point.y * rect.height))
         }
         if style & 8 != 0, showsCharm, let navel = placement.navel {
-            let chest = NSPoint(x: navel.x, y: navel.y - 0.075)
+            // Move toward the neck along the torso axis, including upside-down
+            // poses. A fixed y offset put the charm between her feet in freezes.
+            let chest = NSPoint(x: navel.x + sin(placement.angle) * unit * 0.95 / rect.width,
+                y: navel.y - cos(placement.angle) * unit * 0.95 / rect.height)
             if shell(chest) {
                 ctx.saveGState(); ctx.translateBy(x: chest.x * rect.width, y: chest.y * rect.height)
                 ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit, y: unit)
@@ -96,20 +95,20 @@ enum BodyStyling {
         }
         if style & 1 != 0, let hip = placement.hip, shell(hip) {
             ctx.saveGState(); ctx.translateBy(x: hip.x * rect.width, y: hip.y * rect.height)
-            ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit, y: unit)
+            ctx.rotate(by: placement.angle); ctx.scaleBy(x: shellUnit * placement.size * 0.85, y: shellUnit * placement.size * 0.85)
             drawTribalHeart(); ctx.restoreGState()
         }
         if style & 2 != 0, let navel = placement.navel, shell(navel) {
             ctx.saveGState(); ctx.translateBy(x: navel.x * rect.width, y: navel.y * rect.height)
-            // The original beads were smaller than one desktop pixel cell.
-            // Keep the approved jewellery, but let both beads survive downsampling.
-            ctx.rotate(by: placement.angle); ctx.scaleBy(x: unit * 1.9, y: unit * 1.9)
-            ctx.translateBy(x: 0, y: -0.18) // Centre the larger piece on the belly, above the pink soles.
+            // A constant body-relative scale prevents wide arms/props enlarging
+            // the jewellery. Rotate about its centre, not its upper bead.
+            ctx.rotate(by: placement.angle); ctx.scaleBy(x: shellUnit * placement.size * 1.9, y: shellUnit * placement.size * 1.9)
+            ctx.translateBy(x: 0, y: -0.195)
             drawPiercing(); ctx.restoreGState()
         }
         if style & 4 != 0, let pixels = bitmap.bitmapData {
             let original = Array(UnsafeBufferPointer(start: pixels, count: bitmap.bytesPerRow * frame.height))
-            LegWarmers.draw(legs, in: rect)
+            LegWarmers.draw(legs, in: rect, referenceWidth: shellUnit / 0.085)
             // Knit wraps the blue calf. Forward-facing soles and covering props
             // remain untouched even in foreshortened or folded poses.
             let first = bitmap.bitmapFormat.contains(.alphaFirst) ? 1 : 0

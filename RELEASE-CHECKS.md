@@ -1,5 +1,11 @@
 # Velvet release checks
 
+## 0.2.5 — accessories follow each pose
+
+Checked on 7 October 2026. The tattoo, navel piercing, heart charm and leg warmers now use the standing body as their size reference; widening a sprite crop with arms or props no longer enlarges the accessories. Torso anchors and tilt are calibrated for individual dance, care and mirror poses. Covered hips conceal the tattoo instead of moving it to the other flank or drawing it onto a hand, cup or note. The charm follows the torso axis toward the neck, including upside-down breakdance poses. Crossed-leg, disco, waacking and mirror calf anchors were corrected separately; soles remain visible.
+
+The standalone accessory rendering suite passed checks of rendered size across eight exposed poses, the inverted collar, hidden surfaces, both calves in fourteen calibrated poses, and unchanged pink sole pixels across the atlas. All 32 native styling checks passed in an isolated profile, including accessory purchases, saved ownership, menu availability and the original alpha/hitbox in all 128 cells. Full pose sheets and the actual desktop mirror preview were visually inspected. Palette verification still passed for all 125 robot poses and three isolated props. The macOS 13 app build and signature validation passed. The rendering continues to use cached pose images.
+
 ## 0.2.4 — nighttime caffeine recovery
 
 Checked on 6 October 2026. A live process sample showed the app event loop running normally, while the saved companion was in a caffeine crash after 23:00. Scheduled bedtime had suspended the caffeine timer, leaving character interaction unavailable overnight.

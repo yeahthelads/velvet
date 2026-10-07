@@ -12,10 +12,12 @@ enum LegWarmers {
         func leg(_ x: CGFloat, _ y: CGFloat, _ endX: CGFloat, _ endY: CGFloat, _ width: CGFloat = 0.15) -> Leg {
             Leg(from: NSPoint(x: x, y: y), to: NSPoint(x: endX, y: endY), width: width)
         }
-        let standing = [leg(0.41, 0.865, 0.41, 0.95), leg(0.60, 0.865, 0.60, 0.95)]
+        let standing = [leg(0.41, 0.87, 0.41, 0.95, 0.17), leg(0.60, 0.87, 0.60, 0.95, 0.17)]
         switch index {
-        case 0...3, 7, 20...26, 28...31, 33, 36...43, 56...57, 68, 84, 86...88, 93...96, 99...102, 120...123:
+        case 0...1, 3, 7, 20...26, 28...31, 33, 36, 38...43, 56...57, 68, 84, 86...88, 93...96, 99...102, 120...123:
             return standing
+        case 2: return [leg(0.34, 0.87, 0.34, 0.95, 0.17), leg(0.56, 0.87, 0.56, 0.95, 0.17)]
+        case 37: return [leg(0.36, 0.87, 0.36, 0.95, 0.17), leg(0.53, 0.87, 0.53, 0.95, 0.17)]
         case 4: return [leg(0.38, 0.77, 0.29, 0.80), leg(0.50, 0.84, 0.46, 0.87)]
         case 5...6: return [leg(0.45, 0.87, 0.39, 0.91), leg(0.55, 0.86, 0.59, 0.90)]
         case 8: return [leg(0.40, 0.86, 0.39, 0.93), leg(0.59, 0.86, 0.58, 0.94)]
@@ -36,14 +38,19 @@ enum LegWarmers {
         case 48: return [leg(0.43, 0.86, 0.41, 0.95, 0.12), leg(0.69, 0.81, 0.78, 0.84, 0.12)]
         case 49...50: return [leg(0.81, 0.87, 0.87, 0.87, 0.10)]
         case 51: return [leg(0.62, 0.86, 0.62, 0.88, 0.14), leg(0.76, 0.86, 0.76, 0.88, 0.14)]
-        case 52...54: return [leg(0.36, 0.88, 0.33, 0.94), leg(0.59, 0.88, 0.62, 0.93)]
+        case 52: return [leg(0.36, 0.87, 0.32, 0.94, 0.17), leg(0.66, 0.87, 0.68, 0.94, 0.17)]
+        case 53: return [leg(0.37, 0.87, 0.37, 0.95, 0.17), leg(0.59, 0.87, 0.64, 0.94, 0.17)]
+        case 54: return [leg(0.44, 0.86, 0.42, 0.94, 0.17), leg(0.77, 0.86, 0.75, 0.94, 0.17)]
         case 55: return [leg(0.37, 0.88, 0.31, 0.91, 0.12), leg(0.42, 0.87, 0.48, 0.93, 0.12)]
-        case 58...59, 65...66: return [leg(0.42, 0.85, 0.48, 0.92, 0.12), leg(0.52, 0.84, 0.57, 0.90, 0.12)]
+        case 58...59: return [leg(0.42, 0.85, 0.37, 0.90, 0.13), leg(0.53, 0.84, 0.59, 0.90, 0.14)]
+        case 65: return [leg(0.33, 0.83, 0.28, 0.86, 0.12), leg(0.49, 0.86, 0.55, 0.94, 0.16)]
+        case 66: return [leg(0.39, 0.84, 0.34, 0.88, 0.12), leg(0.52, 0.83, 0.59, 0.89, 0.15)]
         case 60: return [leg(0.30, 0.87, 0.22, 0.91, 0.13), leg(0.64, 0.87, 0.71, 0.91, 0.13)]
-        case 61: return [leg(0.42, 0.85, 0.45, 0.93, 0.12), leg(0.42, 0.91, 0.40, 0.94, 0.12)]
+        case 61: return [leg(0.35, 0.82, 0.31, 0.87, 0.12), leg(0.51, 0.82, 0.56, 0.85, 0.14)]
         case 62: return [leg(0.47, 0.85, 0.49, 0.93, 0.12), leg(0.56, 0.86, 0.61, 0.92, 0.12)]
         case 63: return [leg(0.43, 0.84, 0.44, 0.94, 0.12), leg(0.67, 0.77, 0.70, 0.79, 0.12)]
-        case 64, 67: return [leg(0.36, 0.86, 0.30, 0.94), leg(0.67, 0.86, 0.72, 0.94)]
+        case 64: return [leg(0.28, 0.86, 0.23, 0.94, 0.17), leg(0.70, 0.86, 0.73, 0.94, 0.17)]
+        case 67: return [leg(0.34, 0.86, 0.35, 0.94, 0.17), leg(0.70, 0.86, 0.69, 0.94, 0.17)]
         case 69...70, 72...75: return [leg(0.23, 0.87, 0.17, 0.87, 0.10), leg(0.77, 0.87, 0.83, 0.87, 0.10)]
         case 71: return [leg(0.19, 0.83, 0.10, 0.83, 0.10), leg(0.80, 0.85, 0.91, 0.85, 0.10)]
         case 76...77: return [leg(0.49, 0.86, 0.47, 0.95, 0.12)]
@@ -61,18 +68,21 @@ enum LegWarmers {
         case 110, 114: return [leg(0.73, 0.87, 0.77, 0.87, 0.11)]
         case 112: return [leg(0.79, 0.84, 0.82, 0.86, 0.11)]
         case 124: return [leg(0.37, 0.87, 0.37, 0.95, 0.12), leg(0.54, 0.87, 0.54, 0.95, 0.12)]
-        case 125...127: return [leg(0.42, 0.87, 0.42, 0.95, 0.12), leg(0.59, 0.87, 0.59, 0.95, 0.12)]
+        case 125: return [leg(0.29, 0.87, 0.29, 0.95, 0.17), leg(0.48, 0.87, 0.48, 0.95, 0.17)]
+        case 126: return [leg(0.33, 0.87, 0.33, 0.95, 0.17), leg(0.52, 0.87, 0.52, 0.95, 0.17)]
+        case 127: return [leg(0.35, 0.87, 0.35, 0.95, 0.17), leg(0.55, 0.87, 0.55, 0.95, 0.17)]
         default: return [] // isolated coffee cup, paper and chocolate bar
         }
     }
 
-    static func draw(_ legs: [Leg], in bounds: NSRect) {
+    static func draw(_ legs: [Leg], in bounds: NSRect, referenceWidth: CGFloat) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         for leg in legs {
             let start = NSPoint(x: leg.from.x * bounds.width, y: leg.from.y * bounds.height)
             let end = NSPoint(x: leg.to.x * bounds.width, y: leg.to.y * bounds.height)
             let dx = end.x - start.x, dy = end.y - start.y
-            let width = leg.width * bounds.width
+            // Spread limbs and nearby props widen the crop, not the calf.
+            let width = leg.width * referenceWidth
             let length = max(width * 0.35, hypot(dx, dy))
             context.saveGState()
             context.translateBy(x: start.x, y: start.y)
