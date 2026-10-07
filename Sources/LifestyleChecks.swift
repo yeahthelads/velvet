@@ -23,10 +23,13 @@ extension AppDelegate {
         checks["tutorialStartsWithSmallSpeechBubble"] = tutorialPanel?.frame.width == 216 && (tutorialPanel?.frame.height ?? 1000) < 130 && tutorialBubble?.dialogue == store.tutorial.text
         let headFrame = pet.convertToScreen(character.convert(character.crownRect, to: nil))
         checks["speechTailTouchesCharacterNotWindowPadding"] = abs((tutorialPanel?.frame.minY ?? 0) - headFrame.maxY - 4) < 1
-        if let bubble = tutorialBubble, let bitmap = bubble.bitmapImageRepForCachingDisplay(in: bubble.bounds) {
-            bubble.cacheDisplay(in: bubble.bounds, to: bitmap)
-            try? bitmap.representation(using: .png, properties: [:])?.write(to: previewDirectory.appendingPathComponent("tutorial-bubble.png"))
+        func saveBubble(_ name: String) {
+            if let bubble = tutorialBubble, let bitmap = bubble.bitmapImageRepForCachingDisplay(in: bubble.bounds) {
+                bubble.cacheDisplay(in: bubble.bounds, to: bitmap)
+                try? bitmap.representation(using: .png, properties: [:])?.write(to: previewDirectory.appendingPathComponent(name))
+            }
         }
+        saveBubble("tutorial-bubble.png")
         let originalPosition = pet.frame.origin
         if let screen = pet.screen {
             pet.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX, y: screen.visibleFrame.maxY - pet.frame.height))
@@ -59,10 +62,12 @@ extension AppDelegate {
         character.updatePointer(at: hand, screenPoint: hand, time: clickTime + 0.2)
         character.endPointer(at: hand, time: clickTime + 0.3)
         checks["feedingShowsGrippedBar"] = store.tutorial.step == .snacking && character.mood == .snack && character.displayedSpriteIndex == 102 && !notes.isVisible
+        saveBubble("eating-bubble.png")
         character.advanceLifestyle(by: 2)
         checks["snackRaisesBarForBite"] = character.displayedSpriteIndex == 87
         character.advanceLifestyle(by: 4)
         checks["finishedSnackAsksForHeadStroke"] = store.tutorial.step == .affection && !character.lifestyle.hungry
+        saveBubble("affection-bubble.png")
         let head = NSPoint(x: character.crownRect.midX, y: character.crownRect.minY + 0.5) // Gentle hold at the scalloped head edge.
         let now = ProcessInfo.processInfo.systemUptime
         let parentHead = character.superview?.convert(head, from: character) ?? head

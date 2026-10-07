@@ -31,6 +31,7 @@ final class TutorialView: NSView {
         primaryButton.action = #selector(start)
         dismissButton.contentTintColor = NSColor(calibratedWhite: 0.45, alpha: 1)
         dismissButton.action = #selector(closeBubble)
+        dismissButton.isHidden = true
         setAccessibilityLabel("Velvet says")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -41,23 +42,29 @@ final class TutorialView: NSView {
         primaryButton.title = primaryTitle ?? ""
         primaryButton.isHidden = primaryTitle == nil
         dismissButton.title = complete ? "Got it" : "Later"
+        dismissButton.isHidden = dismiss == nil
         let attributes: [NSAttributedString.Key: Any] = [.font: message.font!]
         textHeight = ceil((text as NSString).boundingRect(
             with: NSSize(width: Self.bubbleWidth - 28, height: 200),
             options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes).height) + 3
-        bubbleSize = NSSize(width: Self.bubbleWidth, height: textHeight + 50)
-        setFrameSize(bubbleSize)
         layoutMessage()
         needsDisplay = true
     }
     private func layoutMessage() {
+        let padding: CGFloat = 10
+        let hasButtons = !primaryButton.isHidden || !dismissButton.isHidden
+        let buttonSpace: CGFloat = hasButtons ? 24 : 0
+        // Text-only replies need no empty action row. Keep the same padding
+        // above and below their text, independent of which edge has the tail.
+        bubbleSize = NSSize(width: Self.bubbleWidth, height: textHeight + padding * 2 + buttonSpace + 10)
+        setFrameSize(bubbleSize)
         let bottom: CGFloat = tailAtTop ? 0 : 10
-        message.frame = NSRect(x: 14, y: bottom + 32, width: Self.bubbleWidth - 28, height: textHeight)
+        message.frame = NSRect(x: 14, y: bottom + padding + buttonSpace, width: Self.bubbleWidth - 28, height: textHeight)
         dismissButton.sizeToFit()
-        dismissButton.frame = NSRect(x: Self.bubbleWidth - 14 - dismissButton.frame.width, y: bottom + 9,
+        dismissButton.frame = NSRect(x: Self.bubbleWidth - 14 - dismissButton.frame.width, y: bottom + padding,
                                      width: dismissButton.frame.width, height: 18)
         primaryButton.sizeToFit()
-        primaryButton.frame = NSRect(x: 14, y: bottom + 9, width: primaryButton.frame.width, height: 18)
+        primaryButton.frame = NSRect(x: 14, y: bottom + padding, width: primaryButton.frame.width, height: 18)
     }
     @objc private func start() { begin?() }
     @objc private func closeBubble() { dismiss?() }

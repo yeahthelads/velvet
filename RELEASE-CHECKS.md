@@ -1,5 +1,11 @@
 # Velvet release checks
 
+## 0.2.6 — compact speech bubbles
+
+Checked on 7 October 2026. Shared speech bubbles now reserve an action row only when a button is visible. Text-only tutorial steps and song acknowledgements use ten-point padding above and below the measured text, with the tail placed separately. Tutorial, iron, song and consequence bubbles retain their bounded width and character anchoring.
+
+All 75 native lifestyle/tutorial checks and 24 song-request checks passed in temporary profiles. Actual eating, affection and Continue-button bubble images were visually inspected. The macOS 13 app build and signature validation passed.
+
 ## 0.2.5 — accessories follow each pose
 
 Checked on 7 October 2026. The tattoo, navel piercing, heart charm and leg warmers now use the standing body as their size reference; widening a sprite crop with arms or props no longer enlarges the accessories. Torso anchors and tilt are calibrated for individual dance, care and mirror poses. Covered hips conceal the tattoo instead of moving it to the other flank or drawing it onto a hand, cup or note. The charm follows the torso axis toward the neck, including upside-down breakdance poses. Crossed-leg, disco, waacking and mirror calf anchors were corrected separately; soles remain visible.
